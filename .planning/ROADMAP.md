@@ -13,7 +13,7 @@ Build a personal Laravel dashboard that polls the Blizzard Auction House Commodi
 Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Project Foundation** - Laravel 12 scaffolding, environment config, and database schema (completed 2026-03-01)
-- [ ] **Phase 2: Authentication** - Single-user login, session persistence, and password reset
+- [x] **Phase 2: Authentication** - Single-user login, session persistence, and password reset (completed 2026-03-01)
 - [ ] **Phase 3: Item Watchlist Management** - Per-user CRUD for tracked commodity items and thresholds
 - [ ] **Phase 4: Blizzard API Integration** - OAuth2 token service and commodity price fetch action
 - [ ] **Phase 5: Data Ingestion Pipeline** - Scheduled job, price aggregation, and append-only snapshot storage
@@ -52,7 +52,7 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 02-01-PLAN.md — Install Breeze Livewire/Volt stack, repair Livewire v4 + Tailwind v4 conflicts, apply WoW dark theme with gold/amber accents to all auth layouts
+- [x] 02-01-PLAN.md — Install Breeze Livewire/Volt stack, repair Livewire v4 + Tailwind v4 conflicts, apply WoW dark theme with gold/amber accents to all auth layouts
 - [ ] 02-02-PLAN.md — Wire route protection, root redirect logic, dashboard placeholder, and comprehensive Pest auth tests; human-verify full flow in browser
 
 ### Phase 3: Item Watchlist Management
@@ -162,7 +162,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Project Foundation | 2/2 | Complete   | 2026-03-01 |
-| 2. Authentication | 0/2 | Not started | - |
+| 2. Authentication | 1/2 | In progress | - |
 | 3. Item Watchlist Management | 0/3 | Not started | - |
 | 4. Blizzard API Integration | 0/3 | Not started | - |
 | 5. Data Ingestion Pipeline | 0/4 | Not started | - |
