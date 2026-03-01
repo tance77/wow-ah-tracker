@@ -65,12 +65,12 @@ Plans:
   3. A logged-in user can set a buy threshold (percentage below average) on any watched item and save it
   4. A logged-in user can set a sell threshold (percentage above average) on any watched item and save it
   5. Two different logged-in users each have completely separate watchlists — items added by one user do not appear in the other's list
-**Plans**: TBD
+**Plans**: 3 plans
 
 Plans:
-- [ ] 03-01: Build `WatchedItem` Eloquent model with user relationship and threshold columns; seed with sample items
-- [ ] 03-02: Build Livewire `AdminItems` component with add-by-name/ID, remove, and threshold editing UI
-- [ ] 03-03: Add user scoping to all item queries to enforce per-user watchlist isolation
+- [ ] 03-01-PLAN.md — Create CatalogItem model/migration/seeder with TWW crafting materials, add User->watchedItems relationship, add unique constraint on (user_id, blizzard_item_id)
+- [ ] 03-02-PLAN.md — Build Watchlist Volt component with catalog combobox, manual ID entry, inline threshold editing, instant remove; wire route, nav link, and dashboard count
+- [ ] 03-03-PLAN.md — Write comprehensive Pest test suite for watchlist CRUD and user isolation; human-verify full UI flow in browser
 
 ### Phase 4: Blizzard API Integration
 **Goal**: The application can obtain and cache a valid Blizzard OAuth2 access token, and can fetch the full commodity listings from the Blizzard Game Data API using the correct request format.
