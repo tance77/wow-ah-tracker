@@ -17,7 +17,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [ ] **Phase 3: Item Watchlist Management** - Per-user CRUD for tracked commodity items and thresholds
 - [x] **Phase 4: Blizzard API Integration** - OAuth2 token service and commodity price fetch action (completed 2026-03-01)
 - [x] **Phase 5: Data Ingestion Pipeline** - Scheduled job, price aggregation, and append-only snapshot storage (completed 2026-03-01)
-- [ ] **Phase 6: Data Integrity Safeguards** - Deduplication gate, overlap protection, and staleness tracking
+- [x] **Phase 6: Data Integrity Safeguards** - Deduplication gate, overlap protection, and staleness tracking (completed 2026-03-01)
 - [ ] **Phase 7: Dashboard and Price Charts** - Livewire dashboard, summary cards, and timeframe-toggled line charts
 - [ ] **Phase 8: Buy/Sell Signal Indicators** - Threshold-based visual signals derived from rolling price averages
 
@@ -164,6 +164,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8
 | 3. Item Watchlist Management | 2/3 | In Progress|  |
 | 4. Blizzard API Integration | 3/3 | Complete   | 2026-03-01 |
 | 5. Data Ingestion Pipeline | 2/2 | Complete   | 2026-03-01 |
-| 6. Data Integrity Safeguards | 1/2 | In Progress | - |
+| 6. Data Integrity Safeguards | 2/2 | Complete   | 2026-03-01 |
 | 7. Dashboard and Price Charts | 0/4 | Not started | - |
 | 8. Buy/Sell Signal Indicators | 0/2 | Not started | - |

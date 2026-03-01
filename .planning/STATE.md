@@ -3,12 +3,12 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: unknown
-last_updated: "2026-03-01T22:56:37Z"
+last_updated: "2026-03-01T23:02:10.331Z"
 progress:
-  total_phases: 8
-  completed_phases: 5
-  total_plans: 13
-  completed_plans: 13
+  total_phases: 6
+  completed_phases: 6
+  total_plans: 14
+  completed_plans: 14
 ---
 
 # Project State
@@ -22,12 +22,12 @@ See: .planning/PROJECT.md (updated 2026-03-01)
 
 ## Current Position
 
-Phase: 6 of 8 (Data Integrity Safeguards) — In Progress
-Plan: 1 of 2 in current phase — 06-01 complete
-Status: In Progress
-Last activity: 2026-03-01 — Completed 06-01 (ingestion dedup gate: Last-Modified header + MD5 hash fallback; consecutive_failures tracking; 87 total suite passing)
+Phase: 6 of 8 (Data Integrity Safeguards) — Complete
+Plan: 2 of 2 in current phase — 06-02 complete
+Status: Phase Complete — Ready for Phase 7
+Last activity: 2026-03-01 — Completed 06-02 (8 new dedup/failure-tracking tests; 15 FetchCommodityPricesJobTest passing; 95 total suite passing)
 
-Progress: [████████░░] 82%
+Progress: [█████████░] 88%
 
 ## Performance Metrics
 
@@ -57,6 +57,7 @@ Progress: [████████░░] 82%
 | Phase 05-data-ingestion-pipeline P01 | 2 | 2 tasks | 4 files |
 | Phase 05-data-ingestion-pipeline P02 | 1 | 2 tasks | 2 files |
 | Phase 06-data-integrity-safeguards P01 | 2 | 2 tasks | 6 files |
+| Phase 06-data-integrity-safeguards P02 | 2 | 2 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -111,6 +112,8 @@ Recent decisions affecting current work:
 - [Phase 06-01]: PriceFetchAction hashes raw body BEFORE filtering — hash represents full API response, not per-item subset
 - [Phase 06-01]: Dedup gate is global (entire API response), not per-item — one gate blocks all writes for the cycle
 - [Phase 06-01]: last_modified_at stored as raw string — header value compared directly without parsing
+- [Phase 06-02]: Hash computed via json_encode(json_decode(fixture)) not md5(file_get_contents()) — Http::fake() re-encodes array as JSON, changing raw bytes from file
+- [Phase 06-02]: fakeBlizzardHttp() default $lastModified=null preserves backward compatibility — original 7 tests run hash fallback path, proceed when no prior hash stored
 
 ### Pending Todos
 
@@ -124,5 +127,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-03-01
-Stopped at: Completed 06-01-PLAN.md — ingestion dedup gate with Last-Modified header + MD5 hash fallback + consecutive_failures tracking; 87 total suite passing. Phase 06 plan 1 of 2 complete.
+Stopped at: Completed 06-02-PLAN.md — 8 new dedup/failure-tracking tests; 15 FetchCommodityPricesJobTest passing; 95 total suite passing. Phase 06 complete (2 of 2 plans done).
 Resume file: None
