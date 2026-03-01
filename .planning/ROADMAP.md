@@ -116,7 +116,7 @@ Plans:
 **Plans**: TBD
 
 Plans:
-- [ ] 06-01: Add `last_modified_at` tracking to the ingestion pipeline and implement `Last-Modified` header deduplication gate in `FetchCommodityPricesJob`
+- [x] 06-01: Add `last_modified_at` tracking to the ingestion pipeline and implement `Last-Modified` header deduplication gate in `FetchCommodityPricesJob` (completed 2026-03-01)
 - [ ] 06-02: Implement response-hash fallback deduplication for cases where `Last-Modified` is absent; write tests for both gate strategies
 
 ### Phase 7: Dashboard and Price Charts
@@ -164,6 +164,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8
 | 3. Item Watchlist Management | 2/3 | In Progress|  |
 | 4. Blizzard API Integration | 3/3 | Complete   | 2026-03-01 |
 | 5. Data Ingestion Pipeline | 2/2 | Complete   | 2026-03-01 |
-| 6. Data Integrity Safeguards | 0/2 | Not started | - |
+| 6. Data Integrity Safeguards | 1/2 | In Progress | - |
 | 7. Dashboard and Price Charts | 0/4 | Not started | - |
 | 8. Buy/Sell Signal Indicators | 0/2 | Not started | - |

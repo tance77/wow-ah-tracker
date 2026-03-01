@@ -3,12 +3,12 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: unknown
-last_updated: "2026-03-01T22:37:31.895Z"
+last_updated: "2026-03-01T22:56:37Z"
 progress:
-  total_phases: 5
+  total_phases: 8
   completed_phases: 5
-  total_plans: 12
-  completed_plans: 12
+  total_plans: 13
+  completed_plans: 13
 ---
 
 # Project State
@@ -22,12 +22,12 @@ See: .planning/PROJECT.md (updated 2026-03-01)
 
 ## Current Position
 
-Phase: 5 of 8 (Data Ingestion Pipeline) — Complete
-Plan: 2 of 2 in current phase — 05-02 complete
-Status: Phase Complete
-Last activity: 2026-03-01 — Completed 05-02 (14 feature tests: 7 PriceAggregateAction math tests + 7 FetchCommodityPricesJob integration tests; 79 total suite passing)
+Phase: 6 of 8 (Data Integrity Safeguards) — In Progress
+Plan: 1 of 2 in current phase — 06-01 complete
+Status: In Progress
+Last activity: 2026-03-01 — Completed 06-01 (ingestion dedup gate: Last-Modified header + MD5 hash fallback; consecutive_failures tracking; 87 total suite passing)
 
-Progress: [████████░░] 80%
+Progress: [████████░░] 82%
 
 ## Performance Metrics
 
@@ -56,6 +56,7 @@ Progress: [████████░░] 80%
 | Phase 04-blizzard-api-integration P03 | 4 | 2 tasks | 5 files |
 | Phase 05-data-ingestion-pipeline P01 | 2 | 2 tasks | 4 files |
 | Phase 05-data-ingestion-pipeline P02 | 1 | 2 tasks | 2 files |
+| Phase 06-data-integrity-safeguards P01 | 2 | 2 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -106,6 +107,10 @@ Recent decisions affecting current work:
 - [Phase 05-01]: One PriceSnapshot per WatchedItem row (not per unique blizzard_item_id) — multiple users watching same item each get independent history
 - [Phase 05-02]: Per-test fakeBlizzardHttp() helper keeps Http::fake() isolated — avoids stub accumulation with beforeEach
 - [Phase 05-02]: ShouldBeUnique deduplication verified via Queue::fake() — PendingDispatch cache lock works even with fake queue, assertPushedTimes(1) after two dispatches
+- [Phase 06-01]: IngestionMetadata::singleton() uses firstOrCreate(['id' => 1], ['consecutive_failures' => 0]) — explicit default prevents null cast on fresh create
+- [Phase 06-01]: PriceFetchAction hashes raw body BEFORE filtering — hash represents full API response, not per-item subset
+- [Phase 06-01]: Dedup gate is global (entire API response), not per-item — one gate blocks all writes for the cycle
+- [Phase 06-01]: last_modified_at stored as raw string — header value compared directly without parsing
 
 ### Pending Todos
 
@@ -113,11 +118,11 @@ None yet.
 
 ### Blockers/Concerns
 
-- Phase 4: Verify `Last-Modified` header behavior on live Blizzard commodities endpoint before finalizing deduplication implementation. Fallback: response-hash deduplication if header is absent/unreliable.
+- ~~Phase 4: Verify `Last-Modified` header behavior on live Blizzard commodities endpoint before finalizing deduplication implementation.~~ — Resolved in 06-01 (both header and hash fallback implemented)
 - Phase 7: Verify `asantibanez/livewire-charts` Livewire 4 compatibility before planning. Fallback: direct ApexCharts via `@script` block with `$wire.on()`.
 
 ## Session Continuity
 
 Last session: 2026-03-01
-Stopped at: Completed 05-02-PLAN.md — 14 feature tests (7 PriceAggregateAction + 7 FetchCommodityPricesJob integration); 79 total suite passing. Phase 05 complete. Ready for Phase 06.
+Stopped at: Completed 06-01-PLAN.md — ingestion dedup gate with Last-Modified header + MD5 hash fallback + consecutive_failures tracking; 87 total suite passing. Phase 06 plan 1 of 2 complete.
 Resume file: None
