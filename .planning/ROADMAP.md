@@ -33,12 +33,11 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. `price_snapshots` migration exists with `min_price`, `avg_price`, `median_price`, and `total_volume` stored as unsigned big integers (copper, not gold)
   4. `watched_items` migration exists with `blizzard_item_id`, `name`, `buy_threshold`, and `sell_threshold` columns
   5. Composite index on `(watched_item_id, polled_at)` exists in the `price_snapshots` migration
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 01-01: Initialize Laravel 12 project with Tailwind CSS v4, Livewire 4, and SQLite configuration
-- [ ] 01-02: Create database migrations for `watched_items` and `price_snapshots` with correct integer column types and indexes
-- [ ] 01-03: Wire Blizzard API credentials into `.env` and `config/services.php`
+- [ ] 01-01-PLAN.md — Initialize Laravel 12 project with Livewire 4, Tailwind CSS v4, dev tooling, and Blizzard API credential wiring
+- [ ] 01-02-PLAN.md — Create database migrations, Eloquent models, factories, and seeder for watched_items and price_snapshots
 
 ### Phase 2: Authentication
 **Goal**: Users can securely access the application with their own session, and accounts are protected from unauthorized access.
@@ -162,7 +161,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Project Foundation | 0/3 | Not started | - |
+| 1. Project Foundation | 0/2 | Not started | - |
 | 2. Authentication | 0/2 | Not started | - |
 | 3. Item Watchlist Management | 0/3 | Not started | - |
 | 4. Blizzard API Integration | 0/3 | Not started | - |
