@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Illuminate\Support\Facades\Route;
+use Livewire\Volt\Volt;
 
 Route::get('/', function () {
     return auth()->check()
@@ -14,9 +15,9 @@ Route::get('/dashboard', function () {
     return view('dashboard');
 })->middleware(['auth'])->name('dashboard');
 
-Route::get('/watchlist', function () {
-    return view('livewire.pages.watchlist');
-})->middleware(['auth'])->name('watchlist');
+Volt::route('/watchlist', 'pages.watchlist')
+    ->middleware(['auth'])
+    ->name('watchlist');
 
 Route::view('profile', 'profile')
     ->middleware(['auth'])
