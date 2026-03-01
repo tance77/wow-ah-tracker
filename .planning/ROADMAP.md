@@ -49,11 +49,11 @@ Plans:
   3. A logged-in user can click "Log out" from any page and be returned to the login screen with session cleared
   4. A user who has forgotten their password can request a reset link by email and set a new password via that link
   5. All admin and dashboard routes redirect unauthenticated visitors to the login page
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 02-01: Install and configure Laravel Breeze (Blade stack) for registration, login, logout, and password reset
-- [ ] 02-02: Verify auth middleware is applied to all dashboard and admin routes; confirm redirect behavior for unauthenticated access
+- [ ] 02-01-PLAN.md — Install Breeze Livewire/Volt stack, repair Livewire v4 + Tailwind v4 conflicts, apply WoW dark theme with gold/amber accents to all auth layouts
+- [ ] 02-02-PLAN.md — Wire route protection, root redirect logic, dashboard placeholder, and comprehensive Pest auth tests; human-verify full flow in browser
 
 ### Phase 3: Item Watchlist Management
 **Goal**: Each logged-in user can maintain their own independent watchlist of commodity items with per-item buy and sell thresholds, managed through an admin interface.
