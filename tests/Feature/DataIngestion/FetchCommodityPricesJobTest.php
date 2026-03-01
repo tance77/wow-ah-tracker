@@ -187,3 +187,100 @@ it('updates metadata after successful write', function (): void {
     expect($meta->last_fetched_at)->not->toBeNull();
     expect($meta->consecutive_failures)->toBe(0);
 });
+
+it('skips snapshot write via hash fallback when Last-Modified is absent', function (): void {
+    fakeBlizzardHttp(); // No Last-Modified header (default)
+
+    // Compute the hash the same way PriceFetchAction will compute it:
+    // Http::fake() with an array re-encodes it as JSON for ->body()
+    $fixtureData = json_decode(file_get_contents(base_path('tests/Fixtures/blizzard_commodities.json')), true);
+    $expectedHash = md5(json_encode($fixtureData));
+
+    IngestionMetadata::create([
+        'response_hash'   => $expectedHash,
+        'last_fetched_at' => now()->subMinutes(15),
+    ]);
+
+    $user = User::factory()->create();
+    WatchedItem::factory()->create(['user_id' => $user->id, 'blizzard_item_id' => 224025]);
+
+    (new FetchCommodityPricesJob)->handle(app(PriceFetchAction::class), app(PriceAggregateAction::class));
+
+    expect(PriceSnapshot::count())->toBe(0); // Hash gate blocked write
+});
+
+it('writes snapshots when hash differs and Last-Modified is absent', function (): void {
+    fakeBlizzardHttp(); // No Last-Modified header
+
+    IngestionMetadata::create([
+        'response_hash'   => md5('completely-different-response-body'),
+        'last_fetched_at' => now()->subMinutes(15),
+    ]);
+
+    $user = User::factory()->create();
+    WatchedItem::factory()->create(['user_id' => $user->id, 'blizzard_item_id' => 224025]);
+
+    (new FetchCommodityPricesJob)->handle(app(PriceFetchAction::class), app(PriceAggregateAction::class));
+
+    expect(PriceSnapshot::count())->toBe(1); // Different hash, write allowed
+});
+
+it('increments consecutive_failures on API failure and writes no snapshots', function (): void {
+    Http::fake([
+        'oauth.battle.net/token' => Http::response([
+            'access_token' => 'test-token',
+            'token_type'   => 'bearer',
+            'expires_in'   => 86399,
+        ], 200),
+        '*.api.blizzard.com/data/wow/auctions/commodities*' => Http::response([], 500),
+    ]);
+    Cache::forget('blizzard_token');
+
+    $user = User::factory()->create();
+    WatchedItem::factory()->create(['user_id' => $user->id, 'blizzard_item_id' => 224025]);
+
+    (new FetchCommodityPricesJob)->handle(app(PriceFetchAction::class), app(PriceAggregateAction::class));
+
+    expect(PriceSnapshot::count())->toBe(0);
+
+    $meta = IngestionMetadata::first();
+    expect($meta->consecutive_failures)->toBe(1);
+});
+
+it('resets consecutive_failures to 0 on successful fetch', function (): void {
+    fakeBlizzardHttp();
+
+    // Pre-seed with prior failures
+    IngestionMetadata::create([
+        'consecutive_failures' => 3,
+        'last_fetched_at'      => now()->subHour(),
+    ]);
+
+    $user = User::factory()->create();
+    WatchedItem::factory()->create(['user_id' => $user->id, 'blizzard_item_id' => 224025]);
+
+    (new FetchCommodityPricesJob)->handle(app(PriceFetchAction::class), app(PriceAggregateAction::class));
+
+    $meta = IngestionMetadata::first();
+    expect($meta->consecutive_failures)->toBe(0);
+    expect($meta->last_fetched_at)->not->toBeNull();
+});
+
+it('writes snapshots and creates metadata on first run with empty table', function (): void {
+    fakeBlizzardHttp('Sat, 01 Mar 2026 06:00:00 GMT');
+
+    // No IngestionMetadata row exists (first run)
+    expect(IngestionMetadata::count())->toBe(0);
+
+    $user = User::factory()->create();
+    WatchedItem::factory()->create(['user_id' => $user->id, 'blizzard_item_id' => 224025]);
+
+    (new FetchCommodityPricesJob)->handle(app(PriceFetchAction::class), app(PriceAggregateAction::class));
+
+    expect(PriceSnapshot::count())->toBe(1);
+    expect(IngestionMetadata::count())->toBe(1);
+
+    $meta = IngestionMetadata::first();
+    expect($meta->last_modified_at)->toBe('Sat, 01 Mar 2026 06:00:00 GMT');
+    expect($meta->consecutive_failures)->toBe(0);
+});
