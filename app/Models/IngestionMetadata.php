@@ -25,6 +25,6 @@ class IngestionMetadata extends Model
      */
     public static function singleton(): self
     {
-        return self::firstOrCreate(['id' => 1]);
+        return self::firstOrCreate(['id' => 1], ['consecutive_failures' => 0]);
     }
 }

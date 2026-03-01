@@ -6,6 +6,7 @@ namespace App\Jobs;
 
 use App\Actions\PriceAggregateAction;
 use App\Actions\PriceFetchAction;
+use App\Models\IngestionMetadata;
 use App\Models\PriceSnapshot;
 use App\Models\WatchedItem;
 use Illuminate\Contracts\Queue\ShouldBeUnique;
@@ -43,7 +44,36 @@ class FetchCommodityPricesJob implements ShouldQueue, ShouldBeUnique
             'item_count' => count($itemIds),
         ]);
 
-        $listings = ($fetchAction)($itemIds);
+        try {
+            $result = ($fetchAction)($itemIds);
+        } catch (\RuntimeException $e) {
+            Log::error('FetchCommodityPricesJob: fetch failed, skipping cycle', [
+                'error' => $e->getMessage(),
+            ]);
+            $meta = IngestionMetadata::singleton();
+            $meta->increment('consecutive_failures');
+
+            return;
+        }
+
+        $meta = IngestionMetadata::singleton();
+
+        // Primary gate: Last-Modified header comparison
+        if ($result['lastModified'] !== null && $result['lastModified'] === $meta->last_modified_at) {
+            Log::info('FetchCommodityPricesJob: data unchanged (Last-Modified match), skipping write');
+
+            return;
+        }
+
+        // Fallback gate: response body hash (when Last-Modified absent)
+        $hash = md5($result['rawBody']);
+        if ($result['lastModified'] === null && $hash === $meta->response_hash) {
+            Log::info('FetchCommodityPricesJob: data unchanged (hash match), skipping write');
+
+            return;
+        }
+
+        $listings = $result['listings'];
 
         $grouped = [];
         foreach ($listings as $listing) {
@@ -62,6 +92,13 @@ class FetchCommodityPricesJob implements ShouldQueue, ShouldBeUnique
                 ...$metrics,
             ]);
         }
+
+        $meta->update([
+            'last_modified_at'     => $result['lastModified'],
+            'response_hash'        => $hash,
+            'last_fetched_at'      => now(),
+            'consecutive_failures' => 0,
+        ]);
 
         Log::info('FetchCommodityPricesJob: snapshots written', [
             'snapshot_count' => $watchedItems->count(),

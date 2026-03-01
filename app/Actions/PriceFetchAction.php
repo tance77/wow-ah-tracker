@@ -19,7 +19,7 @@ class PriceFetchAction
      * Fetch commodity listings from Blizzard and filter to watched item IDs.
      *
      * @param  int[]  $itemIds  Blizzard item IDs to include in the result
-     * @return array<int, array<string, mixed>>  Filtered auction listings
+     * @return array{listings: array<int, array<string, mixed>>, lastModified: ?string, rawBody: string}
      */
     public function __invoke(array $itemIds): array
     {
@@ -43,6 +43,10 @@ class PriceFetchAction
             );
         }
 
+        $lastModified = $response->header('Last-Modified') ?: null;
+        $rawBody = $response->body();
+        $hash = md5($rawBody);
+
         $auctions = $response->json('auctions', []);
 
         Log::info(sprintf(
@@ -51,9 +55,13 @@ class PriceFetchAction
             count($itemIds),
         ));
 
-        return array_values(array_filter(
-            $auctions,
-            fn (array $entry): bool => in_array($entry['item']['id'], $itemIds, strict: true)
-        ));
+        return [
+            'listings' => array_values(array_filter(
+                $auctions,
+                fn (array $entry): bool => in_array($entry['item']['id'], $itemIds, strict: true)
+            )),
+            'lastModified' => $lastModified,
+            'rawBody'      => $rawBody,
+        ];
     }
 }

@@ -64,14 +64,14 @@ it('filters results to only requested item IDs', function (): void {
 
     // Fixture has 2 entries for 224025, 2 for 210781, 1 for 210930, 1 for 999999
     // Only 224025 and 210781 requested, so 4 entries expected
-    expect(count($result))->toBe(4);
+    expect(count($result['listings']))->toBe(4);
 
-    foreach ($result as $entry) {
+    foreach ($result['listings'] as $entry) {
         expect(in_array($entry['item']['id'], [224025, 210781], strict: true))->toBeTrue();
     }
 
     // Unwatched item 999999 must not be present
-    $returnedIds = array_column(array_column($result, 'item'), 'id');
+    $returnedIds = array_column(array_column($result['listings'], 'item'), 'id');
     expect(in_array(999999, $returnedIds, strict: true))->toBeFalse();
 });
 
@@ -81,7 +81,7 @@ it('returns empty array when no watched items match', function (): void {
     $action = app(PriceFetchAction::class);
     $result = $action([111111]);
 
-    expect($result)->toBe([]);
+    expect($result['listings'])->toBe([]);
 });
 
 it('throws RuntimeException on 500 from commodities endpoint', function (): void {
@@ -99,7 +99,7 @@ it('returns re-indexed array after filtering', function (): void {
     $result = $action([210930]);
 
     // Fixture has exactly 1 entry for 210930 — keys must be [0], not sparse
-    expect(count($result))->toBe(1);
-    expect(array_keys($result))->toBe([0]);
-    expect($result[0]['item']['id'])->toBe(210930);
+    expect(count($result['listings']))->toBe(1);
+    expect(array_keys($result['listings']))->toBe([0]);
+    expect($result['listings'][0]['item']['id'])->toBe(210930);
 });
