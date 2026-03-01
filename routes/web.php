@@ -11,9 +11,9 @@ Route::get('/', function () {
         : redirect()->route('login');
 });
 
-Route::get('/dashboard', function () {
-    return view('dashboard');
-})->middleware(['auth'])->name('dashboard');
+Volt::route('/dashboard', 'pages.dashboard')
+    ->middleware(['auth'])
+    ->name('dashboard');
 
 Volt::route('/watchlist', 'pages.watchlist')
     ->middleware(['auth'])
