@@ -76,18 +76,17 @@ new #[Layout('layouts.app')] class extends Component
     }
 }; ?>
 
-<x-app-layout>
-    <x-slot name="header">
-        <h2 class="text-xl font-semibold leading-tight text-wow-gold">
-            {{ __('Watchlist') }}
-        </h2>
-    </x-slot>
+<x-slot name="header">
+    <h2 class="text-xl font-semibold leading-tight text-wow-gold">
+        {{ __('Watchlist') }}
+    </h2>
+</x-slot>
 
-    <div class="py-12">
+<div class="py-12">
         <div class="mx-auto max-w-7xl sm:px-6 lg:px-8">
 
             <!-- Add Items Section -->
-            <div class="mb-6 overflow-hidden bg-wow-dark shadow-sm sm:rounded-lg">
+            <div class="mb-6 bg-wow-dark shadow-sm sm:rounded-lg">
                 <div class="p-6">
                     <h3 class="mb-4 text-sm font-medium text-gray-300 uppercase tracking-wide">Add Items to Watchlist</h3>
                     <div class="flex flex-col gap-4 sm:flex-row sm:items-start">
@@ -107,22 +106,24 @@ new #[Layout('layouts.app')] class extends Component
                                 x-ref="searchInput"
                                 class="w-full rounded-md border border-gray-600 bg-wow-darker px-3 py-2 text-gray-100 placeholder-gray-500 focus:border-wow-gold focus:ring-wow-gold sm:text-sm"
                             />
-                            <ul
-                                x-show="open && $wire.catalogSuggestions.length > 0"
-                                class="absolute z-50 mt-1 max-h-60 w-full overflow-y-auto rounded-md border border-gray-600 bg-wow-darker shadow-lg"
-                                x-cloak
-                            >
-                                @foreach ($this->catalogSuggestions as $item)
-                                    <li
-                                        wire:click="addFromCatalog({{ $item['id'] }})"
-                                        @click="open = false"
-                                        class="cursor-pointer px-3 py-2 text-sm text-gray-200 hover:bg-wow-dark"
-                                    >
-                                        {{ $item['name'] }}
-                                        <span class="text-xs text-gray-500">ID: {{ $item['blizzard_item_id'] }}</span>
-                                    </li>
-                                @endforeach
-                            </ul>
+                            @if (count($this->catalogSuggestions) > 0)
+                                <ul
+                                    x-show="open"
+                                    class="absolute z-50 mt-1 max-h-60 w-full overflow-y-auto rounded-md border border-gray-600 bg-wow-darker shadow-lg"
+                                    x-cloak
+                                >
+                                    @foreach ($this->catalogSuggestions as $item)
+                                        <li
+                                            wire:click="addFromCatalog({{ $item['id'] }})"
+                                            @click="open = false"
+                                            class="cursor-pointer px-3 py-2 text-sm text-gray-200 hover:bg-wow-dark"
+                                        >
+                                            {{ $item['name'] }}
+                                            <span class="text-xs text-gray-500">ID: {{ $item['blizzard_item_id'] }}</span>
+                                        </li>
+                                    @endforeach
+                                </ul>
+                            @endif
                         </div>
 
                         <!-- Manual ID Entry -->
@@ -156,8 +157,7 @@ new #[Layout('layouts.app')] class extends Component
                     <div class="flex flex-col items-center justify-center p-16 text-center">
                         <p class="mb-4 text-gray-400">No items on your watchlist yet</p>
                         <button
-                            @click="$refs.searchInput.focus()"
-                            x-on:click="document.querySelector('[x-ref=\'searchInput\']').focus()"
+                            @click="document.querySelector('[x-ref=&quot;searchInput&quot;]').focus()"
                             class="rounded-md bg-wow-gold px-4 py-2 text-sm font-semibold text-wow-darker transition-colors hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-wow-gold focus:ring-offset-2 focus:ring-offset-wow-dark"
                         >
                             Add your first item
@@ -268,4 +268,3 @@ new #[Layout('layouts.app')] class extends Component
             </div>
         </div>
     </div>
-</x-app-layout>
