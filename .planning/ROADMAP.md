@@ -164,7 +164,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8
 | 1. Project Foundation | 2/2 | Complete   | 2026-03-01 |
 | 2. Authentication | 2/2 | Complete   | 2026-03-01 |
 | 3. Item Watchlist Management | 2/3 | In Progress|  |
-| 4. Blizzard API Integration | 1/3 | In Progress|  |
+| 4. Blizzard API Integration | 2/3 | In Progress|  |
 | 5. Data Ingestion Pipeline | 0/4 | Not started | - |
 | 6. Data Integrity Safeguards | 0/2 | Not started | - |
 | 7. Dashboard and Price Charts | 0/4 | Not started | - |
