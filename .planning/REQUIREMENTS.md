@@ -33,12 +33,12 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Dashboard
 
-- [ ] **DASH-01**: User sees summary cards for all watched items with current price and trend direction
-- [ ] **DASH-02**: User can view price history line chart for each watched item
-- [ ] **DASH-03**: User can toggle chart timeframe between 24h, 7d, and 30d
+- [x] **DASH-01**: User sees summary cards for all watched items with current price and trend direction
+- [x] **DASH-02**: User can view price history line chart for each watched item
+- [x] **DASH-03**: User can toggle chart timeframe between 24h, 7d, and 30d
 - [ ] **DASH-04**: Visual buy signal shown when price is below user's buy threshold
 - [ ] **DASH-05**: Visual sell signal shown when price is above user's sell threshold
-- [ ] **DASH-06**: Dashboard only shows the logged-in user's watched items
+- [x] **DASH-06**: Dashboard only shows the logged-in user's watched items
 
 ## v2 Requirements
 
@@ -93,12 +93,12 @@ Which phases cover which requirements. Updated during roadmap creation.
 | DATA-04 | Phase 6 | Complete |
 | DATA-05 | Phase 4 | Complete |
 | DATA-06 | Phase 5 | Complete |
-| DASH-01 | Phase 7 | Pending |
-| DASH-02 | Phase 7 | Pending |
-| DASH-03 | Phase 7 | Pending |
+| DASH-01 | Phase 7 | Complete |
+| DASH-02 | Phase 7 | Complete |
+| DASH-03 | Phase 7 | Complete |
 | DASH-04 | Phase 8 | Pending |
 | DASH-05 | Phase 8 | Pending |
-| DASH-06 | Phase 7 | Pending |
+| DASH-06 | Phase 7 | Complete |
 
 **Coverage:**
 - v1 requirements: 21 total

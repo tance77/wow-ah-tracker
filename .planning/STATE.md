@@ -3,12 +3,12 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: unknown
-last_updated: "2026-03-01T23:05:07.904Z"
+last_updated: "2026-03-01T23:30:00.000Z"
 progress:
-  total_phases: 6
+  total_phases: 8
   completed_phases: 6
-  total_plans: 14
-  completed_plans: 14
+  total_plans: 15
+  completed_plans: 15
 ---
 
 # Project State
@@ -18,16 +18,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-01)
 
 **Core value:** See at a glance when crafting material prices dip or spike so users can act on buy/sell opportunities before the market corrects.
-**Current focus:** Phase 4 - Price Ingestion (next)
+**Current focus:** Phase 7 - Dashboard and Price Charts
 
 ## Current Position
 
-Phase: 6 of 8 (Data Integrity Safeguards) — Complete
-Plan: 2 of 2 in current phase — 06-02 complete
-Status: Phase Complete — Ready for Phase 7
-Last activity: 2026-03-01 — Completed 06-02 (8 new dedup/failure-tracking tests; 15 FetchCommodityPricesJobTest passing; 95 total suite passing)
+Phase: 7 of 8 (Dashboard and Price Charts) — In Progress
+Plan: 1 of N in current phase — 07-01 complete
+Status: In Progress
+Last activity: 2026-03-01 — Completed 07-01 (ApexCharts installed, Volt dashboard SFC with summary cards, chart panel, gold formatter, timeframe toggle)
 
-Progress: [█████████░] 88%
+Progress: [█████████░] 90%
 
 ## Performance Metrics
 
@@ -58,6 +58,7 @@ Progress: [█████████░] 88%
 | Phase 05-data-ingestion-pipeline P02 | 1 | 2 tasks | 2 files |
 | Phase 06-data-integrity-safeguards P01 | 2 | 2 tasks | 6 files |
 | Phase 06-data-integrity-safeguards P02 | 2 | 2 tasks | 1 files |
+| Phase 07-dashboard-and-price-charts P01 | 15 | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -114,6 +115,9 @@ Recent decisions affecting current work:
 - [Phase 06-01]: last_modified_at stored as raw string — header value compared directly without parsing
 - [Phase 06-02]: Hash computed via json_encode(json_decode(fixture)) not md5(file_get_contents()) — Http::fake() re-encodes array as JSON, changing raw bytes from file
 - [Phase 06-02]: fakeBlizzardHttp() default $lastModified=null preserves backward compatibility — original 7 tests run hash fallback path, proceed when no prior hash stored
+- [Phase 07-01]: ApexCharts registered as window.ApexCharts in app.js — Volt bare script blocks cannot use ES module import syntax
+- [Phase 07-01]: Eager-load only 2 snapshots per item (latest('polled_at')->limit(2)) for trend computation — avoids N+1 without fetching full history
+- [Phase 07-01]: Chart state managed in JS (chart === null check) — updateOptions() used on subsequent changes to avoid flicker on timeframe toggle
 
 ### Pending Todos
 
@@ -122,10 +126,10 @@ None yet.
 ### Blockers/Concerns
 
 - ~~Phase 4: Verify `Last-Modified` header behavior on live Blizzard commodities endpoint before finalizing deduplication implementation.~~ — Resolved in 06-01 (both header and hash fallback implemented)
-- Phase 7: Verify `asantibanez/livewire-charts` Livewire 4 compatibility before planning. Fallback: direct ApexCharts via `@script` block with `$wire.on()`.
+- ~~Phase 7: Verify `asantibanez/livewire-charts` Livewire 4 compatibility before planning.~~ — Resolved in 07-01: direct ApexCharts via window.ApexCharts and $wire.$on() is confirmed working.
 
 ## Session Continuity
 
 Last session: 2026-03-01
-Stopped at: Completed 06-02-PLAN.md — 8 new dedup/failure-tracking tests; 15 FetchCommodityPricesJobTest passing; 95 total suite passing. Phase 06 complete (2 of 2 plans done).
+Stopped at: Completed 07-01-PLAN.md — ApexCharts installed, Volt dashboard SFC with summary cards, chart panel, gold/silver/copper formatter, timeframe toggle (24h/7d/30d), DASH-06 user isolation. Phase 07 Plan 01 complete.
 Resume file: None
