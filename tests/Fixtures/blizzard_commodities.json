@@ -1,0 +1,46 @@
+{
+  "auctions": [
+    {
+      "id": 1001,
+      "item": { "id": 224025 },
+      "unit_price": 150000,
+      "quantity": 200,
+      "time_left": "VERY_LONG"
+    },
+    {
+      "id": 1002,
+      "item": { "id": 224025 },
+      "unit_price": 175000,
+      "quantity": 50,
+      "time_left": "LONG"
+    },
+    {
+      "id": 1003,
+      "item": { "id": 210781 },
+      "unit_price": 320000,
+      "quantity": 100,
+      "time_left": "VERY_LONG"
+    },
+    {
+      "id": 1004,
+      "item": { "id": 210781 },
+      "unit_price": 295000,
+      "quantity": 25,
+      "time_left": "MEDIUM"
+    },
+    {
+      "id": 1005,
+      "item": { "id": 210930 },
+      "unit_price": 480000,
+      "quantity": 10,
+      "time_left": "SHORT"
+    },
+    {
+      "id": 1006,
+      "item": { "id": 999999 },
+      "unit_price": 100000,
+      "quantity": 500,
+      "time_left": "VERY_LONG"
+    }
+  ]
+}

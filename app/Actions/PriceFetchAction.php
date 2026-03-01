@@ -27,7 +27,7 @@ class PriceFetchAction
         $token = $this->tokenService->getToken();
 
         $response = Http::withToken($token)
-            ->retry(2, 1000)
+            ->retry(2, 1000, throw: false)
             ->timeout(30)
             ->get("https://{$region}.api.blizzard.com/data/wow/auctions/commodities", [
                 'namespace' => "dynamic-{$region}",

@@ -24,7 +24,7 @@ class BlizzardTokenService
                 config('services.blizzard.client_secret')
             )
                 ->asForm()
-                ->retry(2, 1000)
+                ->retry(2, 1000, throw: false)
                 ->timeout(30)
                 ->post('https://oauth.battle.net/token', [
                     'grant_type' => 'client_credentials',
