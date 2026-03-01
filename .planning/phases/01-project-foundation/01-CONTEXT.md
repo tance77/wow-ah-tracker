@@ -24,7 +24,7 @@ Laravel 12 scaffolding with correct database schema, environment configuration, 
 - Pest for testing — matches roadmap plan references and provides expressive syntax
 - Minimal dev tools in Phase 1: Pint (code style) + Pest. Add Debugbar, Telescope, IDE Helper as later phases need them
 - Include model factories and DatabaseSeeder with sample watched items and fake price snapshots — enables manual testing from day one
-- Target PHP 8.3 — latest stable with typed class constants, json_validate(), and `#[Override]` attribute
+- Target PHP 8.4 — latest stable with property hooks, asymmetric visibility, and `#[Deprecated]` attribute
 
 ### Project conventions
 - Actions + Services pattern: `app/Actions/` for single-purpose operations (PriceFetchAction, PriceAggregateAction), `app/Services/` for stateful service classes (BlizzardTokenService)
