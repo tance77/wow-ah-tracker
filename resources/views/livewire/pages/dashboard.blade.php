@@ -244,106 +244,116 @@ new #[Layout('layouts.app')] class extends Component
                 x-transition:enter-end="opacity-100 translate-y-0"
                 class="mt-6 rounded-lg border border-gray-700/50 bg-wow-dark p-6"
                 style="display: none;"
+                wire:ignore.self
             >
-                @if ($selectedItemId !== null)
-                    @php
-                        $selectedItem = $this->watchedItems->firstWhere('id', $selectedItemId);
-                    @endphp
-                    <div class="mb-4 flex items-center justify-between">
-                        <h3 class="font-medium text-gray-100">
-                            {{ $selectedItem?->name ?? '' }}
-                        </h3>
-                        {{-- Timeframe Toggle --}}
-                        <div class="flex overflow-hidden rounded-md border border-gray-600">
-                            @foreach (['24h', '7d', '30d'] as $frame)
-                                <button
-                                    wire:click="setTimeframe('{{ $frame }}')"
-                                    class="px-3 py-1 text-sm font-medium transition-colors {{ $timeframe === $frame ? 'bg-wow-gold text-wow-darker' : 'bg-gray-700 text-gray-300 hover:bg-gray-600' }}"
-                                >
-                                    {{ $frame }}
-                                </button>
-                            @endforeach
-                        </div>
+                <div class="mb-4 flex items-center justify-between">
+                    <h3 class="font-medium text-gray-100" x-text="$wire.selectedItemId ? '{{ $this->watchedItems->pluck('name', 'id')->toJson() }}'[$wire.selectedItemId] ?? '' : ''">
+                    </h3>
+                    {{-- Timeframe Toggle --}}
+                    <div class="flex overflow-hidden rounded-md border border-gray-600">
+                        @foreach (['24h', '7d', '30d'] as $frame)
+                            <button
+                                wire:click="setTimeframe('{{ $frame }}')"
+                                class="px-3 py-1 text-sm font-medium transition-colors"
+                                :class="$wire.timeframe === '{{ $frame }}' ? 'bg-wow-gold text-wow-darker' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'"
+                            >
+                                {{ $frame }}
+                            </button>
+                        @endforeach
                     </div>
-                    <div id="price-chart"></div>
-                @endif
+                </div>
+                <div id="price-chart" wire:ignore></div>
             </div>
         @endif
 
     </div>
 </div>
 
+@script
 <script>
-let chart = null;
+(function () {
+    let chart = null;
 
-function formatGoldJs(copper) {
-    if (copper === null || copper === undefined) return '\u2014';
-    const g = Math.floor(copper / 10000);
-    const s = Math.floor((copper % 10000) / 100);
-    const c = copper % 100;
-    const parts = [];
-    if (g > 0) parts.push(g.toLocaleString() + 'g');
-    if (s > 0) parts.push(s + 's');
-    if (c > 0 || parts.length === 0) parts.push(c + 'c');
-    return parts.join(' ');
-}
-
-$wire.$on('chart-data-updated', ({ median, min }) => {
-    const options = {
-        series: [
-            { name: 'Median', data: median },
-            { name: 'Min',    data: min },
-        ],
-        chart: {
-            type: 'line',
-            height: 300,
-            background: '#1a1a2e',
-            toolbar: { show: false },
-            animations: { enabled: true },
-        },
-        theme: { mode: 'dark' },
-        colors: ['#f7a325', '#60a5fa'],
-        stroke: { curve: 'smooth', width: 2 },
-        markers: { size: 0 },
-        xaxis: {
-            type: 'datetime',
-            labels: {
-                style: { colors: '#9ca3af' },
-                datetimeUTC: false,
-            },
-        },
-        yaxis: {
-            labels: {
-                style: { colors: '#9ca3af' },
-                formatter: (val) => Math.floor(val / 10000).toLocaleString() + 'g',
-            },
-        },
-        tooltip: {
-            theme: 'dark',
-            custom: ({ series, seriesIndex, dataPointIndex, w }) => {
-                const medianVal = series[0] ? series[0][dataPointIndex] : null;
-                const minVal = series[1] ? series[1][dataPointIndex] : null;
-                const ts = w.globals.seriesX[0][dataPointIndex];
-                const date = new Date(ts);
-                const timeStr = date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-                return '<div class="px-3 py-2 text-sm">'
-                    + '<div class="text-gray-400 mb-1">' + timeStr + '</div>'
-                    + '<div><strong>Median:</strong> ' + formatGoldJs(medianVal) + '</div>'
-                    + '<div><strong>Min:</strong> ' + formatGoldJs(minVal) + '</div>'
-                    + '</div>';
-            },
-        },
-        grid: { borderColor: '#374151' },
-    };
-
-    const el = document.querySelector('#price-chart');
-    if (!el) return;
-
-    if (chart === null) {
-        chart = new ApexCharts(el, options);
-        chart.render();
-    } else {
-        chart.updateOptions(options);
+    function formatGoldJs(copper) {
+        if (copper === null || copper === undefined) return '\u2014';
+        const g = Math.floor(copper / 10000);
+        const s = Math.floor((copper % 10000) / 100);
+        const c = copper % 100;
+        const parts = [];
+        if (g > 0) parts.push(g.toLocaleString() + 'g');
+        if (s > 0) parts.push(s + 's');
+        if (c > 0 || parts.length === 0) parts.push(c + 'c');
+        return parts.join(' ');
     }
-});
+
+    $wire.$on('chart-data-updated', ({ median, min }) => {
+        const options = {
+            series: [
+                { name: 'Median', data: median },
+                { name: 'Min',    data: min },
+            ],
+            chart: {
+                type: 'line',
+                height: 300,
+                background: '#1a1a2e',
+                toolbar: { show: false },
+                animations: { enabled: true },
+            },
+            noData: {
+                text: 'No price data for this timeframe',
+                style: { color: '#9ca3af', fontSize: '14px' },
+            },
+            theme: { mode: 'dark' },
+            colors: ['#f7a325', '#60a5fa'],
+            stroke: { curve: 'smooth', width: 2 },
+            markers: { size: 0 },
+            xaxis: {
+                type: 'datetime',
+                labels: {
+                    style: { colors: '#9ca3af' },
+                    datetimeUTC: false,
+                },
+            },
+            yaxis: {
+                labels: {
+                    style: { colors: '#9ca3af' },
+                    formatter: (val) => Math.floor(val / 10000).toLocaleString() + 'g',
+                },
+            },
+            tooltip: {
+                theme: 'dark',
+                custom: ({ series, seriesIndex, dataPointIndex, w }) => {
+                    const medianVal = series[0] ? series[0][dataPointIndex] : null;
+                    const minVal = series[1] ? series[1][dataPointIndex] : null;
+                    const ts = w.globals.seriesX[0][dataPointIndex];
+                    const date = new Date(ts);
+                    const timeStr = date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                    return '<div class="px-3 py-2 text-sm">'
+                        + '<div class="text-gray-400 mb-1">' + timeStr + '</div>'
+                        + '<div><strong>Median:</strong> ' + formatGoldJs(medianVal) + '</div>'
+                        + '<div><strong>Min:</strong> ' + formatGoldJs(minVal) + '</div>'
+                        + '</div>';
+                },
+            },
+            grid: { borderColor: '#374151' },
+        };
+
+        const el = document.querySelector('#price-chart');
+        if (!el) return;
+
+        // Livewire re-renders replace the DOM element, orphaning the old chart instance
+        if (chart !== null && !document.body.contains(chart.el)) {
+            chart.destroy();
+            chart = null;
+        }
+
+        if (chart === null) {
+            chart = new ApexCharts(el, options);
+            chart.render();
+        } else {
+            chart.updateOptions(options);
+        }
+    });
+})();
 </script>
+@endscript
