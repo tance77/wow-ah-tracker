@@ -3,12 +3,12 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: unknown
-last_updated: "2026-03-01T22:02:01.755Z"
+last_updated: "2026-03-01T22:19:05.823Z"
 progress:
-  total_phases: 4
+  total_phases: 5
   completed_phases: 4
-  total_plans: 10
-  completed_plans: 10
+  total_plans: 12
+  completed_plans: 11
 ---
 
 # Project State
@@ -22,12 +22,12 @@ See: .planning/PROJECT.md (updated 2026-03-01)
 
 ## Current Position
 
-Phase: 4 of 8 (Blizzard API Integration) — COMPLETE
-Plan: 3 of 3 in current phase — 04-03 complete
-Status: Complete
-Last activity: 2026-03-01 — Completed 04-03 (BlizzardApi Pest feature tests with Http::fake() fixture, 10 tests passing, retry throw: false fix applied to services)
+Phase: 5 of 8 (Data Ingestion Pipeline) — In Progress
+Plan: 1 of 2 in current phase — 05-01 complete
+Status: In Progress
+Last activity: 2026-03-01 — Completed 05-01 (PriceAggregateAction with frequency-distribution median, FetchCommodityPricesJob with ShouldBeUnique, scheduler wired every 15 minutes, 9 unit tests passing)
 
-Progress: [█████░░░░░] 50%
+Progress: [██████░░░░] 60%
 
 ## Performance Metrics
 
@@ -54,6 +54,7 @@ Progress: [█████░░░░░] 50%
 | Phase 04-blizzard-api-integration P01 | 3 | 2 tasks | 2 files |
 | Phase 04-blizzard-api-integration P02 | 3 | 1 tasks | 1 files |
 | Phase 04-blizzard-api-integration P03 | 4 | 2 tasks | 5 files |
+| Phase 05-data-ingestion-pipeline P01 | 2 | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -99,6 +100,9 @@ Recent decisions affecting current work:
 - [Phase 04-blizzard-api-integration]: retry(2, 1000, throw: false) required in BlizzardTokenService and PriceFetchAction — Laravel HTTP client throws RequestException before service RuntimeException without throw: false
 - [Phase 04-blizzard-api-integration]: Http::fake() merges stubCallbacks — per-test helper used instead of beforeEach Http::fake() to avoid stub accumulation shadowing override tests
 - [Phase 04-blizzard-api-integration]: Commodities URL pattern requires trailing * (*.api.blizzard.com/...commodities*) — Str::is() matches full URL including ?namespace=dynamic-us query string
+- [Phase 05-01]: Frequency-distribution median via cumulative quantity traversal — a listing with qty=500 at 100g dominates over 10 units at 200g
+- [Phase 05-01]: uniqueFor=840 (14-min lock) ensures FetchCommodityPricesJob releases before next 15-min scheduler tick, preventing overlap
+- [Phase 05-01]: One PriceSnapshot per WatchedItem row (not per unique blizzard_item_id) — multiple users watching same item each get independent history
 
 ### Pending Todos
 
@@ -112,5 +116,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-03-01
-Stopped at: Completed 04-03-PLAN.md — Pest feature tests for BlizzardTokenService and PriceFetchAction, Http::fake() fixture, 10 tests passing. Phase 4 complete. Ready for Phase 5.
+Stopped at: Completed 05-01-PLAN.md — PriceAggregateAction with frequency-distribution median (9 unit tests), FetchCommodityPricesJob with ShouldBeUnique ($uniqueFor=840), scheduler wired every 15 minutes. Ready for 05-02.
 Resume file: None
