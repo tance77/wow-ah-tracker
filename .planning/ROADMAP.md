@@ -12,7 +12,7 @@ Build a personal Laravel dashboard that polls the Blizzard Auction House Commodi
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 1: Project Foundation** - Laravel 12 scaffolding, environment config, and database schema
+- [x] **Phase 1: Project Foundation** - Laravel 12 scaffolding, environment config, and database schema (completed 2026-03-01)
 - [ ] **Phase 2: Authentication** - Single-user login, session persistence, and password reset
 - [ ] **Phase 3: Item Watchlist Management** - Per-user CRUD for tracked commodity items and thresholds
 - [ ] **Phase 4: Blizzard API Integration** - OAuth2 token service and commodity price fetch action
@@ -161,7 +161,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Project Foundation | 1/2 | In Progress|  |
+| 1. Project Foundation | 2/2 | Complete   | 2026-03-01 |
 | 2. Authentication | 0/2 | Not started | - |
 | 3. Item Watchlist Management | 0/3 | Not started | - |
 | 4. Blizzard API Integration | 0/3 | Not started | - |

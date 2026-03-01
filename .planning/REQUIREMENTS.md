@@ -25,8 +25,8 @@ Requirements for initial release. Each maps to roadmap phases.
 ### Data Collection
 
 - [ ] **DATA-01**: Scheduled job fetches commodity prices from Blizzard API every 15 minutes
-- [ ] **DATA-02**: Each snapshot stores min price, average price, median price, and total volume
-- [ ] **DATA-03**: Prices stored as integers (copper) to avoid rounding errors
+- [x] **DATA-02**: Each snapshot stores min price, average price, median price, and total volume
+- [x] **DATA-03**: Prices stored as integers (copper) to avoid rounding errors
 - [ ] **DATA-04**: Duplicate snapshots skipped when API data hasn't changed (Last-Modified check)
 - [ ] **DATA-05**: Blizzard OAuth2 token cached and refreshed automatically
 - [ ] **DATA-06**: Job uses withoutOverlapping to prevent duplicate runs
@@ -88,8 +88,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | ITEM-04 | Phase 3 | Pending |
 | ITEM-05 | Phase 3 | Pending |
 | DATA-01 | Phase 5 | Pending |
-| DATA-02 | Phase 1 | Pending |
-| DATA-03 | Phase 1 | Pending |
+| DATA-02 | Phase 1 | Complete |
+| DATA-03 | Phase 1 | Complete |
 | DATA-04 | Phase 6 | Pending |
 | DATA-05 | Phase 4 | Pending |
 | DATA-06 | Phase 5 | Pending |

@@ -10,28 +10,28 @@ See: .planning/PROJECT.md (updated 2026-03-01)
 ## Current Position
 
 Phase: 1 of 8 (Project Foundation)
-Plan: 1 of 3 in current phase
+Plan: 2 of 3 in current phase
 Status: In progress
-Last activity: 2026-03-01 — Completed 01-01 (Laravel 12 + Livewire 4 + Tailwind v4 + Blizzard config)
+Last activity: 2026-03-01 — Completed 01-02 (database schema: watched_items + price_snapshots migrations, Eloquent models, factories, seeder)
 
-Progress: [█░░░░░░░░░] 4%
+Progress: [██░░░░░░░░] 8%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 1
-- Average duration: 3 min
-- Total execution time: 0.05 hours
+- Total plans completed: 2
+- Average duration: 2.5 min
+- Total execution time: 0.08 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| 01-project-foundation | 1 | 3 min | 3 min |
+| 01-project-foundation | 2 | 5 min | 2.5 min |
 
 **Recent Trend:**
-- Last 5 plans: 01-01 (3 min)
-- Trend: Baseline established
+- Last 5 plans: 01-01 (3 min), 01-02 (2 min)
+- Trend: On pace
 
 *Updated after each plan completion*
 
@@ -50,6 +50,10 @@ Recent decisions affecting current work:
 - 01-01: Pest 3.x installed explicitly (not in default Laravel 12 scaffold); PHPUnit upgraded to support Pest v3
 - 01-01: No Livewire starter kit — bare install to avoid Flux/Volt/auth scaffolding (Phase 2 scope)
 - 01-01: Pint declare_strict_types applied to all scaffold files immediately from day one
+- 01-02: All price columns are BIGINT UNSIGNED (copper denomination) — confirmed in schema, irrecoverable decision locked in
+- 01-02: Composite index on (watched_item_id, polled_at) embedded in create migration — cannot add efficiently after data accumulates
+- 01-02: nullable user_id FK on watched_items from day one — Phase 2 auth needs no ALTER TABLE migration
+- 01-02: Hard delete only on WatchedItem and PriceSnapshot — no SoftDeletes, keeps queries simple
 
 ### Pending Todos
 
@@ -63,5 +67,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-03-01
-Stopped at: Completed 01-01-PLAN.md — Laravel 12 foundation ready, proceed to 01-02
+Stopped at: Completed 01-02-PLAN.md — database schema ready, proceed to 01-03
 Resume file: None
