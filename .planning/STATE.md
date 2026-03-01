@@ -3,12 +3,12 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: unknown
-last_updated: "2026-03-01T21:00:19.764Z"
+last_updated: "2026-03-01T21:05:03.273Z"
 progress:
   total_phases: 3
   completed_phases: 2
   total_plans: 7
-  completed_plans: 5
+  completed_plans: 6
 ---
 
 # Project State
@@ -23,9 +23,9 @@ See: .planning/PROJECT.md (updated 2026-03-01)
 ## Current Position
 
 Phase: 3 of 8 (Item Watchlist Management)
-Plan: 1 of 3 in current phase
+Plan: 2 of 3 in current phase
 Status: In Progress
-Last activity: 2026-03-01 — Completed 03-01 (CatalogItem model, 19 TWW item seeder, User.watchedItems() HasMany, unique DB constraint on watched_items)
+Last activity: 2026-03-01 — Completed 03-02 (Watchlist Volt component, /watchlist route, navigation links, dashboard item count, ITEM-01 through ITEM-05)
 
 Progress: [███░░░░░░░] 31%
 
@@ -42,7 +42,7 @@ Progress: [███░░░░░░░] 31%
 |-------|-------|-------|----------|
 | 01-project-foundation | 2 | 5 min | 2.5 min |
 | 02-authentication | 2 | 24 min | 12 min |
-| 03-item-watchlist-management | 1 of 3 | 4 min | 4 min |
+| 03-item-watchlist-management | 2 of 3 | 6 min | 3 min |
 
 **Recent Trend:**
 - Last 5 plans: 01-01 (3 min), 01-02 (2 min), 02-01 (9 min), 02-02 (15 min), 03-01 (4 min)
@@ -80,6 +80,9 @@ Recent decisions affecting current work:
 - [Phase 03-01]: 19 TWW-era item IDs are placeholders — must verify against live Blizzard API in Phase 4
 - [Phase 03-01]: updateOrCreate() on blizzard_item_id keeps ItemCatalogSeeder idempotent across re-seeds
 - [Phase 03-01]: Unique constraint on (user_id, blizzard_item_id) enforced at DB level — no application-layer workaround
+- [Phase 03-02]: All watchlist queries go through auth()->user()->watchedItems() — never WatchedItem::query() — enforces ITEM-05 user isolation
+- [Phase 03-02]: wire:change used on threshold inputs instead of wire:model to avoid issues with Computed collection mutation
+- [Phase 03-02]: Threshold clamped server-side with max(1, min(100, value)) — client min/max attributes are UX hints only
 
 ### Pending Todos
 
@@ -93,5 +96,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-03-01
-Stopped at: Completed 03-01-PLAN.md — CatalogItem model, ItemCatalogSeeder (19 TWW items), User.watchedItems() relationship, unique (user_id, blizzard_item_id) constraint
+Stopped at: Completed 03-02-PLAN.md — Watchlist Volt component with full CRUD, /watchlist route, nav links, dashboard item count
 Resume file: None
