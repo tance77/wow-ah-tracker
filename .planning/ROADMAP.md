@@ -129,13 +129,11 @@ Plans:
   3. The user can toggle the chart timeframe between 24h, 7d, and 30d, and the chart updates reactively without a full page reload
   4. The dashboard only shows the logged-in user's watched items — a second user sees only their own items
   5. Prices on the dashboard are displayed in gold (not copper), formatted as "X,XXX g XX s XX c"
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 07-01: Install ApexCharts and build the Livewire `Dashboard` component with date-range filtering and bounded `price_snapshots` queries
-- [ ] 07-02: Build per-item summary cards with current price (median), trend direction arrow, and last-updated timestamp
-- [ ] 07-03: Implement 24h/7d/30d timeframe toggle as a reactive Livewire property that re-renders the chart without page reload
-- [ ] 07-04: Add gold/silver/copper price formatter and apply throughout all dashboard display points
+- [ ] 07-01-PLAN.md — Install ApexCharts, convert dashboard to Volt component with summary cards, interactive line chart, timeframe toggle, gold formatter, and empty states
+- [ ] 07-02-PLAN.md — Write Pest feature tests for dashboard component (user isolation, price display, chart dispatch, timeframe filtering); human-verify full UI in browser
 
 ### Phase 8: Buy/Sell Signal Indicators
 **Goal**: The dashboard surfaces buy and sell opportunities by comparing each item's current price to the user's configured thresholds, with clear visual indicators when a threshold is breached.
@@ -165,5 +163,5 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8
 | 4. Blizzard API Integration | 3/3 | Complete   | 2026-03-01 |
 | 5. Data Ingestion Pipeline | 2/2 | Complete   | 2026-03-01 |
 | 6. Data Integrity Safeguards | 2/2 | Complete   | 2026-03-01 |
-| 7. Dashboard and Price Charts | 0/4 | Not started | - |
+| 7. Dashboard and Price Charts | 0/2 | Not started | - |
 | 8. Buy/Sell Signal Indicators | 0/2 | Not started | - |
