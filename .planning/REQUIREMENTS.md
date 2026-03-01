@@ -17,9 +17,9 @@ Requirements for initial release. Each maps to roadmap phases.
 ### Item Management
 
 - [x] **ITEM-01**: User can add a WoW commodity item to their watchlist by name or item ID
-- [ ] **ITEM-02**: User can remove an item from their watchlist
-- [ ] **ITEM-03**: User can set buy threshold (% below average) per watched item
-- [ ] **ITEM-04**: User can set sell threshold (% above average) per watched item
+- [x] **ITEM-02**: User can remove an item from their watchlist
+- [x] **ITEM-03**: User can set buy threshold (% below average) per watched item
+- [x] **ITEM-04**: User can set sell threshold (% above average) per watched item
 - [x] **ITEM-05**: Each user has their own independent watchlist
 
 ### Data Collection
@@ -83,9 +83,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | AUTH-03 | Phase 2 | Complete |
 | AUTH-04 | Phase 2 | Complete |
 | ITEM-01 | Phase 3 | Complete |
-| ITEM-02 | Phase 3 | Pending |
-| ITEM-03 | Phase 3 | Pending |
-| ITEM-04 | Phase 3 | Pending |
+| ITEM-02 | Phase 3 | Complete |
+| ITEM-03 | Phase 3 | Complete |
+| ITEM-04 | Phase 3 | Complete |
 | ITEM-05 | Phase 3 | Complete |
 | DATA-01 | Phase 5 | Pending |
 | DATA-02 | Phase 1 | Complete |
