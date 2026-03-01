@@ -12,6 +12,8 @@ class DatabaseSeeder extends Seeder
 {
     public function run(): void
     {
+        $this->call(ItemCatalogSeeder::class);
+
         // Create 5 sample watched items with 20 price snapshots each
         WatchedItem::factory()
             ->count(5)
