@@ -14,6 +14,10 @@ Route::get('/dashboard', function () {
     return view('dashboard');
 })->middleware(['auth'])->name('dashboard');
 
+Route::get('/watchlist', function () {
+    return view('livewire.pages.watchlist');
+})->middleware(['auth'])->name('watchlist');
+
 Route::view('profile', 'profile')
     ->middleware(['auth'])
     ->name('profile');
