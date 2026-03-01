@@ -53,7 +53,7 @@ Plans:
 
 Plans:
 - [x] 02-01-PLAN.md — Install Breeze Livewire/Volt stack, repair Livewire v4 + Tailwind v4 conflicts, apply WoW dark theme with gold/amber accents to all auth layouts
-- [ ] 02-02-PLAN.md — Wire route protection, root redirect logic, dashboard placeholder, and comprehensive Pest auth tests; human-verify full flow in browser
+- [x] 02-02-PLAN.md — Wire route protection, root redirect logic, dashboard placeholder, and comprehensive Pest auth tests; human-verify full flow in browser
 
 ### Phase 3: Item Watchlist Management
 **Goal**: Each logged-in user can maintain their own independent watchlist of commodity items with per-item buy and sell thresholds, managed through an admin interface.
@@ -162,7 +162,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Project Foundation | 2/2 | Complete   | 2026-03-01 |
-| 2. Authentication | 1/2 | In progress | - |
+| 2. Authentication | 2/2 | Complete   | 2026-03-01 |
 | 3. Item Watchlist Management | 0/3 | Not started | - |
 | 4. Blizzard API Integration | 0/3 | Not started | - |
 | 5. Data Ingestion Pipeline | 0/4 | Not started | - |

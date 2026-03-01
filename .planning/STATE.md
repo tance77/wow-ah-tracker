@@ -6,9 +6,9 @@ status: in_progress
 last_updated: "2026-03-01T20:08:00.000Z"
 progress:
   total_phases: 8
-  completed_phases: 1
-  total_plans: 3
-  completed_plans: 3
+  completed_phases: 2
+  total_plans: 4
+  completed_plans: 4
 ---
 
 # Project State
@@ -23,11 +23,11 @@ See: .planning/PROJECT.md (updated 2026-03-01)
 ## Current Position
 
 Phase: 2 of 8 (Authentication)
-Plan: 1 of 1 in current phase
+Plan: 2 of 2 in current phase
 Status: Phase complete
-Last activity: 2026-03-01 — Completed 02-01 (Breeze Livewire auth stack with Livewire v4, Tailwind v4, WoW dark theme)
+Last activity: 2026-03-01 — Completed 02-02 (route protection, root redirect, dashboard view, Pest auth test suite — all AUTH-01 through AUTH-04 verified)
 
-Progress: [██░░░░░░░░] 13%
+Progress: [██░░░░░░░░] 25%
 
 ## Performance Metrics
 
@@ -41,10 +41,10 @@ Progress: [██░░░░░░░░] 13%
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 01-project-foundation | 2 | 5 min | 2.5 min |
-| 02-authentication | 1 | 9 min | 9 min |
+| 02-authentication | 2 | 24 min | 12 min |
 
 **Recent Trend:**
-- Last 5 plans: 01-01 (3 min), 01-02 (2 min), 02-01 (9 min)
+- Last 5 plans: 01-01 (3 min), 01-02 (2 min), 02-01 (9 min), 02-02 (15 min)
 - Trend: On pace
 
 *Updated after each plan completion*
@@ -73,6 +73,9 @@ Recent decisions affecting current work:
 - 02-01: tailwind.config.js and postcss.config.js removed — Breeze creates them but Phase 1 used CSS-first @tailwindcss/vite approach
 - 02-01: User model MustVerifyEmail kept commented out — no email verification required per CONTEXT.md decision
 - 02-01: Mail driver set to log for local dev — password reset emails written to laravel.log for testing
+- 02-02: Auth middleware applied inline on individual routes (not in a group) — clearest intent for two routes
+- 02-02: Root / uses auth()->check() closure redirect — single explicit conditional, no middleware group indirection
+- 02-02: Guest redirect set once in bootstrap/app.php via redirectGuestsTo() — single source of truth for unauthenticated redirect target
 
 ### Pending Todos
 
@@ -86,5 +89,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-03-01
-Stopped at: Completed 02-01-PLAN.md — Breeze auth scaffolding with WoW dark theme ready, Phase 2 complete
+Stopped at: Completed 02-02-PLAN.md — route protection, Pest auth tests, browser verification complete; Phase 2 complete
 Resume file: None
