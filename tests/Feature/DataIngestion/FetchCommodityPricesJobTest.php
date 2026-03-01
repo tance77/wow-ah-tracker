@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Actions\PriceAggregateAction;
 use App\Actions\PriceFetchAction;
 use App\Jobs\FetchCommodityPricesJob;
+use App\Models\IngestionMetadata;
 use App\Models\PriceSnapshot;
 use App\Models\User;
 use App\Models\WatchedItem;
@@ -12,8 +13,10 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
 
-function fakeBlizzardHttp(): void
+function fakeBlizzardHttp(?string $lastModified = null): void
 {
+    $headers = $lastModified !== null ? ['Last-Modified' => $lastModified] : [];
+
     Http::fake([
         'oauth.battle.net/token' => Http::response([
             'access_token' => 'test-token',
@@ -23,6 +26,7 @@ function fakeBlizzardHttp(): void
         '*.api.blizzard.com/data/wow/auctions/commodities*' => Http::response(
             json_decode(file_get_contents(base_path('tests/Fixtures/blizzard_commodities.json')), true),
             200,
+            $headers,
         ),
     ]);
     Cache::forget('blizzard_token');
@@ -131,4 +135,55 @@ it('all snapshots in a single run share the same polled_at timestamp', function 
     $timestamps = $snapshots->pluck('polled_at')->map(fn ($t) => (string) $t)->unique();
 
     expect($timestamps->count())->toBe(1);
+});
+
+it('skips snapshot write when Last-Modified header is unchanged', function (): void {
+    $lastModified = 'Sat, 28 Feb 2026 18:00:00 GMT';
+    fakeBlizzardHttp($lastModified);
+
+    // Pre-seed metadata with same Last-Modified value the stub returns
+    IngestionMetadata::create([
+        'last_modified_at' => $lastModified,
+        'last_fetched_at'  => now()->subMinutes(15),
+    ]);
+
+    $user = User::factory()->create();
+    WatchedItem::factory()->create(['user_id' => $user->id, 'blizzard_item_id' => 224025]);
+
+    (new FetchCommodityPricesJob)->handle(app(PriceFetchAction::class), app(PriceAggregateAction::class));
+
+    expect(PriceSnapshot::count())->toBe(0); // Gate blocked write
+});
+
+it('writes snapshots when Last-Modified header has changed', function (): void {
+    fakeBlizzardHttp('Sat, 01 Mar 2026 06:00:00 GMT');
+
+    // Pre-seed with a DIFFERENT Last-Modified value
+    IngestionMetadata::create([
+        'last_modified_at' => 'Fri, 28 Feb 2026 18:00:00 GMT',
+        'last_fetched_at'  => now()->subMinutes(15),
+    ]);
+
+    $user = User::factory()->create();
+    WatchedItem::factory()->create(['user_id' => $user->id, 'blizzard_item_id' => 224025]);
+
+    (new FetchCommodityPricesJob)->handle(app(PriceFetchAction::class), app(PriceAggregateAction::class));
+
+    expect(PriceSnapshot::count())->toBe(1); // New data, write allowed
+});
+
+it('updates metadata after successful write', function (): void {
+    $newLastModified = 'Sat, 01 Mar 2026 06:00:00 GMT';
+    fakeBlizzardHttp($newLastModified);
+
+    $user = User::factory()->create();
+    WatchedItem::factory()->create(['user_id' => $user->id, 'blizzard_item_id' => 224025]);
+
+    (new FetchCommodityPricesJob)->handle(app(PriceFetchAction::class), app(PriceAggregateAction::class));
+
+    $meta = IngestionMetadata::first();
+    expect($meta->last_modified_at)->toBe($newLastModified);
+    expect($meta->response_hash)->not->toBeNull();
+    expect($meta->last_fetched_at)->not->toBeNull();
+    expect($meta->consecutive_failures)->toBe(0);
 });
