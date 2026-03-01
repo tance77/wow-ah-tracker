@@ -3,12 +3,12 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: unknown
-last_updated: "2026-03-01T21:29:27.234Z"
+last_updated: "2026-03-01T21:49:30Z"
 progress:
-  total_phases: 3
+  total_phases: 8
   completed_phases: 3
-  total_plans: 7
-  completed_plans: 7
+  total_plans: 8
+  completed_plans: 8
 ---
 
 # Project State
@@ -22,12 +22,12 @@ See: .planning/PROJECT.md (updated 2026-03-01)
 
 ## Current Position
 
-Phase: 3 of 8 (Item Watchlist Management) — COMPLETE
-Plan: 3 of 3 in current phase — all plans done
-Status: Phase Complete
-Last activity: 2026-03-01 — Completed 03-03 (Pest test suite for watchlist CRUD/isolation, human-verified browser UI, ITEM-01 through ITEM-05 all satisfied)
+Phase: 4 of 8 (Blizzard API Integration) — IN PROGRESS
+Plan: 1 of N in current phase — 04-01 complete
+Status: In Progress
+Last activity: 2026-03-01 — Completed 04-01 (BlizzardTokenService with OAuth2 client credentials, 23h cache, AppServiceProvider singleton)
 
-Progress: [████░░░░░░] 38%
+Progress: [████░░░░░░] 42%
 
 ## Performance Metrics
 
@@ -43,13 +43,15 @@ Progress: [████░░░░░░] 38%
 | 01-project-foundation | 2 | 5 min | 2.5 min |
 | 02-authentication | 2 | 24 min | 12 min |
 | 03-item-watchlist-management | 3 of 3 | 36 min | 12 min |
+| 04-blizzard-api-integration | 1 of N | 3 min | 3 min |
 
 **Recent Trend:**
-- Last 5 plans: 01-01 (3 min), 01-02 (2 min), 02-01 (9 min), 02-02 (15 min), 03-01 (4 min)
+- Last 5 plans: 01-02 (2 min), 02-01 (9 min), 02-02 (15 min), 03-01 (4 min), 04-01 (3 min)
 - Trend: On pace
 
 *Updated after each plan completion*
 | Phase 03-item-watchlist-management P03 | 30 | 2 tasks | 4 files |
+| Phase 04-blizzard-api-integration P01 | 3 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -86,6 +88,9 @@ Recent decisions affecting current work:
 - [Phase 03-02]: Threshold clamped server-side with max(1, min(100, value)) — client min/max attributes are UX hints only
 - [Phase 03-item-watchlist-management]: Incomplete catalog item list left as-is — manual ID entry covers the gap; Blizzard API integration planned for Phase 4
 - [Phase 03-item-watchlist-management]: UI bugs (duplicate nav, dropdown overflow, Alpine refs scope) from 03-02 fixed inline during 03-03 human-verify checkpoint
+- [Phase 04-01]: Cache key 'blizzard_token' with 82800s TTL (23h) — stays within Blizzard's 24h token expiry with 1h safety buffer
+- [Phase 04-01]: retry(2, 1000) added to Http chain for transient failure resilience
+- [Phase 04-01]: No boot-time credential validation — lazy validation approach maintained
 
 ### Pending Todos
 
@@ -99,5 +104,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-03-01
-Stopped at: Completed 03-03-PLAN.md — Phase 3 complete. Pest test suite (14+ tests), human-verified watchlist UI. Ready for Phase 4 (Price Ingestion).
+Stopped at: Completed 04-01-PLAN.md — BlizzardTokenService with OAuth2 client credentials, 23h cache TTL, and AppServiceProvider singleton registration. Ready for Phase 4 Plan 2.
 Resume file: None

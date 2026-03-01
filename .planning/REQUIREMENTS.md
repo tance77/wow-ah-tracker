@@ -28,7 +28,7 @@ Requirements for initial release. Each maps to roadmap phases.
 - [x] **DATA-02**: Each snapshot stores min price, average price, median price, and total volume
 - [x] **DATA-03**: Prices stored as integers (copper) to avoid rounding errors
 - [ ] **DATA-04**: Duplicate snapshots skipped when API data hasn't changed (Last-Modified check)
-- [ ] **DATA-05**: Blizzard OAuth2 token cached and refreshed automatically
+- [x] **DATA-05**: Blizzard OAuth2 token cached and refreshed automatically
 - [ ] **DATA-06**: Job uses withoutOverlapping to prevent duplicate runs
 
 ### Dashboard
@@ -91,7 +91,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | DATA-02 | Phase 1 | Complete |
 | DATA-03 | Phase 1 | Complete |
 | DATA-04 | Phase 6 | Pending |
-| DATA-05 | Phase 4 | Pending |
+| DATA-05 | Phase 4 | Complete |
 | DATA-06 | Phase 5 | Pending |
 | DASH-01 | Phase 7 | Pending |
 | DASH-02 | Phase 7 | Pending |
