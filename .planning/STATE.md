@@ -3,12 +3,12 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: unknown
-last_updated: "2026-03-01T21:52:35.973Z"
+last_updated: "2026-03-01T21:58:55.596Z"
 progress:
   total_phases: 4
-  completed_phases: 3
+  completed_phases: 4
   total_plans: 10
-  completed_plans: 9
+  completed_plans: 10
 ---
 
 # Project State
@@ -22,12 +22,12 @@ See: .planning/PROJECT.md (updated 2026-03-01)
 
 ## Current Position
 
-Phase: 4 of 8 (Blizzard API Integration) — IN PROGRESS
-Plan: 1 of N in current phase — 04-01 complete
-Status: In Progress
-Last activity: 2026-03-01 — Completed 04-01 (BlizzardTokenService with OAuth2 client credentials, 23h cache, AppServiceProvider singleton)
+Phase: 4 of 8 (Blizzard API Integration) — COMPLETE
+Plan: 3 of 3 in current phase — 04-03 complete
+Status: Complete
+Last activity: 2026-03-01 — Completed 04-03 (BlizzardApi Pest feature tests with Http::fake() fixture, 10 tests passing, retry throw: false fix applied to services)
 
-Progress: [████░░░░░░] 42%
+Progress: [█████░░░░░] 50%
 
 ## Performance Metrics
 
@@ -53,6 +53,7 @@ Progress: [████░░░░░░] 42%
 | Phase 03-item-watchlist-management P03 | 30 | 2 tasks | 4 files |
 | Phase 04-blizzard-api-integration P01 | 3 | 2 tasks | 2 files |
 | Phase 04-blizzard-api-integration P02 | 3 | 1 tasks | 1 files |
+| Phase 04-blizzard-api-integration P03 | 4 | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -95,6 +96,9 @@ Recent decisions affecting current work:
 - [Phase 04-02]: PriceFetchAction does not query the database — $itemIds supplied by caller (Phase 5 job)
 - [Phase 04-02]: array_values() wraps array_filter() to prevent sparse integer keys in the return value
 - [Phase 04-02]: 30-second timeout is a locked decision — Blizzard commodity payload is 70K+ listings
+- [Phase 04-blizzard-api-integration]: retry(2, 1000, throw: false) required in BlizzardTokenService and PriceFetchAction — Laravel HTTP client throws RequestException before service RuntimeException without throw: false
+- [Phase 04-blizzard-api-integration]: Http::fake() merges stubCallbacks — per-test helper used instead of beforeEach Http::fake() to avoid stub accumulation shadowing override tests
+- [Phase 04-blizzard-api-integration]: Commodities URL pattern requires trailing * (*.api.blizzard.com/...commodities*) — Str::is() matches full URL including ?namespace=dynamic-us query string
 
 ### Pending Todos
 
@@ -108,5 +112,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-03-01
-Stopped at: Completed 04-01-PLAN.md — BlizzardTokenService with OAuth2 client credentials, 23h cache TTL, and AppServiceProvider singleton registration. Ready for Phase 4 Plan 2.
+Stopped at: Completed 04-03-PLAN.md — Pest feature tests for BlizzardTokenService and PriceFetchAction, Http::fake() fixture, 10 tests passing. Phase 4 complete. Ready for Phase 5.
 Resume file: None

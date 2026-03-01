@@ -15,7 +15,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 1: Project Foundation** - Laravel 12 scaffolding, environment config, and database schema (completed 2026-03-01)
 - [x] **Phase 2: Authentication** - Single-user login, session persistence, and password reset (completed 2026-03-01)
 - [ ] **Phase 3: Item Watchlist Management** - Per-user CRUD for tracked commodity items and thresholds
-- [ ] **Phase 4: Blizzard API Integration** - OAuth2 token service and commodity price fetch action
+- [x] **Phase 4: Blizzard API Integration** - OAuth2 token service and commodity price fetch action (completed 2026-03-01)
 - [ ] **Phase 5: Data Ingestion Pipeline** - Scheduled job, price aggregation, and append-only snapshot storage
 - [ ] **Phase 6: Data Integrity Safeguards** - Deduplication gate, overlap protection, and staleness tracking
 - [ ] **Phase 7: Dashboard and Price Charts** - Livewire dashboard, summary cards, and timeframe-toggled line charts
@@ -164,7 +164,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8
 | 1. Project Foundation | 2/2 | Complete   | 2026-03-01 |
 | 2. Authentication | 2/2 | Complete   | 2026-03-01 |
 | 3. Item Watchlist Management | 2/3 | In Progress|  |
-| 4. Blizzard API Integration | 2/3 | In Progress|  |
+| 4. Blizzard API Integration | 3/3 | Complete   | 2026-03-01 |
 | 5. Data Ingestion Pipeline | 0/4 | Not started | - |
 | 6. Data Integrity Safeguards | 0/2 | Not started | - |
 | 7. Dashboard and Price Charts | 0/4 | Not started | - |
