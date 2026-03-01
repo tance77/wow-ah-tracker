@@ -98,13 +98,11 @@ Plans:
   3. All prices in the database are stored in copper (integers), never gold (floats or decimals)
   4. The scheduler fires the job every 15 minutes; a second job instance cannot start if the first is still running (14-minute unique lock)
   5. `PriceAggregateAction` correctly computes the median from the frequency distribution of `{quantity, unitPrice}` listing pairs — not a simple array sort
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 05-01: Implement `PriceAggregateAction` that computes min, average, median (frequency-distribution method), and total volume from raw commodity listings
-- [ ] 05-02: Implement `FetchCommodityPricesJob` with `ShouldBeUnique`, `$uniqueFor = 840`, orchestrating `PriceFetchAction` and `PriceAggregateAction` and writing to `price_snapshots`
-- [ ] 05-03: Wire job to Laravel scheduler in `routes/console.php` with `everyFifteenMinutes()` and configure database queue driver
-- [ ] 05-04: Write Pest feature tests for the full ingestion pipeline with mocked Blizzard HTTP responses
+- [ ] 05-01-PLAN.md — Implement PriceAggregateAction (frequency-distribution median), FetchCommodityPricesJob (ShouldBeUnique orchestrator), and scheduler wiring in routes/console.php
+- [ ] 05-02-PLAN.md — Write Pest feature tests for PriceAggregateAction (pure math) and FetchCommodityPricesJob (full pipeline integration with Http::fake())
 
 ### Phase 6: Data Integrity Safeguards
 **Goal**: The ingestion pipeline skips duplicate snapshots when Blizzard has not published new data, and the dashboard can detect and display data staleness when Blizzard's API is unresponsive.
@@ -165,7 +163,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8
 | 2. Authentication | 2/2 | Complete   | 2026-03-01 |
 | 3. Item Watchlist Management | 2/3 | In Progress|  |
 | 4. Blizzard API Integration | 3/3 | Complete   | 2026-03-01 |
-| 5. Data Ingestion Pipeline | 0/4 | Not started | - |
+| 5. Data Ingestion Pipeline | 0/2 | Not started | - |
 | 6. Data Integrity Safeguards | 0/2 | Not started | - |
 | 7. Dashboard and Price Charts | 0/4 | Not started | - |
 | 8. Buy/Sell Signal Indicators | 0/2 | Not started | - |
