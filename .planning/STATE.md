@@ -3,12 +3,12 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: unknown
-last_updated: "2026-03-01T20:39:01.051Z"
+last_updated: "2026-03-01T21:00:19.764Z"
 progress:
-  total_phases: 2
+  total_phases: 3
   completed_phases: 2
-  total_plans: 4
-  completed_plans: 4
+  total_plans: 7
+  completed_plans: 5
 ---
 
 # Project State
@@ -18,23 +18,23 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-01)
 
 **Core value:** See at a glance when crafting material prices dip or spike so users can act on buy/sell opportunities before the market corrects.
-**Current focus:** Phase 2 - Authentication
+**Current focus:** Phase 3 - Item Watchlist Management
 
 ## Current Position
 
-Phase: 2 of 8 (Authentication)
-Plan: 2 of 2 in current phase
-Status: Phase complete
-Last activity: 2026-03-01 — Completed 02-02 (route protection, root redirect, dashboard view, Pest auth test suite — all AUTH-01 through AUTH-04 verified)
+Phase: 3 of 8 (Item Watchlist Management)
+Plan: 1 of 3 in current phase
+Status: In Progress
+Last activity: 2026-03-01 — Completed 03-01 (CatalogItem model, 19 TWW item seeder, User.watchedItems() HasMany, unique DB constraint on watched_items)
 
-Progress: [██░░░░░░░░] 25%
+Progress: [███░░░░░░░] 31%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 3
-- Average duration: 4 min
-- Total execution time: 0.18 hours
+- Total plans completed: 5
+- Average duration: 5 min
+- Total execution time: 0.22 hours
 
 **By Phase:**
 
@@ -42,9 +42,10 @@ Progress: [██░░░░░░░░] 25%
 |-------|-------|-------|----------|
 | 01-project-foundation | 2 | 5 min | 2.5 min |
 | 02-authentication | 2 | 24 min | 12 min |
+| 03-item-watchlist-management | 1 of 3 | 4 min | 4 min |
 
 **Recent Trend:**
-- Last 5 plans: 01-01 (3 min), 01-02 (2 min), 02-01 (9 min), 02-02 (15 min)
+- Last 5 plans: 01-01 (3 min), 01-02 (2 min), 02-01 (9 min), 02-02 (15 min), 03-01 (4 min)
 - Trend: On pace
 
 *Updated after each plan completion*
@@ -76,6 +77,9 @@ Recent decisions affecting current work:
 - 02-02: Auth middleware applied inline on individual routes (not in a group) — clearest intent for two routes
 - 02-02: Root / uses auth()->check() closure redirect — single explicit conditional, no middleware group indirection
 - 02-02: Guest redirect set once in bootstrap/app.php via redirectGuestsTo() — single source of truth for unauthenticated redirect target
+- [Phase 03-01]: 19 TWW-era item IDs are placeholders — must verify against live Blizzard API in Phase 4
+- [Phase 03-01]: updateOrCreate() on blizzard_item_id keeps ItemCatalogSeeder idempotent across re-seeds
+- [Phase 03-01]: Unique constraint on (user_id, blizzard_item_id) enforced at DB level — no application-layer workaround
 
 ### Pending Todos
 
@@ -89,5 +93,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-03-01
-Stopped at: Completed 02-02-PLAN.md — route protection, Pest auth tests, browser verification complete; Phase 2 complete
+Stopped at: Completed 03-01-PLAN.md — CatalogItem model, ItemCatalogSeeder (19 TWW items), User.watchedItems() relationship, unique (user_id, blizzard_item_id) constraint
 Resume file: None
