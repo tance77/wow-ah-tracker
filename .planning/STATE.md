@@ -3,12 +3,12 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: unknown
-last_updated: "2026-03-01T22:19:05.823Z"
+last_updated: "2026-03-01T22:22:58.770Z"
 progress:
   total_phases: 5
-  completed_phases: 4
+  completed_phases: 5
   total_plans: 12
-  completed_plans: 11
+  completed_plans: 12
 ---
 
 # Project State
@@ -22,12 +22,12 @@ See: .planning/PROJECT.md (updated 2026-03-01)
 
 ## Current Position
 
-Phase: 5 of 8 (Data Ingestion Pipeline) — In Progress
-Plan: 1 of 2 in current phase — 05-01 complete
-Status: In Progress
-Last activity: 2026-03-01 — Completed 05-01 (PriceAggregateAction with frequency-distribution median, FetchCommodityPricesJob with ShouldBeUnique, scheduler wired every 15 minutes, 9 unit tests passing)
+Phase: 5 of 8 (Data Ingestion Pipeline) — Complete
+Plan: 2 of 2 in current phase — 05-02 complete
+Status: Phase Complete
+Last activity: 2026-03-01 — Completed 05-02 (14 feature tests: 7 PriceAggregateAction math tests + 7 FetchCommodityPricesJob integration tests; 79 total suite passing)
 
-Progress: [██████░░░░] 60%
+Progress: [████████░░] 80%
 
 ## Performance Metrics
 
@@ -55,6 +55,7 @@ Progress: [██████░░░░] 60%
 | Phase 04-blizzard-api-integration P02 | 3 | 1 tasks | 1 files |
 | Phase 04-blizzard-api-integration P03 | 4 | 2 tasks | 5 files |
 | Phase 05-data-ingestion-pipeline P01 | 2 | 2 tasks | 4 files |
+| Phase 05-data-ingestion-pipeline P02 | 1 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -103,6 +104,8 @@ Recent decisions affecting current work:
 - [Phase 05-01]: Frequency-distribution median via cumulative quantity traversal — a listing with qty=500 at 100g dominates over 10 units at 200g
 - [Phase 05-01]: uniqueFor=840 (14-min lock) ensures FetchCommodityPricesJob releases before next 15-min scheduler tick, preventing overlap
 - [Phase 05-01]: One PriceSnapshot per WatchedItem row (not per unique blizzard_item_id) — multiple users watching same item each get independent history
+- [Phase 05-02]: Per-test fakeBlizzardHttp() helper keeps Http::fake() isolated — avoids stub accumulation with beforeEach
+- [Phase 05-02]: ShouldBeUnique deduplication verified via Queue::fake() — PendingDispatch cache lock works even with fake queue, assertPushedTimes(1) after two dispatches
 
 ### Pending Todos
 
@@ -116,5 +119,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-03-01
-Stopped at: Completed 05-01-PLAN.md — PriceAggregateAction with frequency-distribution median (9 unit tests), FetchCommodityPricesJob with ShouldBeUnique ($uniqueFor=840), scheduler wired every 15 minutes. Ready for 05-02.
+Stopped at: Completed 05-02-PLAN.md — 14 feature tests (7 PriceAggregateAction + 7 FetchCommodityPricesJob integration); 79 total suite passing. Phase 05 complete. Ready for Phase 06.
 Resume file: None
