@@ -4,24 +4,18 @@ declare(strict_types=1);
 
 namespace Database\Seeders;
 
-use App\Models\User;
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
+use App\Models\PriceSnapshot;
+use App\Models\WatchedItem;
 use Illuminate\Database\Seeder;
 
 class DatabaseSeeder extends Seeder
 {
-    use WithoutModelEvents;
-
-    /**
-     * Seed the application's database.
-     */
     public function run(): void
     {
-        // User::factory(10)->create();
-
-        User::factory()->create([
-            'name' => 'Test User',
-            'email' => 'test@example.com',
-        ]);
+        // Create 5 sample watched items with 20 price snapshots each
+        WatchedItem::factory()
+            ->count(5)
+            ->has(PriceSnapshot::factory()->count(20))
+            ->create();
     }
 }
