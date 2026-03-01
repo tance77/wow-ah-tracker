@@ -72,3 +72,21 @@ test('users can logout', function () {
 
     $this->assertGuest();
 });
+
+test('login with remember me sets persistent cookie', function () {
+    $user = User::factory()->create();
+
+    $component = Volt::test('pages.auth.login')
+        ->set('form.email', $user->email)
+        ->set('form.password', 'password')
+        ->set('form.remember', true);
+
+    $component->call('login');
+
+    $component
+        ->assertHasNoErrors()
+        ->assertRedirect(route('dashboard', absolute: false));
+
+    $this->assertAuthenticated();
+    $this->assertNotNull(auth()->user()->getRememberToken());
+});
