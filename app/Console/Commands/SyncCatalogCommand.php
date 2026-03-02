@@ -14,7 +14,8 @@ class SyncCatalogCommand extends Command
 {
     protected $signature = 'blizzard:sync-catalog
                             {--fresh : Re-sync all items, ignoring existing catalog entries}
-                            {--dry-run : Show what would be imported without writing to the database}';
+                            {--dry-run : Show what would be imported without writing to the database}
+                            {--tiers-only : Only run quality tier assignment (no API calls)}';
 
     protected $description = 'Import commodity items from the Blizzard Auction House API into the catalog';
 
@@ -45,83 +46,87 @@ class SyncCatalogCommand extends Command
 
     public function handle(BlizzardTokenService $tokenService): int
     {
+        if ($this->option('tiers-only')) {
+            $this->assignQualityTiers();
+
+            return self::SUCCESS;
+        }
+
         $region = config('services.blizzard.region', 'us');
         $token = $tokenService->getToken();
         $dryRun = $this->option('dry-run');
         $fresh = $this->option('fresh');
 
-        // Step 1: Fetch commodities
-        // The commodities endpoint returns 50MB+ of JSON, so we bump limits
-        // and use a long timeout to handle the large download.
-        Log::info('SyncCatalog: starting', ['fresh' => $fresh, 'dry_run' => $dryRun]);
-        $this->info('Fetching commodities from Blizzard API (this may take a minute)...');
+        // Step 1: Fetch commodities or reuse cached ID list from a previous run.
+        $cacheFile = storage_path('app/sync-catalog-ids.json');
 
-        // Stream the large (~50MB+) commodities response to a temp file
-        // to avoid loading it all into PHP memory at once.
-        $tempFile = tempnam(sys_get_temp_dir(), 'wow_commodities_');
+        if (file_exists($cacheFile) && ! $fresh) {
+            $uniqueIds = collect(json_decode(file_get_contents($cacheFile), true));
+            $this->info(sprintf('Resuming with %s cached item IDs from previous run.', number_format($uniqueIds->count())));
+        } else {
+            Log::info('SyncCatalog: starting', ['fresh' => $fresh, 'dry_run' => $dryRun]);
+            $this->info('Fetching commodities from Blizzard API (this may take a minute)...');
 
-        $response = Http::withToken($token)
-            ->retry(2, 5000, throw: false)
-            ->timeout(120)
-            ->connectTimeout(15)
-            ->sink($tempFile)
-            ->get("https://{$region}.api.blizzard.com/data/wow/auctions/commodities", [
-                'namespace' => "dynamic-{$region}",
-            ]);
+            $tempFile = tempnam(sys_get_temp_dir(), 'wow_commodities_');
 
-        if (! $response->successful()) {
-            Log::error('SyncCatalog: commodities fetch failed', ['status' => $response->status()]);
-            $this->error("Commodities fetch failed: HTTP {$response->status()}");
+            $response = Http::withToken($token)
+                ->retry(2, 5000, throw: false)
+                ->timeout(120)
+                ->connectTimeout(15)
+                ->sink($tempFile)
+                ->get("https://{$region}.api.blizzard.com/data/wow/auctions/commodities", [
+                    'namespace' => "dynamic-{$region}",
+                ]);
+
+            if (! $response->successful()) {
+                Log::error('SyncCatalog: commodities fetch failed', ['status' => $response->status()]);
+                $this->error("Commodities fetch failed: HTTP {$response->status()}");
+                @unlink($tempFile);
+
+                return self::FAILURE;
+            }
+
+            unset($response);
+            $fileSize = filesize($tempFile);
+            $this->info(sprintf('Response saved (%s MB), extracting item IDs...', round($fileSize / 1048576, 1)));
+
+            $uniqueIds = [];
+            $handle = fopen($tempFile, 'r');
+            $buffer = '';
+
+            while (! feof($handle)) {
+                $buffer .= fread($handle, 65536);
+
+                if (preg_match_all('/"item":\{"id":(\d+)\}/', $buffer, $matches)) {
+                    foreach ($matches[1] as $id) {
+                        $uniqueIds[(int) $id] = true;
+                    }
+                    $lastBrace = strrpos($buffer, '}');
+                    $buffer = $lastBrace !== false ? substr($buffer, $lastBrace + 1) : '';
+                }
+            }
+
+            fclose($handle);
             @unlink($tempFile);
 
-            return self::FAILURE;
+            $uniqueIds = collect(array_keys($uniqueIds))->values();
+
+            // Cache the ID list so resumed runs skip the download
+            file_put_contents($cacheFile, $uniqueIds->toJson());
+
+            Log::info('SyncCatalog: commodities parsed', ['unique_items' => $uniqueIds->count()]);
+            $this->info(sprintf('Found %s unique item IDs (cached for resume).', number_format($uniqueIds->count())));
         }
 
-        unset($response);
-        $fileSize = filesize($tempFile);
-        $this->info(sprintf('Response saved (%s MB), extracting item IDs...', round($fileSize / 1048576, 1)));
+        // Step 2: Filter out existing items (unless --fresh)
+        $existingIds = CatalogItem::pluck('blizzard_item_id')->toArray();
+        $newIds = $fresh ? $uniqueIds : $uniqueIds->diff($existingIds)->values();
 
-        // Step 2: Read the temp file in chunks and extract unique item IDs.
-        // This avoids loading the entire 50MB+ payload into memory.
-        $uniqueIds = [];
-        $handle = fopen($tempFile, 'r');
-        $buffer = '';
-
-        while (! feof($handle)) {
-            $buffer .= fread($handle, 65536); // 64KB chunks
-
-            // Extract all item IDs found in the current buffer
-            if (preg_match_all('/"item":\{"id":(\d+)\}/', $buffer, $matches)) {
-                foreach ($matches[1] as $id) {
-                    $uniqueIds[(int) $id] = true;
-                }
-                // Keep only the tail that might contain a partial match
-                $lastBrace = strrpos($buffer, '}');
-                $buffer = $lastBrace !== false ? substr($buffer, $lastBrace + 1) : '';
-            }
-        }
-
-        fclose($handle);
-        @unlink($tempFile);
-
-        $uniqueIds = collect(array_keys($uniqueIds))->values();
-
-        Log::info('SyncCatalog: commodities parsed', ['unique_items' => $uniqueIds->count()]);
-        $this->info(sprintf('Found %s unique item IDs.', number_format($uniqueIds->count())));
-
-        // Step 3: Filter out existing items (unless --fresh)
-        if (! $fresh) {
-            $existingIds = CatalogItem::pluck('blizzard_item_id')->toArray();
-            $newIds = $uniqueIds->diff($existingIds)->values();
-            $this->info(sprintf(
-                'Skipping %s existing items. %s new items to look up.',
-                number_format(count($existingIds)),
-                number_format($newIds->count()),
-            ));
-        } else {
-            $newIds = $uniqueIds;
-            $this->info(sprintf('--fresh mode: looking up all %s items.', number_format($newIds->count())));
-        }
+        $this->info(sprintf(
+            'Skipping %s existing items. %s remaining to look up.',
+            number_format(count($existingIds)),
+            number_format($newIds->count()),
+        ));
 
         if ($newIds->isEmpty()) {
             $this->info('Nothing to import — catalog is up to date.');
@@ -145,11 +150,10 @@ class SyncCatalogCommand extends Command
         $imported = 0;
         $failed = 0;
         $retryQueue = [];
-        $verbose = $this->output->isVerbose();
 
         foreach ($newIds->chunk(20) as $chunk) {
             $itemIds = $chunk->values()->all();
-            $batchResult = $this->processBatch($itemIds, $token, $region, $dryRun, $bar, $verbose);
+            $batchResult = $this->processBatch($itemIds, $token, $region, $dryRun, $bar);
 
             $imported += $batchResult['imported'];
             $failed += $batchResult['failed'];
@@ -176,7 +180,7 @@ class SyncCatalogCommand extends Command
 
             foreach (collect($retryQueue)->chunk(10) as $chunk) {
                 $itemIds = $chunk->values()->all();
-                $batchResult = $this->processBatch($itemIds, $token, $region, $dryRun, $bar, $verbose);
+                $batchResult = $this->processBatch($itemIds, $token, $region, $dryRun, $bar);
 
                 $imported += $batchResult['imported'];
                 $failed += $batchResult['failed'];
@@ -202,9 +206,14 @@ class SyncCatalogCommand extends Command
             'dry_run' => $dryRun,
         ]);
 
-        if ($failed > 0) {
-            $this->warn('Some items could not be fetched — re-run without --fresh to retry only missing items.');
+        // Clean up cached ID list on successful completion
+        if ($failed === 0) {
+            @unlink($cacheFile);
+        } else {
+            $this->warn('Some items could not be fetched — re-run to resume where you left off.');
         }
+
+        $this->assignQualityTiers();
 
         return self::SUCCESS;
     }
@@ -220,7 +229,6 @@ class SyncCatalogCommand extends Command
         string $region,
         bool $dryRun,
         $bar,
-        bool $verbose,
     ): array {
         // Fetch item data concurrently
         $itemResponses = Http::pool(fn ($pool) => collect($itemIds)->map(
@@ -274,42 +282,46 @@ class SyncCatalogCommand extends Command
             $itemDataMap[$itemId] = $itemResponse->json();
         }
 
+        // Fetch media/icons concurrently for all successful items
+        $mediaResponses = [];
+        if (! empty($successIds)) {
+            try {
+                $mediaResponses = Http::pool(fn ($pool) => collect($successIds)->map(
+                    fn (int $id) => $pool->as((string) $id)
+                        ->withToken($token)
+                        ->timeout(10)
+                        ->connectTimeout(5)
+                        ->get("https://{$region}.api.blizzard.com/data/wow/media/item/{$id}", [
+                            'namespace' => "static-{$region}",
+                        ])
+                )->all());
+            } catch (\Throwable) {
+                // Icons are optional — continue without them
+            }
+        }
+
         foreach ($successIds as $itemId) {
             $data = $itemDataMap[$itemId];
             $name = $this->resolveLocalizedName($data['name'] ?? null) ?? "Unknown Item {$itemId}";
             $category = $this->resolveCategory($data);
 
-            // Fetch icon URL individually — small response, and Http::pool()
-            // crashes on connection errors so sequential is more reliable.
             $iconUrl = null;
-            try {
-                $mediaResponse = Http::withToken($token)
-                    ->timeout(10)
-                    ->connectTimeout(5)
-                    ->get("https://{$region}.api.blizzard.com/data/wow/media/item/{$itemId}", [
-                        'namespace' => "static-{$region}",
-                    ]);
-
-                if ($mediaResponse->successful()) {
-                    $assets = $mediaResponse->json('assets', []);
-                    foreach ($assets as $asset) {
-                        if (($asset['key'] ?? '') === 'icon') {
-                            $iconUrl = $asset['value'] ?? null;
-                            break;
-                        }
+            $mediaResponse = $mediaResponses[(string) $itemId] ?? null;
+            if ($mediaResponse && ! ($mediaResponse instanceof \Throwable) && $mediaResponse->successful()) {
+                $assets = $mediaResponse->json('assets', []);
+                foreach ($assets as $asset) {
+                    if (($asset['key'] ?? '') === 'icon') {
+                        $iconUrl = $asset['value'] ?? null;
+                        break;
                     }
                 }
-            } catch (\Throwable) {
-                // Icon is optional — skip on failure
             }
 
             $bar->setMessage($name);
 
-            if ($verbose) {
-                $bar->clear();
-                $this->line("  [{$itemId}] {$name} <fg=gray>({$category})</>");
-                $bar->display();
-            }
+            $bar->clear();
+            $this->line("  [{$itemId}] {$name} <fg=gray>({$category})</>");
+            $bar->display();
 
             if (! $dryRun) {
                 CatalogItem::updateOrCreate(
@@ -323,6 +335,50 @@ class SyncCatalogCommand extends Command
         }
 
         return compact('imported', 'failed', 'rateLimited');
+    }
+
+    /**
+     * Assign quality tiers to items that share the same name.
+     * Items with unique names get null (no tier).
+     */
+    private function assignQualityTiers(): void
+    {
+        $this->info('Assigning quality tiers...');
+
+        // Find names that appear more than once
+        $duplicateNames = CatalogItem::selectRaw('name')
+            ->groupBy('name')
+            ->havingRaw('count(*) > 1')
+            ->pluck('name');
+
+        if ($duplicateNames->isEmpty()) {
+            $this->info('No duplicate item names found — skipping tier assignment.');
+
+            return;
+        }
+
+        // Clear tiers for unique items that may have had a tier from a previous run
+        CatalogItem::whereNotIn('name', $duplicateNames)
+            ->whereNotNull('quality_tier')
+            ->update(['quality_tier' => null]);
+
+        $assigned = 0;
+
+        foreach ($duplicateNames as $name) {
+            $items = CatalogItem::where('name', $name)
+                ->orderBy('blizzard_item_id')
+                ->get();
+
+            $tier = 1;
+            foreach ($items as $item) {
+                $item->update(['quality_tier' => $tier]);
+                $tier++;
+            }
+
+            $assigned += $items->count();
+        }
+
+        $this->info("Assigned quality tiers to {$assigned} items across {$duplicateNames->count()} groups.");
     }
 
     /**
