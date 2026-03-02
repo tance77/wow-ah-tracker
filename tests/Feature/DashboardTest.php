@@ -94,6 +94,7 @@ it('shows awaiting first snapshot message when item has no price data', function
     WatchedItem::factory()->create(['user_id' => $user->id, 'name' => 'New Item']);
 
     Volt::actingAs($user)->test('pages.dashboard')
+        ->set('viewMode', 'grid')
         ->assertSee('Awaiting first snapshot');
 });
 

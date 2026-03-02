@@ -13,7 +13,14 @@ new #[Layout('layouts.app')] class extends Component
 {
     public ?int $selectedItemId = null;
 
+    public string $viewMode = 'list';
+
     public string $timeframe = '7d';
+
+    public function toggleViewMode(string $mode): void
+    {
+        $this->viewMode = $mode;
+    }
 
     #[Computed]
     public function watchedItems(): Collection
@@ -21,7 +28,7 @@ new #[Layout('layouts.app')] class extends Component
         $items = auth()->user()->watchedItems()
             ->with([
                 'priceSnapshots' => fn ($q) => $q->latest('polled_at')->limit(2),
-                'catalogItem:blizzard_item_id,icon_url',
+                'catalogItem:blizzard_item_id,name,icon_url,quality_tier',
             ])
             ->orderBy('name')
             ->get();
@@ -290,109 +297,227 @@ new #[Layout('layouts.app')] class extends Component
                 </a>
             </div>
         @else
-            {{-- Card Grid --}}
-            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3" wire:loading.class="opacity-50">
-                @foreach ($this->watchedItems as $item)
-                    @php $sig = $item->_signal; @endphp
-                    <div
-                        wire:key="card-{{ $item->id }}"
-                        wire:click="selectItem({{ $item->id }})"
-                        class="cursor-pointer rounded-lg border bg-wow-dark p-5 transition-colors hover:border-wow-gold/50
-                            {{ $selectedItemId === $item->id ? 'ring-2 ring-wow-gold' : '' }}
-                            {{ $sig['signal'] === 'buy' ? 'border-green-500/60' : ($sig['signal'] === 'sell' ? 'border-red-500/60' : 'border-gray-700/50') }}"
+            {{-- View Toggle --}}
+            <div class="mb-4 flex justify-end">
+                <div class="flex items-center gap-1 rounded-md border border-gray-600 p-0.5">
+                    <button
+                        wire:click="toggleViewMode('grid')"
+                        class="rounded p-1 transition-colors {{ $viewMode === 'grid' ? 'text-wow-gold' : 'text-gray-500 hover:text-gray-300' }}"
+                        title="Grid view"
                     >
-                        <div class="mb-3 flex items-start justify-between">
-                            <div class="flex items-center gap-2">
-                                @if ($item->catalogItem?->icon_url)
-                                    <img src="{{ $item->catalogItem->icon_url }}" alt="" class="h-8 w-8 rounded" loading="lazy" />
-                                @endif
-                                <h3 class="font-medium text-gray-100">{{ $item->name }}</h3>
-
-                                @if ($sig['signal'] === 'buy')
-                                    <span class="signal-pulse-buy rounded-full bg-green-500/20 px-2 py-0.5 text-xs font-semibold text-green-400 ring-1 ring-green-500/50">
-                                        BUY -{{ $sig['magnitude'] }}%
-                                    </span>
-                                @elseif ($sig['signal'] === 'sell')
-                                    <span class="signal-pulse-sell rounded-full bg-red-500/20 px-2 py-0.5 text-xs font-semibold text-red-400 ring-1 ring-red-500/50">
-                                        SELL +{{ $sig['magnitude'] }}%
-                                    </span>
-                                @elseif ($sig['signal'] === 'insufficient_data')
-                                    <span class="rounded-full bg-gray-700/50 px-2 py-0.5 text-xs italic text-gray-500">
-                                        Collecting data
-                                    </span>
-                                @endif
-                            </div>
-
-                            @if ($item->priceSnapshots->isNotEmpty())
-                                @php
-                                    $trend = $this->trendDirection($item);
-                                    $pct = $this->trendPercent($item);
-                                @endphp
-                                <span class="flex items-center gap-1 text-sm {{ $trend === 'up' ? 'text-green-400' : ($trend === 'down' ? 'text-red-400' : 'text-gray-500') }}">
-                                    @if ($trend === 'up')
-                                        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"/></svg>
-                                    @elseif ($trend === 'down')
-                                        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
-                                    @else
-                                        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14"/></svg>
-                                    @endif
-                                    @if ($pct !== null)
-                                        {{ $pct > 0 ? '+' : '' }}{{ $pct }}%
-                                    @endif
-                                </span>
-                            @endif
-                        </div>
-
-                        @if ($item->priceSnapshots->isEmpty())
-                            <p class="text-sm italic text-gray-500">Awaiting first snapshot</p>
-                        @else
-                            @php
-                                $latestPrice = $item->priceSnapshots->first()->median_price;
-                                $g = intdiv($latestPrice, 10000);
-                                $s = intdiv($latestPrice % 10000, 100);
-                                $c = $latestPrice % 100;
-                            @endphp
-                            <div class="text-lg font-semibold">
-                                @if ($g > 0)
-                                    <span class="text-wow-gold">{{ number_format($g) }}g</span>
-                                @endif
-                                @if ($s > 0)
-                                    <span class="text-gray-300">{{ $s }}s</span>
-                                @endif
-                                @if ($c > 0 || ($g === 0 && $s === 0))
-                                    <span class="text-amber-700">{{ $c }}c</span>
-                                @endif
-                            </div>
-                        @endif
-                    </div>
-                @endforeach
-
-                {{-- Loading skeleton --}}
-                <div wire:loading class="col-span-full">
-                    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                        @for ($i = 0; $i < 3; $i++)
-                            <div class="animate-pulse rounded-lg border border-gray-700/50 bg-wow-dark p-5">
-                                <div class="mb-3 h-5 w-2/3 rounded bg-gray-700"></div>
-                                <div class="h-7 w-1/2 rounded bg-gray-700"></div>
-                            </div>
-                        @endfor
-                    </div>
+                        <svg class="h-4 w-4" fill="currentColor" viewBox="0 0 20 20"><path d="M5 3a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2V5a2 2 0 00-2-2H5zM5 11a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2v-2a2 2 0 00-2-2H5zM11 5a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V5zM11 13a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/></svg>
+                    </button>
+                    <button
+                        wire:click="toggleViewMode('list')"
+                        class="rounded p-1 transition-colors {{ $viewMode === 'list' ? 'text-wow-gold' : 'text-gray-500 hover:text-gray-300' }}"
+                        title="List view"
+                    >
+                        <svg class="h-4 w-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clip-rule="evenodd"/></svg>
+                    </button>
                 </div>
             </div>
 
-            {{-- Chart Panel --}}
-            <div
-                x-show="$wire.selectedItemId !== null"
-                x-transition:enter="transition ease-out duration-200"
-                x-transition:enter-start="opacity-0 translate-y-2"
-                x-transition:enter-end="opacity-100 translate-y-0"
-                class="mt-6 rounded-lg border border-gray-700/50 bg-wow-dark p-6"
-                style="display: none;"
-                wire:ignore.self
-            >
-                <div class="mb-4 flex items-center justify-between">
-                    <h3 class="font-medium text-gray-100" x-text="$wire.selectedItemId ? '{{ $this->watchedItems->pluck('name', 'id')->toJson() }}'[$wire.selectedItemId] ?? '' : ''">
-                    </h3>
+            @if ($viewMode === 'grid')
+                {{-- Card Grid --}}
+                <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3" wire:loading.class="opacity-50">
+                    @foreach ($this->watchedItems as $item)
+                        @php $sig = $item->_signal; @endphp
+                        <div
+                            wire:key="card-{{ $item->id }}"
+                            wire:click="selectItem({{ $item->id }})"
+                            class="cursor-pointer rounded-lg border bg-wow-dark p-5 transition-colors hover:border-wow-gold/50
+                                {{ $selectedItemId === $item->id ? 'ring-2 ring-wow-gold' : '' }}
+                                {{ $sig['signal'] === 'buy' ? 'border-green-500/60' : ($sig['signal'] === 'sell' ? 'border-red-500/60' : 'border-gray-700/50') }}"
+                        >
+                            <div class="mb-3 flex items-start justify-between">
+                                <div class="flex items-center gap-2">
+                                    @if ($item->catalogItem?->icon_url)
+                                        <img src="{{ $item->catalogItem->icon_url }}" alt="" class="h-8 w-8 rounded" loading="lazy" />
+                                    @endif
+                                    <h3 class="font-medium text-gray-100">{{ $item->catalogItem?->display_name ?? $item->name }}</h3>
+
+                                    @if ($sig['signal'] === 'buy')
+                                        <span class="signal-pulse-buy rounded-full bg-green-500/20 px-2 py-0.5 text-xs font-semibold text-green-400 ring-1 ring-green-500/50">
+                                            BUY -{{ $sig['magnitude'] }}%
+                                        </span>
+                                    @elseif ($sig['signal'] === 'sell')
+                                        <span class="signal-pulse-sell rounded-full bg-red-500/20 px-2 py-0.5 text-xs font-semibold text-red-400 ring-1 ring-red-500/50">
+                                            SELL +{{ $sig['magnitude'] }}%
+                                        </span>
+                                    @elseif ($sig['signal'] === 'insufficient_data')
+                                        <span class="rounded-full bg-gray-700/50 px-2 py-0.5 text-xs italic text-gray-500">
+                                            Collecting data
+                                        </span>
+                                    @endif
+                                </div>
+
+                                @if ($item->priceSnapshots->isNotEmpty())
+                                    @php
+                                        $trend = $this->trendDirection($item);
+                                        $pct = $this->trendPercent($item);
+                                    @endphp
+                                    <span class="flex items-center gap-1 text-sm {{ $trend === 'up' ? 'text-green-400' : ($trend === 'down' ? 'text-red-400' : 'text-gray-500') }}">
+                                        @if ($trend === 'up')
+                                            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"/></svg>
+                                        @elseif ($trend === 'down')
+                                            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                                        @else
+                                            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14"/></svg>
+                                        @endif
+                                        @if ($pct !== null)
+                                            {{ $pct > 0 ? '+' : '' }}{{ $pct }}%
+                                        @endif
+                                    </span>
+                                @endif
+                            </div>
+
+                            @if ($item->priceSnapshots->isEmpty())
+                                <p class="text-sm italic text-gray-500">Awaiting first snapshot</p>
+                            @else
+                                @php
+                                    $latestPrice = $item->priceSnapshots->first()->median_price;
+                                    $g = intdiv($latestPrice, 10000);
+                                    $s = intdiv($latestPrice % 10000, 100);
+                                    $c = $latestPrice % 100;
+                                @endphp
+                                <div class="text-lg font-semibold">
+                                    @if ($g > 0)
+                                        <span class="text-wow-gold">{{ number_format($g) }}g</span>
+                                    @endif
+                                    @if ($s > 0)
+                                        <span class="text-gray-300">{{ $s }}s</span>
+                                    @endif
+                                    @if ($c > 0 || ($g === 0 && $s === 0))
+                                        <span class="text-amber-700">{{ $c }}c</span>
+                                    @endif
+                                </div>
+                            @endif
+                        </div>
+                    @endforeach
+
+                    {{-- Loading skeleton --}}
+                    <div wire:loading class="col-span-full">
+                        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                            @for ($i = 0; $i < 3; $i++)
+                                <div class="animate-pulse rounded-lg border border-gray-700/50 bg-wow-dark p-5">
+                                    <div class="mb-3 h-5 w-2/3 rounded bg-gray-700"></div>
+                                    <div class="h-7 w-1/2 rounded bg-gray-700"></div>
+                                </div>
+                            @endfor
+                        </div>
+                    </div>
+                </div>
+            @else
+                {{-- List View --}}
+                <div class="overflow-hidden rounded-lg border border-gray-700/50" wire:loading.class="opacity-50">
+                    <table class="w-full">
+                        <thead>
+                            <tr class="border-b border-gray-700/50 bg-wow-dark/50 text-left text-xs font-medium uppercase tracking-wider text-gray-400">
+                                <th class="px-4 py-3">Item</th>
+                                <th class="px-4 py-3">Price</th>
+                                <th class="px-4 py-3">Trend</th>
+                                <th class="px-4 py-3">Signal</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-700/30">
+                            @foreach ($this->watchedItems as $item)
+                                @php $sig = $item->_signal; @endphp
+                                <tr
+                                    wire:key="row-{{ $item->id }}"
+                                    wire:click="selectItem({{ $item->id }})"
+                                    class="cursor-pointer bg-wow-dark transition-colors hover:bg-gray-800/50
+                                        {{ $selectedItemId === $item->id ? 'ring-2 ring-wow-gold ring-inset' : '' }}
+                                        {{ $sig['signal'] === 'buy' ? 'border-l-2 border-l-green-500' : ($sig['signal'] === 'sell' ? 'border-l-2 border-l-red-500' : 'border-l-2 border-l-transparent') }}"
+                                >
+                                    <td class="px-4 py-3">
+                                        <div class="flex items-center gap-2">
+                                            @if ($item->catalogItem?->icon_url)
+                                                <img src="{{ $item->catalogItem->icon_url }}" alt="" class="h-6 w-6 rounded" loading="lazy" />
+                                            @endif
+                                            <span class="font-medium text-gray-100">{{ $item->catalogItem?->display_name ?? $item->name }}</span>
+                                        </div>
+                                    </td>
+                                    <td class="px-4 py-3">
+                                        @if ($item->priceSnapshots->isEmpty())
+                                            <span class="text-sm italic text-gray-500">—</span>
+                                        @else
+                                            @php
+                                                $latestPrice = $item->priceSnapshots->first()->median_price;
+                                                $g = intdiv($latestPrice, 10000);
+                                                $s = intdiv($latestPrice % 10000, 100);
+                                                $c = $latestPrice % 100;
+                                            @endphp
+                                            <span class="font-medium">
+                                                @if ($g > 0)<span class="text-wow-gold">{{ number_format($g) }}g</span>@endif
+                                                @if ($s > 0)<span class="text-gray-300">{{ $s }}s</span>@endif
+                                                @if ($c > 0 || ($g === 0 && $s === 0))<span class="text-amber-700">{{ $c }}c</span>@endif
+                                            </span>
+                                        @endif
+                                    </td>
+                                    <td class="px-4 py-3">
+                                        @if ($item->priceSnapshots->isNotEmpty())
+                                            @php
+                                                $trend = $this->trendDirection($item);
+                                                $pct = $this->trendPercent($item);
+                                            @endphp
+                                            <span class="flex items-center gap-1 text-sm {{ $trend === 'up' ? 'text-green-400' : ($trend === 'down' ? 'text-red-400' : 'text-gray-500') }}">
+                                                @if ($trend === 'up')
+                                                    <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"/></svg>
+                                                @elseif ($trend === 'down')
+                                                    <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                                                @else
+                                                    <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14"/></svg>
+                                                @endif
+                                                @if ($pct !== null)
+                                                    {{ $pct > 0 ? '+' : '' }}{{ $pct }}%
+                                                @endif
+                                            </span>
+                                        @endif
+                                    </td>
+                                    <td class="px-4 py-3">
+                                        @if ($sig['signal'] === 'buy')
+                                            <span class="signal-pulse-buy rounded-full bg-green-500/20 px-2 py-0.5 text-xs font-semibold text-green-400 ring-1 ring-green-500/50">
+                                                BUY -{{ $sig['magnitude'] }}%
+                                            </span>
+                                        @elseif ($sig['signal'] === 'sell')
+                                            <span class="signal-pulse-sell rounded-full bg-red-500/20 px-2 py-0.5 text-xs font-semibold text-red-400 ring-1 ring-red-500/50">
+                                                SELL +{{ $sig['magnitude'] }}%
+                                            </span>
+                                        @elseif ($sig['signal'] === 'insufficient_data')
+                                            <span class="rounded-full bg-gray-700/50 px-2 py-0.5 text-xs italic text-gray-500">
+                                                Collecting data
+                                            </span>
+                                        @endif
+                                    </td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            @endif
+
+        @endif
+
+    </div>
+
+    {{-- Chart Panel (sticky bottom) --}}
+    <div
+        x-show="$wire.selectedItemId !== null"
+        x-transition:enter="transition ease-out duration-200"
+        x-transition:enter-start="opacity-0 translate-y-full"
+        x-transition:enter-end="opacity-100 translate-y-0"
+        x-transition:leave="transition ease-in duration-150"
+        x-transition:leave-start="opacity-100 translate-y-0"
+        x-transition:leave-end="opacity-0 translate-y-full"
+        class="fixed inset-x-0 bottom-0 z-40 border-t border-gray-700/50 bg-wow-dark p-4 shadow-2xl"
+        style="display: none;"
+        wire:ignore.self
+    >
+        <div class="mx-auto max-w-7xl">
+            <div class="mb-3 flex items-center justify-between">
+                <h3 class="font-medium text-gray-100" x-text="$wire.selectedItemId ? ({{ $this->watchedItems->pluck('name', 'id')->toJson() }})[$wire.selectedItemId] ?? '' : ''">
+                </h3>
+                <div class="flex items-center gap-3">
                     {{-- Timeframe Toggle --}}
                     <div class="flex overflow-hidden rounded-md border border-gray-600">
                         @foreach (['24h', '7d', '30d'] as $frame)
@@ -405,11 +530,18 @@ new #[Layout('layouts.app')] class extends Component
                             </button>
                         @endforeach
                     </div>
+                    {{-- Close button --}}
+                    <button
+                        wire:click="selectItem($wire.selectedItemId)"
+                        class="rounded p-1 text-gray-400 transition-colors hover:text-gray-200"
+                        title="Close chart"
+                    >
+                        <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                    </button>
                 </div>
-                <div id="price-chart" wire:ignore></div>
             </div>
-        @endif
-
+            <div id="price-chart" wire:ignore style="height: 250px;"></div>
+        </div>
     </div>
 </div>
 
@@ -456,7 +588,7 @@ new #[Layout('layouts.app')] class extends Component
             annotations: { yaxis: yaxisAnnotations },
             chart: {
                 type: 'line',
-                height: 300,
+                height: 250,
                 background: '#1a1a2e',
                 toolbar: { show: false },
                 animations: { enabled: true },
