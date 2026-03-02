@@ -573,7 +573,7 @@ new #[Layout('layouts.app')] class extends Component
             chart = new ApexCharts(el, options);
             chart.render();
         } else {
-            chart.updateOptions(options);
+            chart.updateOptions(options, true, true);
         }
     });
 })();
