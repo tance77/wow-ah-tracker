@@ -21,8 +21,8 @@ new #[Layout('layouts.app')] class extends Component
         abort_unless($this->watchedItem->user_id === auth()->id(), 403);
 
         $this->watchedItem->load([
-            'priceSnapshots' => fn ($q) => $q->latest('polled_at')->limit(2),
-            'catalogItem:blizzard_item_id,name,icon_url,quality_tier,rarity,category',
+            'catalogItem' => fn ($q) => $q->with(['priceSnapshots' => fn ($q2) => $q2->latest('polled_at')->limit(2)]),
+            'catalogItem:blizzard_item_id,id,name,icon_url,quality_tier,rarity,category',
         ]);
 
         $this->loadChart();
@@ -224,9 +224,9 @@ new #[Layout('layouts.app')] class extends Component
             </div>
         </div>
         <div class="text-right">
-            @if ($watchedItem->priceSnapshots->isNotEmpty())
+            @if ($watchedItem->catalogItem?->priceSnapshots?->isNotEmpty())
                 @php
-                    $latestPrice = $watchedItem->priceSnapshots->first()->median_price;
+                    $latestPrice = $watchedItem->catalogItem->priceSnapshots->first()->median_price;
                     $g = intdiv($latestPrice, 10000);
                     $s = intdiv($latestPrice % 10000, 100);
                     $c = $latestPrice % 100;
@@ -528,10 +528,11 @@ new #[Layout('layouts.app')] class extends Component
             markers: { size: 0 },
             xaxis: {
                 type: 'datetime',
+                tickAmount: timeframe === '24h' ? 24 : (timeframe === '30d' ? 30 : 7),
                 labels: {
                     style: { colors: '#9ca3af' },
                     datetimeUTC: false,
-                    format: timeframe === '24h' ? 'HH:mm' : (timeframe === '30d' ? 'MMM dd' : 'dd MMM HH:mm'),
+                    format: timeframe === '24h' ? 'HH:mm' : (timeframe === '30d' ? 'MMM dd' : 'MMM dd'),
                 },
             },
             yaxis: {

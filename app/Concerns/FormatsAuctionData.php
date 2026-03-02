@@ -35,7 +35,7 @@ trait FormatsAuctionData
 
         $snapshotCount = $sevenDayQuery->count();
 
-        if ($snapshotCount < 96) {
+        if ($snapshotCount < 24) {
             return ['signal' => 'insufficient_data', 'magnitude' => 0.0, 'rollingAvg' => 0];
         }
 
@@ -49,7 +49,8 @@ trait FormatsAuctionData
             return ['signal' => 'none', 'magnitude' => 0.0, 'rollingAvg' => 0];
         }
 
-        $currentPrice = $item->priceSnapshots->first()?->median_price ?? 0;
+        $snapshots = $item->catalogItem?->priceSnapshots ?? $item->priceSnapshots;
+        $currentPrice = $snapshots->first()?->median_price ?? 0;
 
         $buyLevel = (int) round($rollingAvg * (1 - $item->buy_threshold / 100));
         $sellLevel = (int) round($rollingAvg * (1 + $item->sell_threshold / 100));
@@ -69,7 +70,7 @@ trait FormatsAuctionData
 
     public function trendDirection(WatchedItem $item): string
     {
-        $snapshots = $item->priceSnapshots;
+        $snapshots = $item->catalogItem?->priceSnapshots ?? $item->priceSnapshots;
 
         if ($snapshots->count() < 2) {
             return 'flat';
@@ -91,7 +92,7 @@ trait FormatsAuctionData
 
     public function trendPercent(WatchedItem $item): ?float
     {
-        $snapshots = $item->priceSnapshots;
+        $snapshots = $item->catalogItem?->priceSnapshots ?? $item->priceSnapshots;
 
         if ($snapshots->count() < 2) {
             return null;

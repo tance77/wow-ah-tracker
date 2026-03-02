@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Concerns\FormatsAuctionData;
+use App\Models\PriceSnapshot;
 use App\Models\WatchedItem;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -26,8 +27,8 @@ new #[Layout('layouts.app')] class extends Component
     {
         $items = auth()->user()->watchedItems()
             ->with([
-                'priceSnapshots' => fn ($q) => $q->latest('polled_at')->limit(2),
-                'catalogItem:blizzard_item_id,name,icon_url,quality_tier,rarity',
+                'catalogItem' => fn ($q) => $q->with(['priceSnapshots' => fn ($q2) => $q2->latest('polled_at')->limit(2)]),
+                'catalogItem:blizzard_item_id,id,name,icon_url,quality_tier,rarity',
             ])
             ->orderBy('name')
             ->get();
@@ -45,10 +46,7 @@ new #[Layout('layouts.app')] class extends Component
 
     public function dataFreshness(): string
     {
-        $latest = auth()->user()
-            ->watchedItems()
-            ->join('price_snapshots', 'watched_items.id', '=', 'price_snapshots.watched_item_id')
-            ->max('price_snapshots.polled_at');
+        $latest = PriceSnapshot::max('polled_at');
 
         if ($latest === null) {
             return 'Never';
@@ -164,7 +162,7 @@ new #[Layout('layouts.app')] class extends Component
                                     @endif
                                 </div>
 
-                                @if ($item->priceSnapshots->isNotEmpty())
+                                @if ($item->catalogItem?->priceSnapshots?->isNotEmpty())
                                     @php
                                         $trend = $this->trendDirection($item);
                                         $pct = $this->trendPercent($item);
@@ -184,11 +182,11 @@ new #[Layout('layouts.app')] class extends Component
                                 @endif
                             </div>
 
-                            @if ($item->priceSnapshots->isEmpty())
+                            @if (!$item->catalogItem?->priceSnapshots?->isNotEmpty())
                                 <p class="text-sm italic text-gray-500">Awaiting first snapshot</p>
                             @else
                                 @php
-                                    $latestPrice = $item->priceSnapshots->first()->median_price;
+                                    $latestPrice = $item->catalogItem->priceSnapshots->first()->median_price;
                                     $g = intdiv($latestPrice, 10000);
                                     $s = intdiv($latestPrice % 10000, 100);
                                     $c = $latestPrice % 100;
@@ -249,11 +247,11 @@ new #[Layout('layouts.app')] class extends Component
                                         </a>
                                     </td>
                                     <td class="px-4 py-3">
-                                        @if ($item->priceSnapshots->isEmpty())
+                                        @if (!$item->catalogItem?->priceSnapshots?->isNotEmpty())
                                             <span class="text-sm italic text-gray-500">—</span>
                                         @else
                                             @php
-                                                $latestPrice = $item->priceSnapshots->first()->median_price;
+                                                $latestPrice = $item->catalogItem->priceSnapshots->first()->median_price;
                                                 $g = intdiv($latestPrice, 10000);
                                                 $s = intdiv($latestPrice % 10000, 100);
                                                 $c = $latestPrice % 100;
@@ -266,7 +264,7 @@ new #[Layout('layouts.app')] class extends Component
                                         @endif
                                     </td>
                                     <td class="px-4 py-3">
-                                        @if ($item->priceSnapshots->isNotEmpty())
+                                        @if ($item->catalogItem?->priceSnapshots?->isNotEmpty())
                                             @php
                                                 $trend = $this->trendDirection($item);
                                                 $pct = $this->trendPercent($item);
