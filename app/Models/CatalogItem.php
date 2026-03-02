@@ -6,6 +6,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class CatalogItem extends Model
 {
@@ -30,6 +31,11 @@ class CatalogItem extends Model
     public function getDisplayNameAttribute(): string
     {
         return $this->quality_tier ? "{$this->name} (T{$this->quality_tier})" : $this->name;
+    }
+
+    public function priceSnapshots(): HasMany
+    {
+        return $this->hasMany(PriceSnapshot::class);
     }
 
     public function rarityColorClass(): string

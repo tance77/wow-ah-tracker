@@ -13,7 +13,7 @@ class PriceSnapshot extends Model
     use HasFactory;
 
     protected $fillable = [
-        'watched_item_id',
+        'catalog_item_id',
         'min_price',
         'avg_price',
         'median_price',
@@ -29,8 +29,8 @@ class PriceSnapshot extends Model
         'polled_at' => 'datetime',
     ];
 
-    public function watchedItem(): BelongsTo
+    public function catalogItem(): BelongsTo
     {
-        return $this->belongsTo(WatchedItem::class);
+        return $this->belongsTo(CatalogItem::class);
     }
 }

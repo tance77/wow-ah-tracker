@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Database\Factories;
 
+use App\Models\CatalogItem;
 use App\Models\PriceSnapshot;
-use App\Models\WatchedItem;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 class PriceSnapshotFactory extends Factory
@@ -17,7 +17,7 @@ class PriceSnapshotFactory extends Factory
         $avgPrice = $this->faker->numberBetween(10_000, 500_000); // copper
 
         return [
-            'watched_item_id' => WatchedItem::factory(),
+            'catalog_item_id' => CatalogItem::factory(),
             'min_price' => (int) ($avgPrice * 0.85),
             'avg_price' => $avgPrice,
             'median_price' => (int) ($avgPrice * 0.95),
