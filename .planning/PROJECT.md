@@ -2,7 +2,7 @@
 
 ## What This Is
 
-A Laravel web application that tracks World of Warcraft Auction House commodity prices using the Blizzard API. It polls prices every 15 minutes for a curated list of crafting materials, stores price history, and presents a dashboard with trend charts to help spot buy/sell opportunities. Built for a single user on the US Retail region.
+A Laravel web application that tracks World of Warcraft Auction House commodity prices using the Blizzard API. It polls prices every 15 minutes for a curated list of crafting materials, stores price history with aggregated metrics, and presents an interactive dashboard with trend charts and threshold-based buy/sell signal indicators. Built for personal use on the US Retail region.
 
 ## Core Value
 
@@ -12,51 +12,61 @@ See at a glance when crafting material prices dip or spike so I can act on buy/s
 
 ### Validated
 
-(None yet — ship to validate)
+- ✓ Fetch commodity prices from Blizzard API on a 15-minute schedule — v1.0
+- ✓ Store price history for tracked items over time — v1.0
+- ✓ Dashboard with price trend charts (line charts over days/weeks) — v1.0
+- ✓ Visual indicators for price dips and spikes (buy/sell signals) — v1.0
+- ✓ Admin UI to add/remove watched items with thresholds — v1.0
+- ✓ Simple authentication (single user login) — v1.0
+- ✓ Blizzard API credentials managed via .env — v1.0
 
 ### Active
 
-- [ ] Fetch commodity prices from Blizzard API on a 15-minute schedule
-- [ ] Store price history for tracked items over time
-- [ ] Dashboard with price trend charts (line charts over days/weeks)
-- [ ] Visual indicators for price dips and spikes (buy/sell signals)
-- [ ] Admin UI to add/remove watched items (currently ~6-7 crafting materials)
-- [ ] Simple authentication (single user login)
-- [ ] Blizzard API credentials managed via .env
+- [ ] Discord webhook alerts when thresholds are breached (NOTF-01)
+- [ ] User-configurable notification preferences (NOTF-02)
+- [ ] Volume/supply trend chart overlay (ANLX-01)
+- [ ] Percent-from-average labels on chart data points (ANLX-02)
 
 ### Out of Scope
 
-- Multi-region support — US only for now
-- Classic/SoD support — Retail only
-- Multi-user / public access — single user app
-- Email/Discord notifications — dashboard-only for v1
-- Mobile app — web only
-- Gear/equipment tracking — commodities only (no unique item stat variations)
+- Multi-region support — US only, commodities are region-wide
+- Classic/SoD support — Retail only, different API shape
+- Multi-user / public access — personal tool
+- Mobile native app — web only, responsive Tailwind
+- Gear/equipment tracking — commodities only
+- Crafting profit calculator — requires tracking crafted item sell prices (ADVN-01, deferred)
+- Additional item categories (gear, pets, mounts) — commodities only (ADVN-02, deferred)
 
 ## Context
 
-- **Game:** World of Warcraft Retail (The War Within / current expansion)
-- **API:** Blizzard Game Data API — Commodities endpoint returns all commodities for a region in a single call
-- **Auth flow:** Blizzard API uses OAuth2 client credentials flow (client ID + secret → access token)
-- **Commodities:** Unlike regular AH items, commodities are region-wide (not realm-specific). The `/data/wow/auctions/commodities` endpoint returns all active commodity listings.
-- **Items to track:** ~6-7 crafting materials (herbs, ores, cloth, etc.) — managed through admin UI
-- **Pricing model:** Commodities have quantity + unit price. Useful metrics: min price, average price, total volume, median price.
+Shipped v1.0 with 15,058 LOC PHP across 202 files.
+Tech stack: Laravel 12, Livewire 4, Volt, Tailwind CSS v4, ApexCharts, Pest 3, SQLite.
+All 21 v1 requirements satisfied. Audit passed 21/21.
+WoW dark theme with gold/amber accents applied across all views.
+Dual deduplication gates (Last-Modified header + MD5 hash fallback) prevent duplicate snapshots.
+Frequency-distribution median correctly weights high-quantity listings.
 
 ## Constraints
 
-- **Tech stack:** Laravel (latest), Tailwind CSS, PHP 8.2+
+- **Tech stack:** Laravel 12, Livewire 4, Tailwind CSS v4, PHP ^8.4
 - **Infrastructure:** Queue worker needed for scheduled jobs (Laravel scheduler + queue)
-- **API rate limits:** Blizzard API has rate limits (~100 requests/second, 36,000/hour) — not a concern at 15-min intervals for a single endpoint
-- **Data volume:** Commodities endpoint returns thousands of items per call, but we only store data for watched items
+- **API rate limits:** Blizzard API (~100 req/s, 36K/hr) — not a concern at 15-min intervals
+- **Data volume:** Commodities endpoint returns thousands of items per call, only watched items stored
 
 ## Key Decisions
 
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
-| Commodities endpoint (not realm-specific AH) | Crafting materials are commodities — region-wide, simpler API | — Pending |
-| 15-minute polling interval | Balances freshness with API courtesy, matches AH update cadence | — Pending |
-| Tailwind CSS for styling | User preference, rapid UI development | — Pending |
-| Single-user simple auth | Personal tool, no need for complex user management | — Pending |
+| Commodities endpoint (not realm-specific AH) | Crafting materials are commodities — region-wide, simpler API | ✓ Good |
+| 15-minute polling interval | Balances freshness with API courtesy, matches AH update cadence | ✓ Good |
+| Tailwind CSS v4 for styling | User preference, CSS-first config (no tailwind.config.js) | ✓ Good |
+| Single-user simple auth via Breeze | Personal tool, no need for complex user management | ✓ Good |
+| BIGINT UNSIGNED for copper prices | Avoids floating point rounding — irrecoverable schema decision | ✓ Good |
+| Composite index (watched_item_id, polled_at) | Time-series query performance — must exist before data accumulates | ✓ Good |
+| Direct ApexCharts via window global | Volt SFC scripts can't use ES module imports; livewire-charts incompatible with LW4 | ✓ Good |
+| Frequency-distribution median | High-quantity listings at one price dominate market — simple sort misleading | ✓ Good |
+| Dual dedup gates (header + hash) | Last-Modified may be absent; hash fallback covers all cases | ✓ Good |
+| One snapshot per WatchedItem row (not per blizzard_item_id) | Multiple users watching same item get independent history | ✓ Good |
 
 ---
-*Last updated: 2026-03-01 after initialization*
+*Last updated: 2026-03-02 after v1.0 milestone*
