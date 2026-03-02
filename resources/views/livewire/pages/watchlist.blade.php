@@ -17,7 +17,7 @@ new #[Layout('layouts.app')] class extends Component
     #[Computed]
     public function watchedItems(): Collection
     {
-        return auth()->user()->watchedItems()->orderBy('name')->get();
+        return auth()->user()->watchedItems()->with('catalogItem:blizzard_item_id,icon_url')->orderBy('name')->get();
     }
 
     #[Computed]
@@ -30,7 +30,7 @@ new #[Layout('layouts.app')] class extends Component
         return CatalogItem::where('name', 'like', "%{$this->search}%")
             ->limit(15)
             ->orderBy('name')
-            ->get(['id', 'name', 'blizzard_item_id'])
+            ->get(['id', 'name', 'blizzard_item_id', 'icon_url'])
             ->toArray();
     }
 
@@ -116,10 +116,17 @@ new #[Layout('layouts.app')] class extends Component
                                         <li
                                             wire:click="addFromCatalog({{ $item['id'] }})"
                                             @click="open = false"
-                                            class="cursor-pointer px-3 py-2 text-sm text-gray-200 hover:bg-wow-dark"
+                                            class="flex cursor-pointer items-center gap-2 px-3 py-2 text-sm text-gray-200 hover:bg-wow-dark"
                                         >
-                                            {{ $item['name'] }}
-                                            <span class="text-xs text-gray-500">ID: {{ $item['blizzard_item_id'] }}</span>
+                                            @if ($item['icon_url'])
+                                                <img src="{{ $item['icon_url'] }}" alt="" class="h-6 w-6 rounded" loading="lazy" />
+                                            @else
+                                                <span class="flex h-6 w-6 items-center justify-center rounded bg-gray-700 text-xs text-gray-500">?</span>
+                                            @endif
+                                            <span>
+                                                {{ $item['name'] }}
+                                                <span class="text-xs text-gray-500">ID: {{ $item['blizzard_item_id'] }}</span>
+                                            </span>
                                         </li>
                                     @endforeach
                                 </ul>
@@ -180,8 +187,17 @@ new #[Layout('layouts.app')] class extends Component
                                     <tr wire:key="item-{{ $item->id }}" class="text-gray-200 transition-colors hover:bg-wow-darker/50">
                                         <!-- Item Name -->
                                         <td class="px-6 py-4">
-                                            <span class="font-medium">{{ $item->name }}</span>
-                                            <span class="block text-xs text-gray-500">ID: {{ $item->blizzard_item_id }}</span>
+                                            <div class="flex items-center gap-3">
+                                                @if ($item->catalogItem?->icon_url)
+                                                    <img src="{{ $item->catalogItem->icon_url }}" alt="" class="h-8 w-8 rounded" loading="lazy" />
+                                                @else
+                                                    <span class="flex h-8 w-8 items-center justify-center rounded bg-gray-700 text-xs text-gray-500">?</span>
+                                                @endif
+                                                <div>
+                                                    <span class="font-medium">{{ $item->name }}</span>
+                                                    <span class="block text-xs text-gray-500">ID: {{ $item->blizzard_item_id }}</span>
+                                                </div>
+                                            </div>
                                         </td>
 
                                         <!-- Buy Threshold -->

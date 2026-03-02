@@ -19,7 +19,10 @@ new #[Layout('layouts.app')] class extends Component
     public function watchedItems(): Collection
     {
         $items = auth()->user()->watchedItems()
-            ->with(['priceSnapshots' => fn ($q) => $q->latest('polled_at')->limit(2)])
+            ->with([
+                'priceSnapshots' => fn ($q) => $q->latest('polled_at')->limit(2),
+                'catalogItem:blizzard_item_id,icon_url',
+            ])
             ->orderBy('name')
             ->get();
 
@@ -78,11 +81,11 @@ new #[Layout('layouts.app')] class extends Component
         ])->values()->toArray();
 
         // Rolling average: 7-day avg as a flat horizontal reference line
-        $rollingAvg = (int) round(
+        $rollingAvg = (int) round((float) (
             $item->priceSnapshots()
                 ->where('polled_at', '>=', now()->subDays(7))
                 ->avg('median_price') ?? 0
-        );
+        ));
 
         $rollingAvgSeries = [];
         if ($rollingAvg > 0 && count($median) >= 2) {
@@ -206,11 +209,11 @@ new #[Layout('layouts.app')] class extends Component
             return ['signal' => 'insufficient_data', 'magnitude' => 0.0, 'rollingAvg' => 0];
         }
 
-        $rollingAvg = (int) round(
+        $rollingAvg = (int) round((float) (
             $item->priceSnapshots()
                 ->where('polled_at', '>=', now()->subDays(7))
                 ->avg('median_price') ?? 0
-        );
+        ));
 
         if ($rollingAvg === 0) {
             return ['signal' => 'none', 'magnitude' => 0.0, 'rollingAvg' => 0];
@@ -300,6 +303,9 @@ new #[Layout('layouts.app')] class extends Component
                     >
                         <div class="mb-3 flex items-start justify-between">
                             <div class="flex items-center gap-2">
+                                @if ($item->catalogItem?->icon_url)
+                                    <img src="{{ $item->catalogItem->icon_url }}" alt="" class="h-8 w-8 rounded" loading="lazy" />
+                                @endif
                                 <h3 class="font-medium text-gray-100">{{ $item->name }}</h3>
 
                                 @if ($sig['signal'] === 'buy')
