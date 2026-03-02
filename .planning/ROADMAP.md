@@ -144,11 +144,11 @@ Plans:
   2. When an item's current price is above the user's sell threshold percentage relative to the rolling average, a visible "SELL" badge or highlight appears on that item's card
   3. Items at normal price show no signal badge — signals are only shown when a threshold is actively breached
   4. The signal correctly uses median price (not min price) to avoid manipulation by single low-quantity listings
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 08-01: Implement rolling average computation in the Dashboard component (N-day configurable window from stored snapshots)
-- [ ] 08-02: Add buy/sell signal badge rendering to item summary cards based on threshold comparison against rolling median average
+- [ ] 08-01-PLAN.md — Implement rolling average computation, signal badges, colored card borders, pulse animation, signal sorting, header summary, and chart threshold annotation lines with rolling average series
+- [ ] 08-02-PLAN.md — Write Pest feature tests for signal indicators (DASH-04/DASH-05); human-verify signal UI in browser
 
 ## Progress
 
