@@ -15,6 +15,7 @@ class CatalogItem extends Model
         'blizzard_item_id',
         'name',
         'category',
+        'rarity',
         'icon_url',
         'quality_tier',
     ];
@@ -29,5 +30,18 @@ class CatalogItem extends Model
     public function getDisplayNameAttribute(): string
     {
         return $this->quality_tier ? "{$this->name} (T{$this->quality_tier})" : $this->name;
+    }
+
+    public function rarityColorClass(): string
+    {
+        return match ($this->rarity) {
+            'POOR' => 'text-rarity-poor',
+            'COMMON' => 'text-rarity-common',
+            'UNCOMMON' => 'text-rarity-uncommon',
+            'RARE' => 'text-rarity-rare',
+            'EPIC' => 'text-rarity-epic',
+            'LEGENDARY' => 'text-rarity-legendary',
+            default => 'text-gray-100',
+        };
     }
 }

@@ -15,6 +15,12 @@
     --color-wow-gold-dark: #d4881c;
     --color-wow-dark: #1a1a2e;
     --color-wow-darker: #0f0f1a;
+    --color-rarity-poor: #9d9d9d;
+    --color-rarity-common: #ffffff;
+    --color-rarity-uncommon: #1eff00;
+    --color-rarity-rare: #0070dd;
+    --color-rarity-epic: #a335ee;
+    --color-rarity-legendary: #ff8000;
 }
 
 @keyframes signal-pulse-buy {

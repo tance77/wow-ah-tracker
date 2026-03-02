@@ -15,7 +15,8 @@ class SyncCatalogCommand extends Command
     protected $signature = 'blizzard:sync-catalog
                             {--fresh : Re-sync all items, ignoring existing catalog entries}
                             {--dry-run : Show what would be imported without writing to the database}
-                            {--tiers-only : Only run quality tier assignment (no API calls)}';
+                            {--tiers-only : Only run quality tier assignment (no API calls)}
+                            {--rarity-only : Re-fetch item data to populate missing rarity values}';
 
     protected $description = 'Import commodity items from the Blizzard Auction House API into the catalog';
 
@@ -50,6 +51,10 @@ class SyncCatalogCommand extends Command
             $this->assignQualityTiers();
 
             return self::SUCCESS;
+        }
+
+        if ($this->option('rarity-only')) {
+            return $this->backfillRarity($tokenService);
         }
 
         $region = config('services.blizzard.region', 'us');
@@ -120,7 +125,7 @@ class SyncCatalogCommand extends Command
 
         // Step 2: Filter out existing items (unless --fresh)
         $existingIds = CatalogItem::pluck('blizzard_item_id')->toArray();
-        $newIds = $fresh ? $uniqueIds : $uniqueIds->diff($existingIds)->values();
+        $newIds = ($fresh ? $uniqueIds : $uniqueIds->diff($existingIds)->values())->sortDesc()->values();
 
         $this->info(sprintf(
             'Skipping %s existing items. %s remaining to look up.',
@@ -317,6 +322,8 @@ class SyncCatalogCommand extends Command
                 }
             }
 
+            $rarity = $data['quality']['type'] ?? null;
+
             $bar->setMessage($name);
 
             $bar->clear();
@@ -326,7 +333,7 @@ class SyncCatalogCommand extends Command
             if (! $dryRun) {
                 CatalogItem::updateOrCreate(
                     ['blizzard_item_id' => $itemId],
-                    ['name' => $name, 'category' => $category, 'icon_url' => $iconUrl],
+                    ['name' => $name, 'category' => $category, 'rarity' => $rarity, 'icon_url' => $iconUrl],
                 );
             }
 
@@ -335,6 +342,64 @@ class SyncCatalogCommand extends Command
         }
 
         return compact('imported', 'failed', 'rateLimited');
+    }
+
+    /**
+     * Backfill rarity for catalog items that have null rarity.
+     */
+    private function backfillRarity(BlizzardTokenService $tokenService): int
+    {
+        $region = config('services.blizzard.region', 'us');
+        $token = $tokenService->getToken();
+
+        $items = CatalogItem::whereNull('rarity')->pluck('blizzard_item_id');
+
+        if ($items->isEmpty()) {
+            $this->info('All catalog items already have rarity data.');
+
+            return self::SUCCESS;
+        }
+
+        $this->info(sprintf('Backfilling rarity for %s items...', number_format($items->count())));
+
+        $bar = $this->output->createProgressBar($items->count());
+        $bar->setFormat(' %current%/%max% [%bar%] %percent:3s%%');
+        $bar->start();
+
+        foreach ($items->chunk(20) as $chunk) {
+            $itemIds = $chunk->values()->all();
+
+            $responses = Http::pool(fn ($pool) => collect($itemIds)->map(
+                fn (int $id) => $pool->as((string) $id)
+                    ->withToken($token)
+                    ->timeout(30)
+                    ->connectTimeout(10)
+                    ->get("https://{$region}.api.blizzard.com/data/wow/item/{$id}", [
+                        'namespace' => "static-{$region}",
+                    ])
+            )->all());
+
+            foreach ($itemIds as $itemId) {
+                $response = $responses[(string) $itemId] ?? null;
+
+                if ($response && ! ($response instanceof \Throwable) && $response->successful()) {
+                    $rarity = $response->json('quality.type');
+                    if ($rarity) {
+                        CatalogItem::where('blizzard_item_id', $itemId)->update(['rarity' => $rarity]);
+                    }
+                }
+
+                $bar->advance();
+            }
+
+            usleep(1_000_000);
+        }
+
+        $bar->finish();
+        $this->newLine(2);
+        $this->info('Rarity backfill complete.');
+
+        return self::SUCCESS;
     }
 
     /**
