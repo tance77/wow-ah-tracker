@@ -164,4 +164,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8
 | 5. Data Ingestion Pipeline | 2/2 | Complete   | 2026-03-01 |
 | 6. Data Integrity Safeguards | 2/2 | Complete   | 2026-03-01 |
 | 7. Dashboard and Price Charts | 2/2 | Complete   | 2026-03-01 |
-| 8. Buy/Sell Signal Indicators | 0/2 | Not started | - |
+| 8. Buy/Sell Signal Indicators | 1/2 | In Progress|  |

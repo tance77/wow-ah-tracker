@@ -3,12 +3,12 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: unknown
-last_updated: "2026-03-01T23:50:10.622Z"
+last_updated: "2026-03-02T00:11:43.447Z"
 progress:
-  total_phases: 7
+  total_phases: 8
   completed_phases: 7
-  total_plans: 16
-  completed_plans: 16
+  total_plans: 18
+  completed_plans: 17
 ---
 
 # Project State
@@ -18,16 +18,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-01)
 
 **Core value:** See at a glance when crafting material prices dip or spike so users can act on buy/sell opportunities before the market corrects.
-**Current focus:** Phase 7 - Dashboard and Price Charts
+**Current focus:** Phase 8 - Buy/Sell Signal Indicators
 
 ## Current Position
 
-Phase: 7 of 8 (Dashboard and Price Charts) — Complete
-Plan: 2 of 2 in current phase — 07-02 complete
-Status: Phase 7 Complete
-Last activity: 2026-03-01 — Completed 07-02 (9-test Pest suite for dashboard DASH-01/02/03/06, human-verified, fixed @script syntax and wire:ignore DOM morphing)
+Phase: 8 of 8 (Buy/Sell Signal Indicators) — In Progress
+Plan: 1 of 2 in current phase — 08-01 complete
+Status: Phase 8 In Progress
+Last activity: 2026-03-02 — Completed 08-01 (rollingSignal(), signalSummary(), signal-sorted watchedItems(), BUY/SELL badges, colored borders, header summary, chart annotations, 7d avg series)
 
-Progress: [██████████] 100%
+Progress: [████████░░] 88%
 
 ## Performance Metrics
 
@@ -61,6 +61,7 @@ Progress: [██████████] 100%
 | Phase 07-dashboard-and-price-charts P01 | 15 | 2 tasks | 5 files |
 | Phase 07-dashboard-and-price-charts P02 | 5 | 1 tasks | 1 files |
 | Phase 07-dashboard-and-price-charts P02 | 10 | 2 tasks | 2 files |
+| Phase 08-buy-sell-signal-indicators P01 | 8 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -124,6 +125,8 @@ Recent decisions affecting current work:
 - [Phase 07-dashboard-and-price-charts]: component->instance()->formatGold() accesses Volt component PHP methods for unit-level assertions within feature tests
 - [Phase 07-dashboard-and-price-charts]: wire:ignore.self on chart panel outer div prevents Livewire DOM morphing from removing chart container on timeframe toggle
 - [Phase 07-dashboard-and-price-charts]: @script/@endscript Blade directive required for Volt SFC scripts needing $wire access — bare <script> tags do not receive the $wire proxy
+- [Phase 08-buy-sell-signal-indicators]: Signal sorting uses array callback [0|1, -magnitude] so active signals float first within sorted collection
+- [Phase 08-buy-sell-signal-indicators]: ApexCharts annotations array replaced (not appended) on every updateOptions() call to prevent line accumulation across timeframe changes
 
 ### Pending Todos
 
@@ -136,6 +139,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-01
-Stopped at: Completed 07-02-PLAN.md — 9-test Pest suite proving DASH-01/02/03/06, human-verify approved, two bugs fixed (@script syntax, wire:ignore DOM morphing protection). Phase 07 complete.
+Last session: 2026-03-02
+Stopped at: Completed 08-01-PLAN.md — buy/sell signal indicators with rolling average computation, pill badges, colored borders, signal-first sorting, header summary, chart threshold annotation lines and dashed 7d avg reference series. All 9 dashboard tests pass.
 Resume file: None
