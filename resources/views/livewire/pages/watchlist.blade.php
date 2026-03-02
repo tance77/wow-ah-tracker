@@ -17,7 +17,7 @@ new #[Layout('layouts.app')] class extends Component
     #[Computed]
     public function watchedItems(): Collection
     {
-        return auth()->user()->watchedItems()->with('catalogItem:blizzard_item_id,name,icon_url,quality_tier')->orderBy('name')->get();
+        return auth()->user()->watchedItems()->with('catalogItem:blizzard_item_id,name,icon_url,quality_tier,rarity')->orderBy('name')->get();
     }
 
     #[Computed]
@@ -27,11 +27,29 @@ new #[Layout('layouts.app')] class extends Component
             return [];
         }
 
-        return CatalogItem::where('name', 'like', "%{$this->search}%")
-            ->limit(15)
+        $items = CatalogItem::where('name', 'like', "%{$this->search}%")
             ->orderBy('name')
             ->orderBy('quality_tier')
-            ->get(['id', 'name', 'blizzard_item_id', 'icon_url', 'quality_tier'])
+            ->get(['id', 'name', 'blizzard_item_id', 'icon_url', 'quality_tier', 'rarity']);
+
+        // Group by name so all tiers appear together, limit to 15 item groups,
+        // and share icon/rarity across tiers (some tiers may lack their own).
+        return $items->groupBy('name')
+            ->take(15)
+            ->flatMap(function ($group) {
+                $icon = $group->firstWhere('icon_url', '!=', null)?->icon_url;
+                $rarity = $group->firstWhere('rarity', '!=', null)?->rarity;
+
+                return $group->map(fn ($item) => [
+                    'id' => $item->id,
+                    'name' => $item->name,
+                    'blizzard_item_id' => $item->blizzard_item_id,
+                    'icon_url' => $item->icon_url ?? $icon,
+                    'quality_tier' => $item->quality_tier,
+                    'rarity' => $item->rarity ?? $rarity,
+                ]);
+            })
+            ->values()
             ->toArray();
     }
 
@@ -124,8 +142,17 @@ new #[Layout('layouts.app')] class extends Component
                                             @else
                                                 <span class="flex h-6 w-6 items-center justify-center rounded bg-gray-700 text-xs text-gray-500">?</span>
                                             @endif
-                                            <span>
-                                                {{ $item['display_name'] }}
+                                            <span class="flex items-center gap-1.5">
+                                                <span class="{{ match($item['rarity'] ?? null) {
+                                                    'POOR' => 'text-rarity-poor',
+                                                    'COMMON' => 'text-rarity-common',
+                                                    'UNCOMMON' => 'text-rarity-uncommon',
+                                                    'RARE' => 'text-rarity-rare',
+                                                    'EPIC' => 'text-rarity-epic',
+                                                    'LEGENDARY' => 'text-rarity-legendary',
+                                                    default => 'text-gray-200',
+                                                } }}">{{ $item['name'] }}</span>
+                                                <x-tier-pip :tier="$item['quality_tier'] ?? null" />
                                                 <span class="text-xs text-gray-500">ID: {{ $item['blizzard_item_id'] }}</span>
                                             </span>
                                         </li>
@@ -195,7 +222,10 @@ new #[Layout('layouts.app')] class extends Component
                                                     <span class="flex h-8 w-8 items-center justify-center rounded bg-gray-700 text-xs text-gray-500">?</span>
                                                 @endif
                                                 <div>
-                                                    <span class="font-medium">{{ $item->catalogItem?->display_name ?? $item->name }}</span>
+                                                    <span class="flex items-center gap-1.5">
+                                                        <span class="font-medium {{ $item->catalogItem?->rarityColorClass() ?? 'text-gray-100' }}">{{ $item->catalogItem?->name ?? $item->name }}</span>
+                                                        <x-tier-pip :tier="$item->catalogItem?->quality_tier" />
+                                                    </span>
                                                     <span class="block text-xs text-gray-500">ID: {{ $item->blizzard_item_id }}</span>
                                                 </div>
                                             </div>

@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Concerns\FormatsAuctionData;
 use App\Models\WatchedItem;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -11,11 +12,9 @@ use Livewire\Volt\Component;
 
 new #[Layout('layouts.app')] class extends Component
 {
-    public ?int $selectedItemId = null;
+    use FormatsAuctionData;
 
     public string $viewMode = 'list';
-
-    public string $timeframe = '7d';
 
     public function toggleViewMode(string $mode): void
     {
@@ -28,7 +27,7 @@ new #[Layout('layouts.app')] class extends Component
         $items = auth()->user()->watchedItems()
             ->with([
                 'priceSnapshots' => fn ($q) => $q->latest('polled_at')->limit(2),
-                'catalogItem:blizzard_item_id,name,icon_url,quality_tier',
+                'catalogItem:blizzard_item_id,name,icon_url,quality_tier,rarity',
             ])
             ->orderBy('name')
             ->get();
@@ -44,153 +43,6 @@ new #[Layout('layouts.app')] class extends Component
         })->values();
     }
 
-    public function selectItem(int $id): void
-    {
-        if ($this->selectedItemId === $id) {
-            $this->selectedItemId = null;
-        } else {
-            $this->selectedItemId = $id;
-            $this->loadChart();
-        }
-    }
-
-    public function setTimeframe(string $frame): void
-    {
-        $this->timeframe = $frame;
-        $this->loadChart();
-    }
-
-    private function loadChart(): void
-    {
-        $cutoff = match ($this->timeframe) {
-            '24h' => now()->subHours(24),
-            '30d' => now()->subDays(30),
-            default => now()->subDays(7),
-        };
-
-        $item = auth()->user()
-            ->watchedItems()
-            ->findOrFail($this->selectedItemId);
-
-        $snapshots = $item->priceSnapshots()
-            ->where('polled_at', '>=', $cutoff)
-            ->orderBy('polled_at')
-            ->get(['polled_at', 'median_price', 'min_price']);
-
-        $median = $snapshots->map(fn ($s) => [
-            'x' => $s->polled_at->timestamp * 1000,
-            'y' => $s->median_price,
-        ])->values()->toArray();
-
-        $min = $snapshots->map(fn ($s) => [
-            'x' => $s->polled_at->timestamp * 1000,
-            'y' => $s->min_price,
-        ])->values()->toArray();
-
-        // Rolling average: 7-day avg as a flat horizontal reference line
-        $rollingAvg = (int) round((float) (
-            $item->priceSnapshots()
-                ->where('polled_at', '>=', now()->subDays(7))
-                ->avg('median_price') ?? 0
-        ));
-
-        $rollingAvgSeries = [];
-        if ($rollingAvg > 0 && count($median) >= 2) {
-            $rollingAvgSeries = [
-                ['x' => $median[0]['x'], 'y' => $rollingAvg],
-                ['x' => $median[count($median) - 1]['x'], 'y' => $rollingAvg],
-            ];
-        } elseif ($rollingAvg > 0 && count($median) === 1) {
-            $rollingAvgSeries = [
-                ['x' => $median[0]['x'], 'y' => $rollingAvg],
-            ];
-        }
-
-        // Threshold annotation lines (only when rolling avg is meaningful)
-        $annotations = [];
-        if ($rollingAvg > 0) {
-            if ($item->buy_threshold > 0) {
-                $annotations[] = [
-                    'level' => (int) round($rollingAvg * (1 - $item->buy_threshold / 100)),
-                    'type' => 'buy',
-                ];
-            }
-            if ($item->sell_threshold > 0) {
-                $annotations[] = [
-                    'level' => (int) round($rollingAvg * (1 + $item->sell_threshold / 100)),
-                    'type' => 'sell',
-                ];
-            }
-        }
-
-        $this->dispatch('chart-data-updated',
-            median: $median,
-            min: $min,
-            rollingAvg: $rollingAvgSeries,
-            annotations: $annotations,
-        );
-    }
-
-    public function formatGold(int $copper): string
-    {
-        $g = intdiv($copper, 10000);
-        $s = intdiv($copper % 10000, 100);
-        $c = $copper % 100;
-
-        $parts = [];
-        if ($g > 0) {
-            $parts[] = number_format($g).'g';
-        }
-        if ($s > 0) {
-            $parts[] = $s.'s';
-        }
-        if ($c > 0 || $parts === []) {
-            $parts[] = $c.'c';
-        }
-
-        return implode(' ', $parts);
-    }
-
-    public function trendDirection(WatchedItem $item): string
-    {
-        $snapshots = $item->priceSnapshots;
-
-        if ($snapshots->count() < 2) {
-            return 'flat';
-        }
-
-        $current = $snapshots->first()->median_price;
-        $previous = $snapshots->last()->median_price;
-
-        if ($current > $previous) {
-            return 'up';
-        }
-
-        if ($current < $previous) {
-            return 'down';
-        }
-
-        return 'flat';
-    }
-
-    public function trendPercent(WatchedItem $item): ?float
-    {
-        $snapshots = $item->priceSnapshots;
-
-        if ($snapshots->count() < 2) {
-            return null;
-        }
-
-        $current = $snapshots->first()->median_price;
-        $previous = $snapshots->last()->median_price;
-
-        if ($previous === 0) {
-            return null;
-        }
-
-        return round((($current - $previous) / $previous) * 100, 1);
-    }
-
     public function dataFreshness(): string
     {
         $latest = auth()->user()
@@ -203,45 +55,6 @@ new #[Layout('layouts.app')] class extends Component
         }
 
         return Carbon::parse($latest)->diffForHumans();
-    }
-
-    public function rollingSignal(WatchedItem $item): array
-    {
-        $sevenDayQuery = $item->priceSnapshots()
-            ->where('polled_at', '>=', now()->subDays(7));
-
-        $snapshotCount = $sevenDayQuery->count();
-
-        if ($snapshotCount < 96) {
-            return ['signal' => 'insufficient_data', 'magnitude' => 0.0, 'rollingAvg' => 0];
-        }
-
-        $rollingAvg = (int) round((float) (
-            $item->priceSnapshots()
-                ->where('polled_at', '>=', now()->subDays(7))
-                ->avg('median_price') ?? 0
-        ));
-
-        if ($rollingAvg === 0) {
-            return ['signal' => 'none', 'magnitude' => 0.0, 'rollingAvg' => 0];
-        }
-
-        $currentPrice = $item->priceSnapshots->first()?->median_price ?? 0;
-
-        $buyLevel = (int) round($rollingAvg * (1 - $item->buy_threshold / 100));
-        $sellLevel = (int) round($rollingAvg * (1 + $item->sell_threshold / 100));
-
-        if ($currentPrice <= $buyLevel && $currentPrice > 0) {
-            $magnitude = round((($rollingAvg - $currentPrice) / $rollingAvg) * 100, 1);
-            return ['signal' => 'buy', 'magnitude' => $magnitude, 'rollingAvg' => $rollingAvg];
-        }
-
-        if ($currentPrice >= $sellLevel) {
-            $magnitude = round((($currentPrice - $rollingAvg) / $rollingAvg) * 100, 1);
-            return ['signal' => 'sell', 'magnitude' => $magnitude, 'rollingAvg' => $rollingAvg];
-        }
-
-        return ['signal' => 'none', 'magnitude' => 0.0, 'rollingAvg' => $rollingAvg];
     }
 
     public function signalSummary(): string
@@ -322,11 +135,11 @@ new #[Layout('layouts.app')] class extends Component
                 <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3" wire:loading.class="opacity-50">
                     @foreach ($this->watchedItems as $item)
                         @php $sig = $item->_signal; @endphp
-                        <div
+                        <a
+                            href="{{ route('item.detail', $item) }}"
+                            wire:navigate
                             wire:key="card-{{ $item->id }}"
-                            wire:click="selectItem({{ $item->id }})"
-                            class="cursor-pointer rounded-lg border bg-wow-dark p-5 transition-colors hover:border-wow-gold/50
-                                {{ $selectedItemId === $item->id ? 'ring-2 ring-wow-gold' : '' }}
+                            class="block rounded-lg border bg-wow-dark p-5 transition-colors hover:border-wow-gold/50
                                 {{ $sig['signal'] === 'buy' ? 'border-green-500/60' : ($sig['signal'] === 'sell' ? 'border-red-500/60' : 'border-gray-700/50') }}"
                         >
                             <div class="mb-3 flex items-start justify-between">
@@ -334,7 +147,7 @@ new #[Layout('layouts.app')] class extends Component
                                     @if ($item->catalogItem?->icon_url)
                                         <img src="{{ $item->catalogItem->icon_url }}" alt="" class="h-8 w-8 rounded" loading="lazy" />
                                     @endif
-                                    <h3 class="font-medium text-gray-100">{{ $item->catalogItem?->display_name ?? $item->name }}</h3>
+                                    <h3 class="flex items-center gap-1.5 font-medium {{ $item->catalogItem?->rarityColorClass() ?? 'text-gray-100' }}">{{ $item->catalogItem?->name ?? $item->name }} <x-tier-pip :tier="$item->catalogItem?->quality_tier" /></h3>
 
                                     @if ($sig['signal'] === 'buy')
                                         <span class="signal-pulse-buy rounded-full bg-green-500/20 px-2 py-0.5 text-xs font-semibold text-green-400 ring-1 ring-green-500/50">
@@ -392,7 +205,7 @@ new #[Layout('layouts.app')] class extends Component
                                     @endif
                                 </div>
                             @endif
-                        </div>
+                        </a>
                     @endforeach
 
                     {{-- Loading skeleton --}}
@@ -424,18 +237,16 @@ new #[Layout('layouts.app')] class extends Component
                                 @php $sig = $item->_signal; @endphp
                                 <tr
                                     wire:key="row-{{ $item->id }}"
-                                    wire:click="selectItem({{ $item->id }})"
-                                    class="cursor-pointer bg-wow-dark transition-colors hover:bg-gray-800/50
-                                        {{ $selectedItemId === $item->id ? 'ring-2 ring-wow-gold ring-inset' : '' }}
+                                    class="bg-wow-dark transition-colors hover:bg-gray-800/50
                                         {{ $sig['signal'] === 'buy' ? 'border-l-2 border-l-green-500' : ($sig['signal'] === 'sell' ? 'border-l-2 border-l-red-500' : 'border-l-2 border-l-transparent') }}"
                                 >
                                     <td class="px-4 py-3">
-                                        <div class="flex items-center gap-2">
+                                        <a href="{{ route('item.detail', $item) }}" wire:navigate class="flex items-center gap-2 hover:text-wow-gold">
                                             @if ($item->catalogItem?->icon_url)
                                                 <img src="{{ $item->catalogItem->icon_url }}" alt="" class="h-6 w-6 rounded" loading="lazy" />
                                             @endif
-                                            <span class="font-medium text-gray-100">{{ $item->catalogItem?->display_name ?? $item->name }}</span>
-                                        </div>
+                                            <span class="flex items-center gap-1.5 font-medium {{ $item->catalogItem?->rarityColorClass() ?? 'text-gray-100' }}">{{ $item->catalogItem?->name ?? $item->name }} <x-tier-pip :tier="$item->catalogItem?->quality_tier" /></span>
+                                        </a>
                                     </td>
                                     <td class="px-4 py-3">
                                         @if ($item->priceSnapshots->isEmpty())
@@ -447,11 +258,11 @@ new #[Layout('layouts.app')] class extends Component
                                                 $s = intdiv($latestPrice % 10000, 100);
                                                 $c = $latestPrice % 100;
                                             @endphp
-                                            <span class="font-medium">
+                                            <a href="{{ route('item.detail', $item) }}" wire:navigate class="font-medium hover:text-wow-gold">
                                                 @if ($g > 0)<span class="text-wow-gold">{{ number_format($g) }}g</span>@endif
                                                 @if ($s > 0)<span class="text-gray-300">{{ $s }}s</span>@endif
                                                 @if ($c > 0 || ($g === 0 && $s === 0))<span class="text-amber-700">{{ $c }}c</span>@endif
-                                            </span>
+                                            </a>
                                         @endif
                                     </td>
                                     <td class="px-4 py-3">
@@ -499,163 +310,4 @@ new #[Layout('layouts.app')] class extends Component
         @endif
 
     </div>
-
-    {{-- Chart Panel (sticky bottom) --}}
-    <div
-        x-show="$wire.selectedItemId !== null"
-        x-transition:enter="transition ease-out duration-200"
-        x-transition:enter-start="opacity-0 translate-y-full"
-        x-transition:enter-end="opacity-100 translate-y-0"
-        x-transition:leave="transition ease-in duration-150"
-        x-transition:leave-start="opacity-100 translate-y-0"
-        x-transition:leave-end="opacity-0 translate-y-full"
-        class="fixed inset-x-0 bottom-0 z-40 border-t border-gray-700/50 bg-wow-dark p-4 shadow-2xl"
-        style="display: none;"
-        wire:ignore.self
-    >
-        <div class="mx-auto max-w-7xl">
-            <div class="mb-3 flex items-center justify-between">
-                <h3 class="font-medium text-gray-100" x-text="$wire.selectedItemId ? ({{ $this->watchedItems->pluck('name', 'id')->toJson() }})[$wire.selectedItemId] ?? '' : ''">
-                </h3>
-                <div class="flex items-center gap-3">
-                    {{-- Timeframe Toggle --}}
-                    <div class="flex overflow-hidden rounded-md border border-gray-600">
-                        @foreach (['24h', '7d', '30d'] as $frame)
-                            <button
-                                wire:click="setTimeframe('{{ $frame }}')"
-                                class="px-3 py-1 text-sm font-medium transition-colors"
-                                :class="$wire.timeframe === '{{ $frame }}' ? 'bg-wow-gold text-wow-darker' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'"
-                            >
-                                {{ $frame }}
-                            </button>
-                        @endforeach
-                    </div>
-                    {{-- Close button --}}
-                    <button
-                        wire:click="selectItem($wire.selectedItemId)"
-                        class="rounded p-1 text-gray-400 transition-colors hover:text-gray-200"
-                        title="Close chart"
-                    >
-                        <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-                    </button>
-                </div>
-            </div>
-            <div id="price-chart" wire:ignore style="height: 250px;"></div>
-        </div>
-    </div>
 </div>
-
-@script
-<script>
-(function () {
-    let chart = null;
-
-    function formatGoldJs(copper) {
-        if (copper === null || copper === undefined) return '\u2014';
-        const g = Math.floor(copper / 10000);
-        const s = Math.floor((copper % 10000) / 100);
-        const c = copper % 100;
-        const parts = [];
-        if (g > 0) parts.push(g.toLocaleString() + 'g');
-        if (s > 0) parts.push(s + 's');
-        if (c > 0 || parts.length === 0) parts.push(c + 'c');
-        return parts.join(' ');
-    }
-
-    $wire.$on('chart-data-updated', ({ median, min, rollingAvg, annotations }) => {
-        // Build yaxis annotation lines for buy/sell thresholds
-        const yaxisAnnotations = (annotations || []).map(a => ({
-            y: a.level,
-            borderColor: a.type === 'buy' ? '#22c55e' : '#ef4444',
-            strokeDashArray: 6,
-            label: {
-                text: a.type === 'buy' ? 'Buy Threshold' : 'Sell Threshold',
-                position: 'left',
-                style: {
-                    background: 'transparent',
-                    color: a.type === 'buy' ? '#22c55e' : '#ef4444',
-                    fontSize: '11px',
-                },
-            },
-        }));
-
-        const options = {
-            series: [
-                { name: 'Median',      data: median },
-                { name: 'Min',         data: min },
-                { name: '7d Avg',      data: rollingAvg || [] },
-            ],
-            annotations: { yaxis: yaxisAnnotations },
-            chart: {
-                type: 'line',
-                height: 250,
-                background: '#1a1a2e',
-                toolbar: { show: false },
-                animations: { enabled: true },
-            },
-            noData: {
-                text: 'No price data for this timeframe',
-                style: { color: '#9ca3af', fontSize: '14px' },
-            },
-            theme: { mode: 'dark' },
-            colors: ['#f7a325', '#60a5fa', '#a78bfa'],
-            stroke: {
-                curve: 'smooth',
-                width: [2, 2, 2],
-                dashArray: [0, 0, 6],
-            },
-            markers: { size: 0 },
-            xaxis: {
-                type: 'datetime',
-                labels: {
-                    style: { colors: '#9ca3af' },
-                    datetimeUTC: false,
-                },
-            },
-            yaxis: {
-                labels: {
-                    style: { colors: '#9ca3af' },
-                    formatter: (val) => Math.floor(val / 10000).toLocaleString() + 'g',
-                },
-            },
-            tooltip: {
-                theme: 'dark',
-                custom: ({ series, seriesIndex, dataPointIndex, w }) => {
-                    const medianVal = series[0] ? series[0][dataPointIndex] : null;
-                    const minVal = series[1] ? series[1][dataPointIndex] : null;
-                    const avgVal = series[2] ? series[2][dataPointIndex] : null;
-                    const ts = w.globals.seriesX[0][dataPointIndex];
-                    const date = new Date(ts);
-                    const timeStr = date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-                    let html = '<div class="px-3 py-2 text-sm">'
-                        + '<div class="text-gray-400 mb-1">' + timeStr + '</div>'
-                        + '<div><strong>Median:</strong> ' + formatGoldJs(medianVal) + '</div>'
-                        + '<div><strong>Min:</strong> ' + formatGoldJs(minVal) + '</div>';
-                    if (avgVal !== null && avgVal !== undefined) {
-                        html += '<div><strong>7d Avg:</strong> ' + formatGoldJs(avgVal) + '</div>';
-                    }
-                    html += '</div>';
-                    return html;
-                },
-            },
-            grid: { borderColor: '#374151' },
-        };
-
-        const el = document.querySelector('#price-chart');
-        if (!el) return;
-
-        if (chart !== null && !document.body.contains(chart.el)) {
-            chart.destroy();
-            chart = null;
-        }
-
-        if (chart === null) {
-            chart = new ApexCharts(el, options);
-            chart.render();
-        } else {
-            chart.updateOptions(options);
-        }
-    });
-})();
-</script>
-@endscript
