@@ -190,6 +190,7 @@ new #[Layout('layouts.app')] class extends Component
             min: $min,
             rollingAvg: $rollingAvgSeries,
             annotations: $annotations,
+            timeframe: $this->timeframe,
         );
     }
 }; ?>
@@ -483,7 +484,7 @@ new #[Layout('layouts.app')] class extends Component
         return parts.join(' ');
     }
 
-    $wire.$on('chart-data-updated', ({ median, min, rollingAvg, annotations }) => {
+    $wire.$on('chart-data-updated', ({ median, min, rollingAvg, annotations, timeframe }) => {
         const yaxisAnnotations = (annotations || []).map(a => ({
             y: a.level,
             borderColor: a.type === 'buy' ? '#22c55e' : '#ef4444',
@@ -530,6 +531,7 @@ new #[Layout('layouts.app')] class extends Component
                 labels: {
                     style: { colors: '#9ca3af' },
                     datetimeUTC: false,
+                    format: timeframe === '24h' ? 'HH:mm' : (timeframe === '30d' ? 'MMM dd' : 'dd MMM HH:mm'),
                 },
             },
             yaxis: {
