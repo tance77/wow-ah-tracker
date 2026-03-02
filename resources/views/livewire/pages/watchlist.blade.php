@@ -17,7 +17,7 @@ new #[Layout('layouts.app')] class extends Component
     #[Computed]
     public function watchedItems(): Collection
     {
-        return auth()->user()->watchedItems()->with('catalogItem:blizzard_item_id,icon_url')->orderBy('name')->get();
+        return auth()->user()->watchedItems()->with('catalogItem:blizzard_item_id,name,icon_url,quality_tier')->orderBy('name')->get();
     }
 
     #[Computed]
@@ -30,7 +30,8 @@ new #[Layout('layouts.app')] class extends Component
         return CatalogItem::where('name', 'like', "%{$this->search}%")
             ->limit(15)
             ->orderBy('name')
-            ->get(['id', 'name', 'blizzard_item_id', 'icon_url'])
+            ->orderBy('quality_tier')
+            ->get(['id', 'name', 'blizzard_item_id', 'icon_url', 'quality_tier'])
             ->toArray();
     }
 
@@ -124,7 +125,7 @@ new #[Layout('layouts.app')] class extends Component
                                                 <span class="flex h-6 w-6 items-center justify-center rounded bg-gray-700 text-xs text-gray-500">?</span>
                                             @endif
                                             <span>
-                                                {{ $item['name'] }}
+                                                {{ $item['display_name'] }}
                                                 <span class="text-xs text-gray-500">ID: {{ $item['blizzard_item_id'] }}</span>
                                             </span>
                                         </li>
@@ -194,7 +195,7 @@ new #[Layout('layouts.app')] class extends Component
                                                     <span class="flex h-8 w-8 items-center justify-center rounded bg-gray-700 text-xs text-gray-500">?</span>
                                                 @endif
                                                 <div>
-                                                    <span class="font-medium">{{ $item->name }}</span>
+                                                    <span class="font-medium">{{ $item->catalogItem?->display_name ?? $item->name }}</span>
                                                     <span class="block text-xs text-gray-500">ID: {{ $item->blizzard_item_id }}</span>
                                                 </div>
                                             </div>

@@ -16,9 +16,18 @@ class CatalogItem extends Model
         'name',
         'category',
         'icon_url',
+        'quality_tier',
     ];
 
     protected $casts = [
         'blizzard_item_id' => 'integer',
+        'quality_tier' => 'integer',
     ];
+
+    protected $appends = ['display_name'];
+
+    public function getDisplayNameAttribute(): string
+    {
+        return $this->quality_tier ? "{$this->name} (T{$this->quality_tier})" : $this->name;
+    }
 }
