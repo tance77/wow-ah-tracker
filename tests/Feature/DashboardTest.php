@@ -146,6 +146,228 @@ it('redirects guests to login', function () {
     $this->get('/dashboard')->assertRedirect('/login');
 });
 
+// Helper: creates a user with one watched item having $count snapshots at $medianPrice over 7 days
+function createUserWithSignalData(int $count, int $medianPrice, int $currentPrice, int $buyThreshold = 10, int $sellThreshold = 10): array
+{
+    $user = User::factory()->create();
+    $item = WatchedItem::factory()->create([
+        'user_id' => $user->id,
+        'name' => 'Signal Item',
+        'buy_threshold' => $buyThreshold,
+        'sell_threshold' => $sellThreshold,
+    ]);
+
+    // Historical snapshots spread over 7 days
+    foreach (range(1, $count) as $i) {
+        PriceSnapshot::factory()->create([
+            'watched_item_id' => $item->id,
+            'median_price' => $medianPrice,
+            'polled_at' => now()->subDays(7)->addMinutes(15 * $i),
+        ]);
+    }
+
+    // Current (most recent) snapshot at the target price
+    PriceSnapshot::factory()->create([
+        'watched_item_id' => $item->id,
+        'median_price' => $currentPrice,
+        'polled_at' => now()->subMinutes(5),
+    ]);
+
+    return [$user, $item];
+}
+
+// DASH-04 — Buy signal when price is below buy threshold
+
+it('shows BUY badge when current price is below buy threshold relative to rolling average', function () {
+    // 100 snapshots at 100,000 copper avg, current at 88,000 (12% below) — buy_threshold 10% triggers
+    [$user, $item] = createUserWithSignalData(
+        count: 100,
+        medianPrice: 100_000,
+        currentPrice: 88_000,
+        buyThreshold: 10,
+        sellThreshold: 10,
+    );
+
+    Volt::actingAs($user)->test('pages.dashboard')
+        ->assertSee('BUY');
+});
+
+// DASH-05 — Sell signal when price is above sell threshold
+
+it('shows SELL badge when current price is above sell threshold relative to rolling average', function () {
+    [$user, $item] = createUserWithSignalData(
+        count: 100,
+        medianPrice: 100_000,
+        currentPrice: 115_000,
+        buyThreshold: 10,
+        sellThreshold: 10,
+    );
+
+    Volt::actingAs($user)->test('pages.dashboard')
+        ->assertSee('SELL');
+});
+
+// DASH-04/DASH-05 — No badge when price is within thresholds
+
+it('shows no signal badge when price is within thresholds', function () {
+    [$user, $item] = createUserWithSignalData(
+        count: 100,
+        medianPrice: 100_000,
+        currentPrice: 100_000,
+        buyThreshold: 10,
+        sellThreshold: 10,
+    );
+
+    Volt::actingAs($user)->test('pages.dashboard')
+        ->assertDontSee('BUY')
+        ->assertDontSee('SELL')
+        ->assertDontSee('Collecting data');
+});
+
+// DASH-04/DASH-05 — Insufficient data shows collecting data badge
+
+it('shows collecting data badge when fewer than 96 snapshots exist', function () {
+    // Only 50 snapshots — below the 96 minimum threshold
+    [$user, $item] = createUserWithSignalData(
+        count: 50,
+        medianPrice: 100_000,
+        currentPrice: 88_000,
+        buyThreshold: 10,
+        sellThreshold: 10,
+    );
+
+    Volt::actingAs($user)->test('pages.dashboard')
+        ->assertSee('Collecting data')
+        ->assertDontSee('BUY')
+        ->assertDontSee('SELL');
+});
+
+// DASH-04/DASH-05 — Signal items sorted to top of card grid
+
+it('sorts items with active signals before items without signals', function () {
+    $user = User::factory()->create();
+
+    // Non-signaled item (alphabetically first: "Alpha")
+    $normalItem = WatchedItem::factory()->create([
+        'user_id' => $user->id,
+        'name' => 'Alpha Item',
+        'buy_threshold' => 10,
+        'sell_threshold' => 10,
+    ]);
+    foreach (range(1, 100) as $i) {
+        PriceSnapshot::factory()->create([
+            'watched_item_id' => $normalItem->id,
+            'median_price' => 100_000,
+            'polled_at' => now()->subDays(7)->addMinutes(15 * $i),
+        ]);
+    }
+    PriceSnapshot::factory()->create([
+        'watched_item_id' => $normalItem->id,
+        'median_price' => 100_000,
+        'polled_at' => now()->subMinutes(5),
+    ]);
+
+    // Signaled item (alphabetically second: "Zeta" — but should appear FIRST because it has a signal)
+    $signalItem = WatchedItem::factory()->create([
+        'user_id' => $user->id,
+        'name' => 'Zeta Item',
+        'buy_threshold' => 10,
+        'sell_threshold' => 10,
+    ]);
+    foreach (range(1, 100) as $i) {
+        PriceSnapshot::factory()->create([
+            'watched_item_id' => $signalItem->id,
+            'median_price' => 100_000,
+            'polled_at' => now()->subDays(7)->addMinutes(15 * $i),
+        ]);
+    }
+    PriceSnapshot::factory()->create([
+        'watched_item_id' => $signalItem->id,
+        'median_price' => 85_000, // 15% below avg — triggers buy
+        'polled_at' => now()->subMinutes(5),
+    ]);
+
+    // Zeta (signaled) should appear before Alpha (normal) despite alphabetical ordering
+    Volt::actingAs($user)->test('pages.dashboard')
+        ->assertSeeInOrder(['Zeta Item', 'Alpha Item']);
+});
+
+// DASH-04/DASH-05 — Signal count summary in header
+
+it('shows signal count summary in dashboard header', function () {
+    $user = User::factory()->create();
+
+    // Buy signal item
+    $buyItem = WatchedItem::factory()->create([
+        'user_id' => $user->id,
+        'name' => 'Buy Item',
+        'buy_threshold' => 10,
+        'sell_threshold' => 10,
+    ]);
+    foreach (range(1, 100) as $i) {
+        PriceSnapshot::factory()->create([
+            'watched_item_id' => $buyItem->id,
+            'median_price' => 100_000,
+            'polled_at' => now()->subDays(7)->addMinutes(15 * $i),
+        ]);
+    }
+    PriceSnapshot::factory()->create([
+        'watched_item_id' => $buyItem->id,
+        'median_price' => 85_000, // triggers buy
+        'polled_at' => now()->subMinutes(5),
+    ]);
+
+    // Sell signal item
+    $sellItem = WatchedItem::factory()->create([
+        'user_id' => $user->id,
+        'name' => 'Sell Item',
+        'buy_threshold' => 10,
+        'sell_threshold' => 10,
+    ]);
+    foreach (range(1, 100) as $i) {
+        PriceSnapshot::factory()->create([
+            'watched_item_id' => $sellItem->id,
+            'median_price' => 100_000,
+            'polled_at' => now()->subDays(7)->addMinutes(15 * $i),
+        ]);
+    }
+    PriceSnapshot::factory()->create([
+        'watched_item_id' => $sellItem->id,
+        'median_price' => 115_000, // triggers sell
+        'polled_at' => now()->subMinutes(5),
+    ]);
+
+    $component = Volt::actingAs($user)->test('pages.dashboard');
+
+    // signalSummary() returns header text — access via component instance (header slot not in component html())
+    expect($component->instance()->signalSummary())->toContain('1 buy signal');
+    expect($component->instance()->signalSummary())->toContain('1 sell signal');
+});
+
+// DASH-04/DASH-05 — Chart event includes threshold annotations
+
+it('dispatches chart-data-updated with annotations and rolling average when item selected', function () {
+    [$user, $item] = createUserWithSignalData(
+        count: 100,
+        medianPrice: 100_000,
+        currentPrice: 88_000,
+        buyThreshold: 10,
+        sellThreshold: 15,
+    );
+
+    Volt::actingAs($user)->test('pages.dashboard')
+        ->call('selectItem', $item->id)
+        ->assertDispatched('chart-data-updated', function ($name, $data) {
+            // Verify annotations array is present and contains buy + sell
+            $annotations = $data['annotations'] ?? [];
+            $types = array_column($annotations, 'type');
+            return in_array('buy', $types, true)
+                && in_array('sell', $types, true)
+                && isset($data['rollingAvg'])
+                && count($data['rollingAvg']) > 0;
+        });
+});
+
 // Gold formatter — unit-level assertions via component method
 
 it('formats copper values to gold silver copper strings correctly', function () {
