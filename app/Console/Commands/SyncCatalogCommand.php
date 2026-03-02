@@ -363,43 +363,115 @@ class SyncCatalogCommand extends Command
         $this->info(sprintf('Backfilling rarity for %s items...', number_format($items->count())));
 
         $bar = $this->output->createProgressBar($items->count());
-        $bar->setFormat(' %current%/%max% [%bar%] %percent:3s%%');
+        $bar->setFormat(' %current%/%max% [%bar%] %percent:3s%% — %message%');
+        $bar->setMessage('Starting...');
         $bar->start();
+
+        $updated = 0;
+        $failed = 0;
+        $retryQueue = [];
 
         foreach ($items->chunk(20) as $chunk) {
             $itemIds = $chunk->values()->all();
+            $result = $this->fetchRarityBatch($itemIds, $token, $region, $bar);
 
-            $responses = Http::pool(fn ($pool) => collect($itemIds)->map(
-                fn (int $id) => $pool->as((string) $id)
-                    ->withToken($token)
-                    ->timeout(30)
-                    ->connectTimeout(10)
-                    ->get("https://{$region}.api.blizzard.com/data/wow/item/{$id}", [
-                        'namespace' => "static-{$region}",
-                    ])
-            )->all());
+            $updated += $result['updated'];
+            $failed += $result['failed'];
 
-            foreach ($itemIds as $itemId) {
-                $response = $responses[(string) $itemId] ?? null;
-
-                if ($response && ! ($response instanceof \Throwable) && $response->successful()) {
-                    $rarity = $response->json('quality.type');
-                    if ($rarity) {
-                        CatalogItem::where('blizzard_item_id', $itemId)->update(['rarity' => $rarity]);
-                    }
-                }
-
-                $bar->advance();
+            if (! empty($result['rateLimited'])) {
+                $retryQueue = array_merge($retryQueue, $result['rateLimited']);
+                $bar->setMessage('Rate limited — pausing...');
+                Log::warning('SyncCatalog rarity: rate limited, pausing 10s', [
+                    'queued_for_retry' => count($result['rateLimited']),
+                ]);
+                sleep(10);
             }
 
             usleep(1_000_000);
         }
 
+        // Retry rate-limited items in smaller batches
+        if (! empty($retryQueue)) {
+            $bar->setMessage('Retrying rate-limited items...');
+            $this->newLine();
+            $this->warn(sprintf('Retrying %s rate-limited items...', number_format(count($retryQueue))));
+
+            foreach (collect($retryQueue)->chunk(10) as $chunk) {
+                $itemIds = $chunk->values()->all();
+                $result = $this->fetchRarityBatch($itemIds, $token, $region, $bar);
+
+                $updated += $result['updated'];
+                $failed += $result['failed'];
+                $failed += count($result['rateLimited']);
+
+                sleep(2);
+            }
+        }
+
+        $bar->setMessage('Done!');
         $bar->finish();
         $this->newLine(2);
-        $this->info('Rarity backfill complete.');
+        $this->info("Rarity backfill complete. Updated: {$updated}. Failed: {$failed}.");
 
         return self::SUCCESS;
+    }
+
+    /**
+     * Fetch rarity data for a batch of item IDs concurrently.
+     *
+     * @return array{updated: int, failed: int, rateLimited: int[]}
+     */
+    private function fetchRarityBatch(array $itemIds, string $token, string $region, $bar): array
+    {
+        $responses = Http::pool(fn ($pool) => collect($itemIds)->map(
+            fn (int $id) => $pool->as((string) $id)
+                ->withToken($token)
+                ->timeout(30)
+                ->connectTimeout(10)
+                ->get("https://{$region}.api.blizzard.com/data/wow/item/{$id}", [
+                    'namespace' => "static-{$region}",
+                ])
+        )->all());
+
+        $updated = 0;
+        $failed = 0;
+        $rateLimited = [];
+
+        foreach ($itemIds as $itemId) {
+            $response = $responses[(string) $itemId] ?? null;
+
+            if (! $response || $response instanceof \Throwable) {
+                $failed++;
+                $bar->advance();
+
+                continue;
+            }
+
+            if ($response->status() === 429) {
+                $rateLimited[] = $itemId;
+                $bar->advance();
+
+                continue;
+            }
+
+            if (! $response->successful()) {
+                $failed++;
+                $bar->advance();
+
+                continue;
+            }
+
+            $rarity = $response->json('quality.type');
+            if ($rarity) {
+                CatalogItem::where('blizzard_item_id', $itemId)->update(['rarity' => $rarity]);
+                $bar->setMessage("Item {$itemId}");
+                $updated++;
+            }
+
+            $bar->advance();
+        }
+
+        return compact('updated', 'failed', 'rateLimited');
     }
 
     /**
