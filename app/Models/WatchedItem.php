@@ -32,6 +32,11 @@ class WatchedItem extends Model
         return $this->belongsTo(User::class);
     }
 
+    public function catalogItem(): BelongsTo
+    {
+        return $this->belongsTo(CatalogItem::class, 'blizzard_item_id', 'blizzard_item_id');
+    }
+
     public function priceSnapshots(): HasMany
     {
         return $this->hasMany(PriceSnapshot::class);

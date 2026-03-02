@@ -15,6 +15,7 @@ class CatalogItem extends Model
         'blizzard_item_id',
         'name',
         'category',
+        'icon_url',
     ];
 
     protected $casts = [
