@@ -66,7 +66,7 @@ class FetchCommodityPricesJob implements ShouldQueue, ShouldBeUnique
         }
 
         // Fallback gate: response body hash (when Last-Modified absent)
-        $hash = md5($result['rawBody']);
+        $hash = $result['responseHash'];
         if ($result['lastModified'] === null && $hash === $meta->response_hash) {
             Log::info('FetchCommodityPricesJob: data unchanged (hash match), skipping write');
 

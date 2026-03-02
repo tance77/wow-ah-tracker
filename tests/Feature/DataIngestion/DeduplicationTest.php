@@ -52,18 +52,18 @@ function fakeBlizzardHttpNoLastModified(): void
 
 // ── PriceFetchAction return shape tests ──────────────────────────────────────
 
-it('PriceFetchAction returns listings, lastModified, and rawBody keys', function (): void {
+it('PriceFetchAction returns listings, lastModified, and responseHash keys', function (): void {
     fakeBlizzardHttpWithLastModified('Sun, 01 Mar 2026 18:00:00 GMT');
 
     $action = app(PriceFetchAction::class);
     $result = $action([224025]);
 
     expect($result)->toBeArray()
-        ->toHaveKeys(['listings', 'lastModified', 'rawBody']);
+        ->toHaveKeys(['listings', 'lastModified', 'responseHash']);
 
     expect($result['listings'])->toBeArray();
     expect($result['lastModified'])->toBe('Sun, 01 Mar 2026 18:00:00 GMT');
-    expect($result['rawBody'])->toBeString()->not->toBeEmpty();
+    expect($result['responseHash'])->toBeString()->not->toBeEmpty();
 });
 
 it('PriceFetchAction returns null lastModified when header is absent', function (): void {
@@ -74,17 +74,17 @@ it('PriceFetchAction returns null lastModified when header is absent', function 
 
     expect($result['lastModified'])->toBeNull();
     expect($result['listings'])->toBeArray();
-    expect($result['rawBody'])->toBeString()->not->toBeEmpty();
+    expect($result['responseHash'])->toBeString()->not->toBeEmpty();
 });
 
-it('PriceFetchAction rawBody hashes consistently for dedup use', function (): void {
+it('PriceFetchAction responseHash hashes consistently for dedup use', function (): void {
     fakeBlizzardHttpNoLastModified();
 
     $action = app(PriceFetchAction::class);
     $result = $action([224025]);
 
-    // The hash computed in the job should match md5 of rawBody
-    expect(md5($result['rawBody']))->toBeString()->toHaveLength(32);
+    // responseHash is already an md5 hash string
+    expect($result['responseHash'])->toBeString()->toHaveLength(32);
 });
 
 // ── FetchCommodityPricesJob dedup gate tests ──────────────────────────────────
