@@ -134,92 +134,61 @@ class SyncCatalogCommand extends Command
         }
 
         // Step 4: Look up each item and upsert using concurrent requests.
-        // Blizzard allows 100 req/s — send 50 concurrent requests per batch.
+        // Each item requires 2 requests (item data + media icon).
+        // Blizzard allows 100 req/s — send 20 items (40 requests) per batch
+        // with a 1s pause between batches to stay safely under the limit.
         $bar = $this->output->createProgressBar($newIds->count());
+        $bar->setFormat(' %current%/%max% [%bar%] %percent:3s%% — %message%');
+        $bar->setMessage('Starting...');
         $bar->start();
 
         $imported = 0;
         $failed = 0;
+        $retryQueue = [];
+        $verbose = $this->output->isVerbose();
 
-        foreach ($newIds->chunk(50) as $chunk) {
+        foreach ($newIds->chunk(20) as $chunk) {
             $itemIds = $chunk->values()->all();
+            $batchResult = $this->processBatch($itemIds, $token, $region, $dryRun, $bar, $verbose);
 
-            // Fire all requests in this batch concurrently
-            $responses = Http::pool(fn ($pool) => collect($itemIds)->map(
-                fn (int $id) => $pool->as((string) $id)
-                    ->withToken($token)
-                    ->timeout(30)
-                    ->connectTimeout(10)
-                    ->get("https://{$region}.api.blizzard.com/data/wow/item/{$id}", [
-                        'namespace' => "static-{$region}",
-                    ])
-            )->all());
+            $imported += $batchResult['imported'];
+            $failed += $batchResult['failed'];
 
-            $rateLimited = false;
-
-            foreach ($itemIds as $itemId) {
-                $itemResponse = $responses[(string) $itemId] ?? null;
-
-                if (! $itemResponse || $itemResponse instanceof \Throwable) {
-                    Log::warning("SyncCatalog: failed to fetch item {$itemId}", [
-                        'error' => $itemResponse instanceof \Throwable ? $itemResponse->getMessage() : 'no response',
-                    ]);
-                    $failed++;
-                    $bar->advance();
-
-                    continue;
-                }
-
-                if ($itemResponse->status() === 429) {
-                    $rateLimited = true;
-                    $failed++;
-                    $bar->advance();
-
-                    continue;
-                }
-
-                if (! $itemResponse->successful()) {
-                    Log::warning("SyncCatalog: failed to fetch item {$itemId}", [
-                        'status' => $itemResponse->status(),
-                    ]);
-                    $failed++;
-                    $bar->advance();
-
-                    continue;
-                }
-
-                $data = $itemResponse->json();
-                $name = $this->resolveLocalizedName($data['name'] ?? null) ?? "Unknown Item {$itemId}";
-                $category = $this->resolveCategory($data);
-
-                $bar->clear();
-                $this->line("  [{$itemId}] {$name} <fg=gray>({$category})</>");
-                $bar->display();
-
-                if ($dryRun) {
-                    // dry run — skip DB write
-                } else {
-                    CatalogItem::updateOrCreate(
-                        ['blizzard_item_id' => $itemId],
-                        ['name' => $name, 'category' => $category],
-                    );
-                }
-
-                $imported++;
-                $bar->advance();
-            }
-
-            if ($rateLimited) {
-                Log::warning('SyncCatalog: rate limited by Blizzard API, pausing 10s');
-                $this->newLine();
-                $this->warn('Rate limited — pausing 10 seconds...');
+            // Collect rate-limited items for retry
+            if (! empty($batchResult['rateLimited'])) {
+                $retryQueue = array_merge($retryQueue, $batchResult['rateLimited']);
+                $bar->setMessage('Rate limited — pausing...');
+                Log::warning('SyncCatalog: rate limited, pausing 10s', [
+                    'queued_for_retry' => count($batchResult['rateLimited']),
+                ]);
                 sleep(10);
             }
 
-            // Brief pause between batches to stay under rate limit
-            usleep(600_000); // 600ms
+            // Pause between batches to stay under rate limit
+            usleep(1_000_000); // 1s
         }
 
+        // Retry rate-limited items in smaller batches
+        if (! empty($retryQueue)) {
+            $bar->setMessage('Retrying rate-limited items...');
+            $this->newLine();
+            $this->warn(sprintf('Retrying %s rate-limited items...', number_format(count($retryQueue))));
+
+            foreach (collect($retryQueue)->chunk(10) as $chunk) {
+                $itemIds = $chunk->values()->all();
+                $batchResult = $this->processBatch($itemIds, $token, $region, $dryRun, $bar, $verbose);
+
+                $imported += $batchResult['imported'];
+                $failed += $batchResult['failed'];
+
+                // If still rate-limited, just count as failed
+                $failed += count($batchResult['rateLimited']);
+
+                sleep(2);
+            }
+        }
+
+        $bar->setMessage('Done!');
         $bar->finish();
         $this->newLine(2);
 
@@ -234,10 +203,126 @@ class SyncCatalogCommand extends Command
         ]);
 
         if ($failed > 0) {
-            $this->warn("Some items could not be fetched — re-run to retry.");
+            $this->warn('Some items could not be fetched — re-run without --fresh to retry only missing items.');
         }
 
         return self::SUCCESS;
+    }
+
+    /**
+     * Process a batch of item IDs concurrently and return results.
+     *
+     * @return array{imported: int, failed: int, rateLimited: int[]}
+     */
+    private function processBatch(
+        array $itemIds,
+        string $token,
+        string $region,
+        bool $dryRun,
+        $bar,
+        bool $verbose,
+    ): array {
+        // Fetch item data concurrently
+        $itemResponses = Http::pool(fn ($pool) => collect($itemIds)->map(
+            fn (int $id) => $pool->as((string) $id)
+                ->withToken($token)
+                ->timeout(30)
+                ->connectTimeout(10)
+                ->get("https://{$region}.api.blizzard.com/data/wow/item/{$id}", [
+                    'namespace' => "static-{$region}",
+                ])
+        )->all());
+
+        // Collect IDs that succeeded so we only fetch media for those
+        $successIds = [];
+        $imported = 0;
+        $failed = 0;
+        $rateLimited = [];
+        $itemDataMap = [];
+
+        foreach ($itemIds as $itemId) {
+            $itemResponse = $itemResponses[(string) $itemId] ?? null;
+
+            if (! $itemResponse || $itemResponse instanceof \Throwable) {
+                Log::warning("SyncCatalog: failed to fetch item {$itemId}", [
+                    'error' => $itemResponse instanceof \Throwable ? $itemResponse->getMessage() : 'no response',
+                ]);
+                $failed++;
+                $bar->advance();
+
+                continue;
+            }
+
+            if ($itemResponse->status() === 429) {
+                $rateLimited[] = $itemId;
+                $bar->advance();
+
+                continue;
+            }
+
+            if (! $itemResponse->successful()) {
+                Log::warning("SyncCatalog: failed to fetch item {$itemId}", [
+                    'status' => $itemResponse->status(),
+                ]);
+                $failed++;
+                $bar->advance();
+
+                continue;
+            }
+
+            $successIds[] = $itemId;
+            $itemDataMap[$itemId] = $itemResponse->json();
+        }
+
+        foreach ($successIds as $itemId) {
+            $data = $itemDataMap[$itemId];
+            $name = $this->resolveLocalizedName($data['name'] ?? null) ?? "Unknown Item {$itemId}";
+            $category = $this->resolveCategory($data);
+
+            // Fetch icon URL individually — small response, and Http::pool()
+            // crashes on connection errors so sequential is more reliable.
+            $iconUrl = null;
+            try {
+                $mediaResponse = Http::withToken($token)
+                    ->timeout(10)
+                    ->connectTimeout(5)
+                    ->get("https://{$region}.api.blizzard.com/data/wow/media/item/{$itemId}", [
+                        'namespace' => "static-{$region}",
+                    ]);
+
+                if ($mediaResponse->successful()) {
+                    $assets = $mediaResponse->json('assets', []);
+                    foreach ($assets as $asset) {
+                        if (($asset['key'] ?? '') === 'icon') {
+                            $iconUrl = $asset['value'] ?? null;
+                            break;
+                        }
+                    }
+                }
+            } catch (\Throwable) {
+                // Icon is optional — skip on failure
+            }
+
+            $bar->setMessage($name);
+
+            if ($verbose) {
+                $bar->clear();
+                $this->line("  [{$itemId}] {$name} <fg=gray>({$category})</>");
+                $bar->display();
+            }
+
+            if (! $dryRun) {
+                CatalogItem::updateOrCreate(
+                    ['blizzard_item_id' => $itemId],
+                    ['name' => $name, 'category' => $category, 'icon_url' => $iconUrl],
+                );
+            }
+
+            $imported++;
+            $bar->advance();
+        }
+
+        return compact('imported', 'failed', 'rateLimited');
     }
 
     /**
