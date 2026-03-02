@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Models\CatalogItem;
 use App\Models\PriceSnapshot;
 use App\Models\User;
 use App\Models\WatchedItem;
@@ -15,10 +16,15 @@ function createUserWithSnapshots(int $itemCount = 1, int $snapshotCount = 2): ar
     $user = User::factory()->create();
     $items = collect();
     foreach (range(1, $itemCount) as $i) {
-        $item = WatchedItem::factory()->create(['user_id' => $user->id, 'name' => "Test Item $i"]);
+        $catalogItem = CatalogItem::factory()->create(['blizzard_item_id' => 100000 + $i]);
+        $item = WatchedItem::factory()->create([
+            'user_id' => $user->id,
+            'name' => "Test Item $i",
+            'blizzard_item_id' => $catalogItem->blizzard_item_id,
+        ]);
         foreach (range(1, $snapshotCount) as $j) {
             PriceSnapshot::factory()->create([
-                'watched_item_id' => $item->id,
+                'catalog_item_id' => $catalogItem->id,
                 'polled_at' => now()->subMinutes(15 * $j),
             ]);
         }
@@ -49,9 +55,14 @@ it('shows only the logged-in users watched items', function () {
 
 it('displays the latest median price in gold format on each card', function () {
     $user = User::factory()->create();
-    $item = WatchedItem::factory()->create(['user_id' => $user->id, 'name' => 'Arcane Crystal']);
+    $catalogItem = CatalogItem::factory()->create(['blizzard_item_id' => 200001, 'name' => 'Arcane Crystal']);
+    $item = WatchedItem::factory()->create([
+        'user_id' => $user->id,
+        'name' => 'Arcane Crystal',
+        'blizzard_item_id' => $catalogItem->blizzard_item_id,
+    ]);
     PriceSnapshot::factory()->create([
-        'watched_item_id' => $item->id,
+        'catalog_item_id' => $catalogItem->id,
         'median_price' => 1_453_278, // 145g 32s 78c
         'polled_at' => now()->subMinutes(5),
     ]);
@@ -67,17 +78,22 @@ it('displays the latest median price in gold format on each card', function () {
 
 it('shows an upward trend indicator when current price is higher than previous', function () {
     $user = User::factory()->create();
-    $item = WatchedItem::factory()->create(['user_id' => $user->id, 'name' => 'Trend Item']);
+    $catalogItem = CatalogItem::factory()->create(['blizzard_item_id' => 200002, 'name' => 'Trend Item']);
+    $item = WatchedItem::factory()->create([
+        'user_id' => $user->id,
+        'name' => 'Trend Item',
+        'blizzard_item_id' => $catalogItem->blizzard_item_id,
+    ]);
 
     // Latest snapshot (highest polled_at → priceSnapshots eager-load limits to 2, latest first)
     PriceSnapshot::factory()->create([
-        'watched_item_id' => $item->id,
+        'catalog_item_id' => $catalogItem->id,
         'median_price' => 200_000,
         'polled_at' => now()->subMinutes(5),
     ]);
     // Previous snapshot (older)
     PriceSnapshot::factory()->create([
-        'watched_item_id' => $item->id,
+        'catalog_item_id' => $catalogItem->id,
         'median_price' => 150_000,
         'polled_at' => now()->subMinutes(20),
     ]);
@@ -121,16 +137,20 @@ it('dispatches chart-data-updated event on item detail page mount', function () 
 
 it('dispatches chart-data-updated event when timeframe is changed on item detail', function () {
     $user = User::factory()->create();
-    $item = WatchedItem::factory()->create(['user_id' => $user->id]);
+    $catalogItem = CatalogItem::factory()->create(['blizzard_item_id' => 200003]);
+    $item = WatchedItem::factory()->create([
+        'user_id' => $user->id,
+        'blizzard_item_id' => $catalogItem->blizzard_item_id,
+    ]);
 
     // Snapshot within 24h
     PriceSnapshot::factory()->create([
-        'watched_item_id' => $item->id,
+        'catalog_item_id' => $catalogItem->id,
         'polled_at' => now()->subHours(2),
     ]);
     // Snapshot older than 24h but within 7d
     PriceSnapshot::factory()->create([
-        'watched_item_id' => $item->id,
+        'catalog_item_id' => $catalogItem->id,
         'polled_at' => now()->subDays(3),
     ]);
 
@@ -149,9 +169,11 @@ it('redirects guests to login', function () {
 function createUserWithSignalData(int $count, int $medianPrice, int $currentPrice, int $buyThreshold = 10, int $sellThreshold = 10): array
 {
     $user = User::factory()->create();
+    $catalogItem = CatalogItem::factory()->create(['blizzard_item_id' => 300000 + random_int(1, 99999)]);
     $item = WatchedItem::factory()->create([
         'user_id' => $user->id,
         'name' => 'Signal Item',
+        'blizzard_item_id' => $catalogItem->blizzard_item_id,
         'buy_threshold' => $buyThreshold,
         'sell_threshold' => $sellThreshold,
     ]);
@@ -159,7 +181,7 @@ function createUserWithSignalData(int $count, int $medianPrice, int $currentPric
     // Historical snapshots spread over 7 days
     foreach (range(1, $count) as $i) {
         PriceSnapshot::factory()->create([
-            'watched_item_id' => $item->id,
+            'catalog_item_id' => $catalogItem->id,
             'median_price' => $medianPrice,
             'polled_at' => now()->subDays(7)->addMinutes(15 * $i),
         ]);
@@ -167,7 +189,7 @@ function createUserWithSignalData(int $count, int $medianPrice, int $currentPric
 
     // Current (most recent) snapshot at the target price
     PriceSnapshot::factory()->create([
-        'watched_item_id' => $item->id,
+        'catalog_item_id' => $catalogItem->id,
         'median_price' => $currentPrice,
         'polled_at' => now()->subMinutes(5),
     ]);
@@ -225,10 +247,10 @@ it('shows no signal badge when price is within thresholds', function () {
 
 // DASH-04/DASH-05 — Insufficient data shows collecting data badge
 
-it('shows collecting data badge when fewer than 96 snapshots exist', function () {
-    // Only 50 snapshots — below the 96 minimum threshold
+it('shows collecting data badge when fewer than 24 snapshots exist', function () {
+    // Only 20 snapshots — below the 24 minimum threshold
     [$user, $item] = createUserWithSignalData(
-        count: 50,
+        count: 20,
         medianPrice: 100_000,
         currentPrice: 88_000,
         buyThreshold: 10,
@@ -247,41 +269,45 @@ it('sorts items with active signals before items without signals', function () {
     $user = User::factory()->create();
 
     // Non-signaled item (alphabetically first: "Alpha")
+    $normalCatalog = CatalogItem::factory()->create(['blizzard_item_id' => 400001, 'name' => 'Alpha Item']);
     $normalItem = WatchedItem::factory()->create([
         'user_id' => $user->id,
         'name' => 'Alpha Item',
+        'blizzard_item_id' => $normalCatalog->blizzard_item_id,
         'buy_threshold' => 10,
         'sell_threshold' => 10,
     ]);
     foreach (range(1, 100) as $i) {
         PriceSnapshot::factory()->create([
-            'watched_item_id' => $normalItem->id,
+            'catalog_item_id' => $normalCatalog->id,
             'median_price' => 100_000,
             'polled_at' => now()->subDays(7)->addMinutes(15 * $i),
         ]);
     }
     PriceSnapshot::factory()->create([
-        'watched_item_id' => $normalItem->id,
+        'catalog_item_id' => $normalCatalog->id,
         'median_price' => 100_000,
         'polled_at' => now()->subMinutes(5),
     ]);
 
     // Signaled item (alphabetically second: "Zeta" — but should appear FIRST because it has a signal)
+    $signalCatalog = CatalogItem::factory()->create(['blizzard_item_id' => 400002, 'name' => 'Zeta Item']);
     $signalItem = WatchedItem::factory()->create([
         'user_id' => $user->id,
         'name' => 'Zeta Item',
+        'blizzard_item_id' => $signalCatalog->blizzard_item_id,
         'buy_threshold' => 10,
         'sell_threshold' => 10,
     ]);
     foreach (range(1, 100) as $i) {
         PriceSnapshot::factory()->create([
-            'watched_item_id' => $signalItem->id,
+            'catalog_item_id' => $signalCatalog->id,
             'median_price' => 100_000,
             'polled_at' => now()->subDays(7)->addMinutes(15 * $i),
         ]);
     }
     PriceSnapshot::factory()->create([
-        'watched_item_id' => $signalItem->id,
+        'catalog_item_id' => $signalCatalog->id,
         'median_price' => 85_000, // 15% below avg — triggers buy
         'polled_at' => now()->subMinutes(5),
     ]);
@@ -297,41 +323,45 @@ it('shows signal count summary in dashboard header', function () {
     $user = User::factory()->create();
 
     // Buy signal item
+    $buyCatalog = CatalogItem::factory()->create(['blizzard_item_id' => 500001, 'name' => 'Buy Item']);
     $buyItem = WatchedItem::factory()->create([
         'user_id' => $user->id,
         'name' => 'Buy Item',
+        'blizzard_item_id' => $buyCatalog->blizzard_item_id,
         'buy_threshold' => 10,
         'sell_threshold' => 10,
     ]);
     foreach (range(1, 100) as $i) {
         PriceSnapshot::factory()->create([
-            'watched_item_id' => $buyItem->id,
+            'catalog_item_id' => $buyCatalog->id,
             'median_price' => 100_000,
             'polled_at' => now()->subDays(7)->addMinutes(15 * $i),
         ]);
     }
     PriceSnapshot::factory()->create([
-        'watched_item_id' => $buyItem->id,
+        'catalog_item_id' => $buyCatalog->id,
         'median_price' => 85_000, // triggers buy
         'polled_at' => now()->subMinutes(5),
     ]);
 
     // Sell signal item
+    $sellCatalog = CatalogItem::factory()->create(['blizzard_item_id' => 500002, 'name' => 'Sell Item']);
     $sellItem = WatchedItem::factory()->create([
         'user_id' => $user->id,
         'name' => 'Sell Item',
+        'blizzard_item_id' => $sellCatalog->blizzard_item_id,
         'buy_threshold' => 10,
         'sell_threshold' => 10,
     ]);
     foreach (range(1, 100) as $i) {
         PriceSnapshot::factory()->create([
-            'watched_item_id' => $sellItem->id,
+            'catalog_item_id' => $sellCatalog->id,
             'median_price' => 100_000,
             'polled_at' => now()->subDays(7)->addMinutes(15 * $i),
         ]);
     }
     PriceSnapshot::factory()->create([
-        'watched_item_id' => $sellItem->id,
+        'catalog_item_id' => $sellCatalog->id,
         'median_price' => 115_000, // triggers sell
         'polled_at' => now()->subMinutes(5),
     ]);

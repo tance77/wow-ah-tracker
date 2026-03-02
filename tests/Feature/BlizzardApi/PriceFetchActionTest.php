@@ -62,26 +62,24 @@ it('filters results to only requested item IDs', function (): void {
     $action = app(PriceFetchAction::class);
     $result = $action([224025, 210781]);
 
-    // Fixture has 2 entries for 224025, 2 for 210781, 1 for 210930, 1 for 999999
-    // Only 224025 and 210781 requested, so 4 entries expected
-    expect(count($result['listings']))->toBe(4);
+    // Fixture has entries for 224025, 210781, 210930, 999999
+    // Only 224025 and 210781 requested
+    expect($result['groupedListings'])->toHaveKeys([224025, 210781]);
+    expect($result['groupedListings'])->not->toHaveKey(999999);
+    expect($result['groupedListings'])->not->toHaveKey(210930);
 
-    foreach ($result['listings'] as $entry) {
-        expect(in_array($entry['item']['id'], [224025, 210781], strict: true))->toBeTrue();
-    }
-
-    // Unwatched item 999999 must not be present
-    $returnedIds = array_column(array_column($result['listings'], 'item'), 'id');
-    expect(in_array(999999, $returnedIds, strict: true))->toBeFalse();
+    // Fixture has 2 entries for 224025, 2 for 210781
+    expect(count($result['groupedListings'][224025]))->toBe(2);
+    expect(count($result['groupedListings'][210781]))->toBe(2);
 });
 
-it('returns empty array when no watched items match', function (): void {
+it('returns empty array when no items match', function (): void {
     fakeBothEndpoints();
 
     $action = app(PriceFetchAction::class);
     $result = $action([111111]);
 
-    expect($result['listings'])->toBe([]);
+    expect($result['groupedListings'])->toBe([]);
 });
 
 it('throws RuntimeException on 500 from commodities endpoint', function (): void {
@@ -92,14 +90,18 @@ it('throws RuntimeException on 500 from commodities endpoint', function (): void
     expect(fn () => $action([224025]))->toThrow(RuntimeException::class);
 });
 
-it('returns re-indexed array after filtering', function (): void {
+it('returns listings grouped by item ID with unit_price and quantity', function (): void {
     fakeBothEndpoints();
 
     $action = app(PriceFetchAction::class);
     $result = $action([210930]);
 
-    // Fixture has exactly 1 entry for 210930 — keys must be [0], not sparse
-    expect(count($result['listings']))->toBe(1);
-    expect(array_keys($result['listings']))->toBe([0]);
-    expect($result['listings'][0]['item']['id'])->toBe(210930);
+    // Fixture has exactly 1 entry for 210930
+    expect($result['groupedListings'])->toHaveKey(210930);
+    expect(count($result['groupedListings'][210930]))->toBe(1);
+
+    $listing = $result['groupedListings'][210930][0];
+    expect($listing)->toHaveKeys(['unit_price', 'quantity']);
+    expect($listing['unit_price'])->toBeInt();
+    expect($listing['quantity'])->toBeInt();
 });

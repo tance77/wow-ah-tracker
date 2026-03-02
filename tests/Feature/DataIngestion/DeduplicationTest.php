@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Actions\PriceAggregateAction;
 use App\Actions\PriceFetchAction;
 use App\Jobs\FetchCommodityPricesJob;
+use App\Models\CatalogItem;
 use App\Models\IngestionMetadata;
 use App\Models\PriceSnapshot;
 use App\Models\User;
@@ -59,9 +60,9 @@ it('PriceFetchAction returns listings, lastModified, and responseHash keys', fun
     $result = $action([224025]);
 
     expect($result)->toBeArray()
-        ->toHaveKeys(['listings', 'lastModified', 'responseHash']);
+        ->toHaveKeys(['groupedListings', 'lastModified', 'responseHash']);
 
-    expect($result['listings'])->toBeArray();
+    expect($result['groupedListings'])->toBeArray();
     expect($result['lastModified'])->toBe('Sun, 01 Mar 2026 18:00:00 GMT');
     expect($result['responseHash'])->toBeString()->not->toBeEmpty();
 });
@@ -73,7 +74,7 @@ it('PriceFetchAction returns null lastModified when header is absent', function 
     $result = $action([224025]);
 
     expect($result['lastModified'])->toBeNull();
-    expect($result['listings'])->toBeArray();
+    expect($result['groupedListings'])->toBeArray();
     expect($result['responseHash'])->toBeString()->not->toBeEmpty();
 });
 
@@ -98,8 +99,7 @@ it('skips write when Last-Modified header matches stored value', function (): vo
         'response_hash'    => null,
     ]);
 
-    $user = User::factory()->create();
-    WatchedItem::factory()->create(['user_id' => $user->id, 'blizzard_item_id' => 224025]);
+    CatalogItem::factory()->create(['blizzard_item_id' => 224025]);
 
     (new FetchCommodityPricesJob)->handle(app(PriceFetchAction::class), app(PriceAggregateAction::class));
 
@@ -109,16 +109,9 @@ it('skips write when Last-Modified header matches stored value', function (): vo
 it('skips write when lastModified is null and hash matches stored hash', function (): void {
     fakeBlizzardHttpNoLastModified();
 
-    // Compute expected hash from fixture body
-    $body       = file_get_contents(base_path('tests/Fixtures/blizzard_commodities.json'));
-    $jsonBody   = json_encode(json_decode($body, true));
-    // The HTTP response body is JSON — we need to compute hash from the actual response body
-    // Since Http::fake returns the array, Laravel re-encodes it; we store hash in metadata first via a real run
+    CatalogItem::factory()->create(['blizzard_item_id' => 224025]);
 
     // First run to capture the hash
-    $user = User::factory()->create();
-    WatchedItem::factory()->create(['user_id' => $user->id, 'blizzard_item_id' => 224025]);
-
     (new FetchCommodityPricesJob)->handle(app(PriceFetchAction::class), app(PriceAggregateAction::class));
 
     expect(PriceSnapshot::count())->toBe(1);
@@ -143,8 +136,7 @@ it('writes snapshots and updates metadata when Last-Modified is new', function (
         'response_hash'    => null,
     ]);
 
-    $user = User::factory()->create();
-    WatchedItem::factory()->create(['user_id' => $user->id, 'blizzard_item_id' => 224025]);
+    CatalogItem::factory()->create(['blizzard_item_id' => 224025]);
 
     (new FetchCommodityPricesJob)->handle(app(PriceFetchAction::class), app(PriceAggregateAction::class));
 
@@ -167,8 +159,7 @@ it('increments consecutive_failures and writes no snapshots on API failure', fun
     ]);
     Cache::forget('blizzard_token');
 
-    $user = User::factory()->create();
-    WatchedItem::factory()->create(['user_id' => $user->id, 'blizzard_item_id' => 224025]);
+    CatalogItem::factory()->create(['blizzard_item_id' => 224025]);
 
     $meta = IngestionMetadata::singleton();
     expect($meta->consecutive_failures)->toBe(0);
@@ -189,8 +180,7 @@ it('resets consecutive_failures to 0 on successful fetch with new data', functio
         'last_modified_at'     => 'Sat, 28 Feb 2026 06:00:00 GMT',
     ]);
 
-    $user = User::factory()->create();
-    WatchedItem::factory()->create(['user_id' => $user->id, 'blizzard_item_id' => 224025]);
+    CatalogItem::factory()->create(['blizzard_item_id' => 224025]);
 
     (new FetchCommodityPricesJob)->handle(app(PriceFetchAction::class), app(PriceAggregateAction::class));
 

@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Actions\PriceAggregateAction;
 use App\Actions\PriceFetchAction;
 use App\Jobs\FetchCommodityPricesJob;
+use App\Models\CatalogItem;
 use App\Models\IngestionMetadata;
 use App\Models\PriceSnapshot;
 use App\Models\User;
@@ -32,20 +33,16 @@ function fakeBlizzardHttp(?string $lastModified = null): void
     Cache::forget('blizzard_token');
 }
 
-it('writes one snapshot per watched item after handle()', function (): void {
+it('writes one snapshot per catalog item after handle()', function (): void {
     fakeBlizzardHttp();
 
-    $user    = User::factory()->create();
-    $watched = WatchedItem::factory()->create([
-        'user_id'          => $user->id,
-        'blizzard_item_id' => 224025,
-    ]);
+    $catalogItem = CatalogItem::factory()->create(['blizzard_item_id' => 224025]);
 
     (new FetchCommodityPricesJob)->handle(app(PriceFetchAction::class), app(PriceAggregateAction::class));
 
-    expect(PriceSnapshot::where('watched_item_id', $watched->id)->count())->toBe(1);
+    expect(PriceSnapshot::where('catalog_item_id', $catalogItem->id)->count())->toBe(1);
 
-    $snapshot = PriceSnapshot::where('watched_item_id', $watched->id)->first();
+    $snapshot = PriceSnapshot::where('catalog_item_id', $catalogItem->id)->first();
 
     expect($snapshot->min_price)->toBeInt()->toBeGreaterThan(0);
     expect($snapshot->avg_price)->toBeInt()->toBeGreaterThan(0);
@@ -53,37 +50,37 @@ it('writes one snapshot per watched item after handle()', function (): void {
     expect($snapshot->total_volume)->toBeInt()->toBeGreaterThan(0);
 });
 
-it('writes snapshots for multiple watched items', function (): void {
+it('writes snapshots for multiple catalog items', function (): void {
     fakeBlizzardHttp();
 
-    $user     = User::factory()->create();
-    $watched1 = WatchedItem::factory()->create(['user_id' => $user->id, 'blizzard_item_id' => 224025]);
-    $watched2 = WatchedItem::factory()->create(['user_id' => $user->id, 'blizzard_item_id' => 210781]);
+    $catalog1 = CatalogItem::factory()->create(['blizzard_item_id' => 224025]);
+    $catalog2 = CatalogItem::factory()->create(['blizzard_item_id' => 210781]);
 
     (new FetchCommodityPricesJob)->handle(app(PriceFetchAction::class), app(PriceAggregateAction::class));
 
     expect(PriceSnapshot::count())->toBe(2);
-    expect(PriceSnapshot::where('watched_item_id', $watched1->id)->count())->toBe(1);
-    expect(PriceSnapshot::where('watched_item_id', $watched2->id)->count())->toBe(1);
+    expect(PriceSnapshot::where('catalog_item_id', $catalog1->id)->count())->toBe(1);
+    expect(PriceSnapshot::where('catalog_item_id', $catalog2->id)->count())->toBe(1);
 });
 
-it('writes one snapshot per watched item when multiple users watch the same item', function (): void {
+it('writes one snapshot when multiple users watch the same item', function (): void {
     fakeBlizzardHttp();
 
-    $user1    = User::factory()->create();
-    $user2    = User::factory()->create();
-    $watched1 = WatchedItem::factory()->create(['user_id' => $user1->id, 'blizzard_item_id' => 224025]);
-    $watched2 = WatchedItem::factory()->create(['user_id' => $user2->id, 'blizzard_item_id' => 224025]);
+    $catalogItem = CatalogItem::factory()->create(['blizzard_item_id' => 224025]);
+
+    $user1 = User::factory()->create();
+    $user2 = User::factory()->create();
+    WatchedItem::factory()->create(['user_id' => $user1->id, 'blizzard_item_id' => 224025]);
+    WatchedItem::factory()->create(['user_id' => $user2->id, 'blizzard_item_id' => 224025]);
 
     (new FetchCommodityPricesJob)->handle(app(PriceFetchAction::class), app(PriceAggregateAction::class));
 
-    // One snapshot per WatchedItem row, not per unique blizzard_item_id
-    expect(PriceSnapshot::count())->toBe(2);
-    expect(PriceSnapshot::where('watched_item_id', $watched1->id)->count())->toBe(1);
-    expect(PriceSnapshot::where('watched_item_id', $watched2->id)->count())->toBe(1);
+    // One snapshot per catalog item, not per watched item
+    expect(PriceSnapshot::count())->toBe(1);
+    expect(PriceSnapshot::where('catalog_item_id', $catalogItem->id)->count())->toBe(1);
 });
 
-it('skips gracefully and does not call Blizzard API when no watched items exist', function (): void {
+it('skips gracefully and does not call Blizzard API when no catalog items exist', function (): void {
     fakeBlizzardHttp();
 
     (new FetchCommodityPricesJob)->handle(app(PriceFetchAction::class), app(PriceAggregateAction::class));
@@ -92,15 +89,11 @@ it('skips gracefully and does not call Blizzard API when no watched items exist'
     Http::assertNothingSent();
 });
 
-it('writes zero-metric snapshot for a watched item with no Blizzard listings', function (): void {
+it('writes zero-metric snapshot for a catalog item with no Blizzard listings', function (): void {
     fakeBlizzardHttp();
 
-    $user    = User::factory()->create();
     // Item ID 999888 is NOT present in the fixture — no listings will match
-    $watched = WatchedItem::factory()->create([
-        'user_id'          => $user->id,
-        'blizzard_item_id' => 999888,
-    ]);
+    $catalogItem = CatalogItem::factory()->create(['blizzard_item_id' => 999888]);
 
     (new FetchCommodityPricesJob)->handle(app(PriceFetchAction::class), app(PriceAggregateAction::class));
 
@@ -125,9 +118,8 @@ it('prevents duplicate dispatch via ShouldBeUnique', function (): void {
 it('all snapshots in a single run share the same polled_at timestamp', function (): void {
     fakeBlizzardHttp();
 
-    $user = User::factory()->create();
-    WatchedItem::factory()->create(['user_id' => $user->id, 'blizzard_item_id' => 224025]);
-    WatchedItem::factory()->create(['user_id' => $user->id, 'blizzard_item_id' => 210781]);
+    CatalogItem::factory()->create(['blizzard_item_id' => 224025]);
+    CatalogItem::factory()->create(['blizzard_item_id' => 210781]);
 
     (new FetchCommodityPricesJob)->handle(app(PriceFetchAction::class), app(PriceAggregateAction::class));
 
@@ -147,8 +139,7 @@ it('skips snapshot write when Last-Modified header is unchanged', function (): v
         'last_fetched_at'  => now()->subMinutes(15),
     ]);
 
-    $user = User::factory()->create();
-    WatchedItem::factory()->create(['user_id' => $user->id, 'blizzard_item_id' => 224025]);
+    CatalogItem::factory()->create(['blizzard_item_id' => 224025]);
 
     (new FetchCommodityPricesJob)->handle(app(PriceFetchAction::class), app(PriceAggregateAction::class));
 
@@ -164,8 +155,7 @@ it('writes snapshots when Last-Modified header has changed', function (): void {
         'last_fetched_at'  => now()->subMinutes(15),
     ]);
 
-    $user = User::factory()->create();
-    WatchedItem::factory()->create(['user_id' => $user->id, 'blizzard_item_id' => 224025]);
+    CatalogItem::factory()->create(['blizzard_item_id' => 224025]);
 
     (new FetchCommodityPricesJob)->handle(app(PriceFetchAction::class), app(PriceAggregateAction::class));
 
@@ -176,8 +166,7 @@ it('updates metadata after successful write', function (): void {
     $newLastModified = 'Sat, 01 Mar 2026 06:00:00 GMT';
     fakeBlizzardHttp($newLastModified);
 
-    $user = User::factory()->create();
-    WatchedItem::factory()->create(['user_id' => $user->id, 'blizzard_item_id' => 224025]);
+    CatalogItem::factory()->create(['blizzard_item_id' => 224025]);
 
     (new FetchCommodityPricesJob)->handle(app(PriceFetchAction::class), app(PriceAggregateAction::class));
 
@@ -201,8 +190,7 @@ it('skips snapshot write via hash fallback when Last-Modified is absent', functi
         'last_fetched_at' => now()->subMinutes(15),
     ]);
 
-    $user = User::factory()->create();
-    WatchedItem::factory()->create(['user_id' => $user->id, 'blizzard_item_id' => 224025]);
+    CatalogItem::factory()->create(['blizzard_item_id' => 224025]);
 
     (new FetchCommodityPricesJob)->handle(app(PriceFetchAction::class), app(PriceAggregateAction::class));
 
@@ -217,8 +205,7 @@ it('writes snapshots when hash differs and Last-Modified is absent', function ()
         'last_fetched_at' => now()->subMinutes(15),
     ]);
 
-    $user = User::factory()->create();
-    WatchedItem::factory()->create(['user_id' => $user->id, 'blizzard_item_id' => 224025]);
+    CatalogItem::factory()->create(['blizzard_item_id' => 224025]);
 
     (new FetchCommodityPricesJob)->handle(app(PriceFetchAction::class), app(PriceAggregateAction::class));
 
@@ -236,8 +223,7 @@ it('increments consecutive_failures on API failure and writes no snapshots', fun
     ]);
     Cache::forget('blizzard_token');
 
-    $user = User::factory()->create();
-    WatchedItem::factory()->create(['user_id' => $user->id, 'blizzard_item_id' => 224025]);
+    CatalogItem::factory()->create(['blizzard_item_id' => 224025]);
 
     (new FetchCommodityPricesJob)->handle(app(PriceFetchAction::class), app(PriceAggregateAction::class));
 
@@ -256,8 +242,7 @@ it('resets consecutive_failures to 0 on successful fetch', function (): void {
         'last_fetched_at'      => now()->subHour(),
     ]);
 
-    $user = User::factory()->create();
-    WatchedItem::factory()->create(['user_id' => $user->id, 'blizzard_item_id' => 224025]);
+    CatalogItem::factory()->create(['blizzard_item_id' => 224025]);
 
     (new FetchCommodityPricesJob)->handle(app(PriceFetchAction::class), app(PriceAggregateAction::class));
 
@@ -272,8 +257,7 @@ it('writes snapshots and creates metadata on first run with empty table', functi
     // No IngestionMetadata row exists (first run)
     expect(IngestionMetadata::count())->toBe(0);
 
-    $user = User::factory()->create();
-    WatchedItem::factory()->create(['user_id' => $user->id, 'blizzard_item_id' => 224025]);
+    CatalogItem::factory()->create(['blizzard_item_id' => 224025]);
 
     (new FetchCommodityPricesJob)->handle(app(PriceFetchAction::class), app(PriceAggregateAction::class));
 
