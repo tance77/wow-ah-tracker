@@ -58,10 +58,11 @@ new #[Layout('layouts.app')] class extends Component
             default => now()->subDays(7),
         };
 
-        $snapshots = auth()->user()
+        $item = auth()->user()
             ->watchedItems()
-            ->findOrFail($this->selectedItemId)
-            ->priceSnapshots()
+            ->findOrFail($this->selectedItemId);
+
+        $snapshots = $item->priceSnapshots()
             ->where('polled_at', '>=', $cutoff)
             ->orderBy('polled_at')
             ->get(['polled_at', 'median_price', 'min_price']);
@@ -76,7 +77,48 @@ new #[Layout('layouts.app')] class extends Component
             'y' => $s->min_price,
         ])->values()->toArray();
 
-        $this->dispatch('chart-data-updated', median: $median, min: $min);
+        // Rolling average: 7-day avg as a flat horizontal reference line
+        $rollingAvg = (int) round(
+            $item->priceSnapshots()
+                ->where('polled_at', '>=', now()->subDays(7))
+                ->avg('median_price') ?? 0
+        );
+
+        $rollingAvgSeries = [];
+        if ($rollingAvg > 0 && count($median) >= 2) {
+            $rollingAvgSeries = [
+                ['x' => $median[0]['x'], 'y' => $rollingAvg],
+                ['x' => $median[count($median) - 1]['x'], 'y' => $rollingAvg],
+            ];
+        } elseif ($rollingAvg > 0 && count($median) === 1) {
+            $rollingAvgSeries = [
+                ['x' => $median[0]['x'], 'y' => $rollingAvg],
+            ];
+        }
+
+        // Threshold annotation lines (only when rolling avg is meaningful)
+        $annotations = [];
+        if ($rollingAvg > 0) {
+            if ($item->buy_threshold > 0) {
+                $annotations[] = [
+                    'level' => (int) round($rollingAvg * (1 - $item->buy_threshold / 100)),
+                    'type' => 'buy',
+                ];
+            }
+            if ($item->sell_threshold > 0) {
+                $annotations[] = [
+                    'level' => (int) round($rollingAvg * (1 + $item->sell_threshold / 100)),
+                    'type' => 'sell',
+                ];
+            }
+        }
+
+        $this->dispatch('chart-data-updated',
+            median: $median,
+            min: $min,
+            rollingAvg: $rollingAvgSeries,
+            annotations: $annotations,
+        );
     }
 
     public function formatGold(int $copper): string
@@ -382,12 +424,30 @@ new #[Layout('layouts.app')] class extends Component
         return parts.join(' ');
     }
 
-    $wire.$on('chart-data-updated', ({ median, min }) => {
+    $wire.$on('chart-data-updated', ({ median, min, rollingAvg, annotations }) => {
+        // Build yaxis annotation lines for buy/sell thresholds
+        const yaxisAnnotations = (annotations || []).map(a => ({
+            y: a.level,
+            borderColor: a.type === 'buy' ? '#22c55e' : '#ef4444',
+            strokeDashArray: 6,
+            label: {
+                text: a.type === 'buy' ? 'Buy Threshold' : 'Sell Threshold',
+                position: 'left',
+                style: {
+                    background: 'transparent',
+                    color: a.type === 'buy' ? '#22c55e' : '#ef4444',
+                    fontSize: '11px',
+                },
+            },
+        }));
+
         const options = {
             series: [
-                { name: 'Median', data: median },
-                { name: 'Min',    data: min },
+                { name: 'Median',      data: median },
+                { name: 'Min',         data: min },
+                { name: '7d Avg',      data: rollingAvg || [] },
             ],
+            annotations: { yaxis: yaxisAnnotations },
             chart: {
                 type: 'line',
                 height: 300,
@@ -400,8 +460,12 @@ new #[Layout('layouts.app')] class extends Component
                 style: { color: '#9ca3af', fontSize: '14px' },
             },
             theme: { mode: 'dark' },
-            colors: ['#f7a325', '#60a5fa'],
-            stroke: { curve: 'smooth', width: 2 },
+            colors: ['#f7a325', '#60a5fa', '#a78bfa'],
+            stroke: {
+                curve: 'smooth',
+                width: [2, 2, 2],
+                dashArray: [0, 0, 6],
+            },
             markers: { size: 0 },
             xaxis: {
                 type: 'datetime',
@@ -421,14 +485,19 @@ new #[Layout('layouts.app')] class extends Component
                 custom: ({ series, seriesIndex, dataPointIndex, w }) => {
                     const medianVal = series[0] ? series[0][dataPointIndex] : null;
                     const minVal = series[1] ? series[1][dataPointIndex] : null;
+                    const avgVal = series[2] ? series[2][dataPointIndex] : null;
                     const ts = w.globals.seriesX[0][dataPointIndex];
                     const date = new Date(ts);
                     const timeStr = date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-                    return '<div class="px-3 py-2 text-sm">'
+                    let html = '<div class="px-3 py-2 text-sm">'
                         + '<div class="text-gray-400 mb-1">' + timeStr + '</div>'
                         + '<div><strong>Median:</strong> ' + formatGoldJs(medianVal) + '</div>'
-                        + '<div><strong>Min:</strong> ' + formatGoldJs(minVal) + '</div>'
-                        + '</div>';
+                        + '<div><strong>Min:</strong> ' + formatGoldJs(minVal) + '</div>';
+                    if (avgVal !== null && avgVal !== undefined) {
+                        html += '<div><strong>7d Avg:</strong> ' + formatGoldJs(avgVal) + '</div>';
+                    }
+                    html += '</div>';
+                    return html;
                 },
             },
             grid: { borderColor: '#374151' },
@@ -437,7 +506,6 @@ new #[Layout('layouts.app')] class extends Component
         const el = document.querySelector('#price-chart');
         if (!el) return;
 
-        // Livewire re-renders replace the DOM element, orphaning the old chart instance
         if (chart !== null && !document.body.contains(chart.el)) {
             chart.destroy();
             chart = null;
