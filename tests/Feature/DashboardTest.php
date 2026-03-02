@@ -107,20 +107,19 @@ it('shows no items tracked yet message when user has no watched items', function
         ->assertSee('No items tracked yet');
 });
 
-// DASH-02 — Chart data dispatch on item selection
+// DASH-02 — Chart data dispatch on item detail page
 
-it('dispatches chart-data-updated event when an item is selected', function () {
+it('dispatches chart-data-updated event on item detail page mount', function () {
     [$user, $items] = createUserWithSnapshots(itemCount: 1, snapshotCount: 3);
     $item = $items->first();
 
-    Volt::actingAs($user)->test('pages.dashboard')
-        ->call('selectItem', $item->id)
+    Volt::actingAs($user)->test('pages.item-detail', ['watchedItem' => $item])
         ->assertDispatched('chart-data-updated');
 });
 
 // DASH-03 — Timeframe toggle dispatches updated chart data
 
-it('dispatches chart-data-updated event when timeframe is changed', function () {
+it('dispatches chart-data-updated event when timeframe is changed on item detail', function () {
     $user = User::factory()->create();
     $item = WatchedItem::factory()->create(['user_id' => $user->id]);
 
@@ -135,8 +134,7 @@ it('dispatches chart-data-updated event when timeframe is changed', function () 
         'polled_at' => now()->subDays(3),
     ]);
 
-    Volt::actingAs($user)->test('pages.dashboard')
-        ->call('selectItem', $item->id) // select first so selectedItemId is set
+    Volt::actingAs($user)->test('pages.item-detail', ['watchedItem' => $item])
         ->call('setTimeframe', '24h')
         ->assertDispatched('chart-data-updated');
 });
@@ -345,9 +343,9 @@ it('shows signal count summary in dashboard header', function () {
     expect($component->instance()->signalSummary())->toContain('1 sell signal');
 });
 
-// DASH-04/DASH-05 — Chart event includes threshold annotations
+// DASH-04/DASH-05 — Chart event includes threshold annotations on item detail
 
-it('dispatches chart-data-updated with annotations and rolling average when item selected', function () {
+it('dispatches chart-data-updated with annotations and rolling average on item detail page', function () {
     [$user, $item] = createUserWithSignalData(
         count: 100,
         medianPrice: 100_000,
@@ -356,8 +354,7 @@ it('dispatches chart-data-updated with annotations and rolling average when item
         sellThreshold: 15,
     );
 
-    Volt::actingAs($user)->test('pages.dashboard')
-        ->call('selectItem', $item->id)
+    Volt::actingAs($user)->test('pages.item-detail', ['watchedItem' => $item])
         ->assertDispatched('chart-data-updated', function ($name, $data) {
             // Verify annotations array is present and contains buy + sell
             $annotations = $data['annotations'] ?? [];

@@ -19,6 +19,10 @@ Volt::route('/watchlist', 'pages.watchlist')
     ->middleware(['auth'])
     ->name('watchlist');
 
+Volt::route('/item/{watchedItem}', 'pages.item-detail')
+    ->middleware(['auth'])
+    ->name('item.detail');
+
 Route::view('profile', 'profile')
     ->middleware(['auth'])
     ->name('profile');
