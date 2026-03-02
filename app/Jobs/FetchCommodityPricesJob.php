@@ -6,9 +6,9 @@ namespace App\Jobs;
 
 use App\Actions\PriceAggregateAction;
 use App\Actions\PriceFetchAction;
+use App\Models\CatalogItem;
 use App\Models\IngestionMetadata;
 use App\Models\PriceSnapshot;
-use App\Models\WatchedItem;
 use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -19,26 +19,26 @@ class FetchCommodityPricesJob implements ShouldQueue, ShouldBeUnique
     use Queueable;
 
     /**
-     * Unique lock duration in seconds (14 minutes — releases before next 15-minute tick).
+     * Unique lock duration in seconds (59 minutes — releases before next hourly tick).
      */
-    public int $uniqueFor = 840;
+    public int $uniqueFor = 3540;
 
     /**
-     * Orchestrate fetch, aggregate, and persist for all watched items.
+     * Orchestrate fetch, aggregate, and persist for all catalog items.
      */
     public function handle(
         PriceFetchAction $fetchAction,
         PriceAggregateAction $aggregateAction,
     ): void {
-        $watchedItems = WatchedItem::all();
+        $catalogItems = CatalogItem::all()->keyBy('blizzard_item_id');
 
-        if ($watchedItems->isEmpty()) {
-            Log::info('FetchCommodityPricesJob: no watched items, skipping.');
+        if ($catalogItems->isEmpty()) {
+            Log::info('FetchCommodityPricesJob: no catalog items, skipping.');
 
             return;
         }
 
-        $itemIds = $watchedItems->pluck('blizzard_item_id')->unique()->values()->all();
+        $itemIds = $catalogItems->pluck('blizzard_item_id')->all();
 
         Log::info('FetchCommodityPricesJob: fetching prices', [
             'item_count' => count($itemIds),
@@ -73,24 +73,25 @@ class FetchCommodityPricesJob implements ShouldQueue, ShouldBeUnique
             return;
         }
 
-        $listings = $result['listings'];
-
-        $grouped = [];
-        foreach ($listings as $listing) {
-            $id = $listing['item']['id'];
-            $grouped[$id][] = ['unit_price' => $listing['unit_price'], 'quantity' => $listing['quantity']];
-        }
+        $grouped = $result['groupedListings'];
 
         $polledAt = now();
+        $rows = [];
 
-        foreach ($watchedItems as $watchedItem) {
-            $itemListings = $grouped[$watchedItem->blizzard_item_id] ?? [];
+        foreach ($catalogItems as $blizzardItemId => $catalogItem) {
+            $itemListings = $grouped[$blizzardItemId] ?? [];
             $metrics = ($aggregateAction)($itemListings);
-            PriceSnapshot::create([
-                'watched_item_id' => $watchedItem->id,
+            $rows[] = [
+                'catalog_item_id' => $catalogItem->id,
                 'polled_at'       => $polledAt,
+                'created_at'      => $polledAt,
+                'updated_at'      => $polledAt,
                 ...$metrics,
-            ]);
+            ];
+        }
+
+        foreach (array_chunk($rows, 500) as $chunk) {
+            PriceSnapshot::insert($chunk);
         }
 
         $meta->update([
@@ -101,7 +102,7 @@ class FetchCommodityPricesJob implements ShouldQueue, ShouldBeUnique
         ]);
 
         Log::info('FetchCommodityPricesJob: snapshots written', [
-            'snapshot_count' => $watchedItems->count(),
+            'snapshot_count' => count($rows),
         ]);
     }
 }

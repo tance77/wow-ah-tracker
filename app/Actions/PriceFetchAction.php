@@ -16,14 +16,16 @@ class PriceFetchAction
     ) {}
 
     /**
-     * Fetch commodity listings from Blizzard and filter to watched item IDs.
+     * Fetch commodity listings from Blizzard and filter to catalog item IDs.
      *
      * Streams the large (~50MB+) response to a temp file to avoid holding
-     * the entire payload in PHP memory, then extracts only watched listings
+     * the entire payload in PHP memory, then extracts only catalog listings
      * by reading the file in chunks.
      *
+     * Returns listings pre-grouped by blizzard item ID for efficient aggregation.
+     *
      * @param  int[]  $itemIds  Blizzard item IDs to include in the result
-     * @return array{listings: array<int, array<string, mixed>>, lastModified: ?string, responseHash: string}
+     * @return array{groupedListings: array<int, array<array{unit_price: int, quantity: int}>>, lastModified: ?string, responseHash: string}
      */
     public function __invoke(array $itemIds): array
     {
@@ -64,33 +66,34 @@ class PriceFetchAction
 
         $responseHash = md5_file($tempFile);
 
-        $watchedSet = array_flip($itemIds);
-        $listings = $this->extractListings($tempFile, $watchedSet);
+        $catalogSet = array_flip($itemIds);
+        $groupedListings = $this->extractListings($tempFile, $catalogSet);
 
         @unlink($tempFile);
 
         Log::info(sprintf(
-            'PriceFetchAction: %d watched listings extracted for %d watched items',
-            count($listings),
-            count($itemIds),
+            'PriceFetchAction: %d catalog items with listings extracted',
+            count($groupedListings),
         ));
 
         return [
-            'listings'     => $listings,
-            'lastModified' => $lastModified,
-            'responseHash' => $responseHash,
+            'groupedListings' => $groupedListings,
+            'lastModified'    => $lastModified,
+            'responseHash'    => $responseHash,
         ];
     }
 
     /**
      * Stream through the temp file in chunks, decode individual auction
-     * objects, and keep only watched items. Memory stays constant because
-     * we never hold more than one 128KB chunk + a small carry buffer.
+     * objects, and group by item ID. Memory stays manageable because
+     * we only store {unit_price, quantity} per listing entry.
+     *
+     * @return array<int, array<array{unit_price: int, quantity: int}>>
      */
-    private function extractListings(string $filePath, array $watchedSet): array
+    private function extractListings(string $filePath, array $catalogSet): array
     {
         $handle = fopen($filePath, 'r');
-        $listings = [];
+        $grouped = [];
         $buffer = '';
 
         while (! feof($handle)) {
@@ -103,13 +106,12 @@ class PriceFetchAction
                 $offset = $match[0][1];
                 $itemId = (int) $match[1][0];
 
-                if (isset($watchedSet[$itemId])) {
+                if (isset($catalogSet[$itemId])) {
                     $entry = json_decode($fullMatch, true);
                     if ($entry) {
-                        $listings[] = [
-                            'item'       => ['id' => $itemId],
-                            'quantity'   => (int) ($entry['quantity'] ?? 0),
+                        $grouped[$itemId][] = [
                             'unit_price' => (int) ($entry['unit_price'] ?? 0),
+                            'quantity'   => (int) ($entry['quantity'] ?? 0),
                         ];
                     }
                 }
@@ -129,6 +131,6 @@ class PriceFetchAction
 
         fclose($handle);
 
-        return $listings;
+        return $grouped;
     }
 }
