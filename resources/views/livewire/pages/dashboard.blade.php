@@ -18,10 +18,20 @@ new #[Layout('layouts.app')] class extends Component
     #[Computed]
     public function watchedItems(): Collection
     {
-        return auth()->user()->watchedItems()
+        $items = auth()->user()->watchedItems()
             ->with(['priceSnapshots' => fn ($q) => $q->latest('polled_at')->limit(2)])
             ->orderBy('name')
             ->get();
+
+        $items->each(function (WatchedItem $item) {
+            $item->_signal = $this->rollingSignal($item);
+        });
+
+        return $items->sortBy(function (WatchedItem $item) {
+            $sig = $item->_signal;
+            $hasSignal = in_array($sig['signal'], ['buy', 'sell'], true);
+            return [$hasSignal ? 0 : 1, -$sig['magnitude']];
+        })->values();
     }
 
     public function selectItem(int $id): void
@@ -142,6 +152,67 @@ new #[Layout('layouts.app')] class extends Component
 
         return Carbon::parse($latest)->diffForHumans();
     }
+
+    public function rollingSignal(WatchedItem $item): array
+    {
+        $sevenDayQuery = $item->priceSnapshots()
+            ->where('polled_at', '>=', now()->subDays(7));
+
+        $snapshotCount = $sevenDayQuery->count();
+
+        if ($snapshotCount < 96) {
+            return ['signal' => 'insufficient_data', 'magnitude' => 0.0, 'rollingAvg' => 0];
+        }
+
+        $rollingAvg = (int) round(
+            $item->priceSnapshots()
+                ->where('polled_at', '>=', now()->subDays(7))
+                ->avg('median_price') ?? 0
+        );
+
+        if ($rollingAvg === 0) {
+            return ['signal' => 'none', 'magnitude' => 0.0, 'rollingAvg' => 0];
+        }
+
+        $currentPrice = $item->priceSnapshots->first()?->median_price ?? 0;
+
+        $buyLevel = (int) round($rollingAvg * (1 - $item->buy_threshold / 100));
+        $sellLevel = (int) round($rollingAvg * (1 + $item->sell_threshold / 100));
+
+        if ($currentPrice <= $buyLevel && $currentPrice > 0) {
+            $magnitude = round((($rollingAvg - $currentPrice) / $rollingAvg) * 100, 1);
+            return ['signal' => 'buy', 'magnitude' => $magnitude, 'rollingAvg' => $rollingAvg];
+        }
+
+        if ($currentPrice >= $sellLevel) {
+            $magnitude = round((($currentPrice - $rollingAvg) / $rollingAvg) * 100, 1);
+            return ['signal' => 'sell', 'magnitude' => $magnitude, 'rollingAvg' => $rollingAvg];
+        }
+
+        return ['signal' => 'none', 'magnitude' => 0.0, 'rollingAvg' => $rollingAvg];
+    }
+
+    public function signalSummary(): string
+    {
+        $buyCount = 0;
+        $sellCount = 0;
+
+        foreach ($this->watchedItems as $item) {
+            $sig = $item->_signal ?? ['signal' => 'none'];
+            if ($sig['signal'] === 'buy') $buyCount++;
+            if ($sig['signal'] === 'sell') $sellCount++;
+        }
+
+        if ($buyCount === 0 && $sellCount === 0) {
+            return '';
+        }
+
+        $parts = [];
+        if ($buyCount > 0) $parts[] = "{$buyCount} buy signal" . ($buyCount > 1 ? 's' : '');
+        if ($sellCount > 0) $parts[] = "{$sellCount} sell signal" . ($sellCount > 1 ? 's' : '');
+
+        return implode(', ', $parts);
+    }
 }; ?>
 
 <x-slot name="header">
@@ -149,7 +220,12 @@ new #[Layout('layouts.app')] class extends Component
         <h2 class="text-xl font-semibold leading-tight text-wow-gold">
             {{ __('Dashboard') }}
         </h2>
-        <span class="text-sm text-gray-400">Updated {{ $this->dataFreshness() }}</span>
+        <div class="flex items-center gap-4">
+            @if ($summary = $this->signalSummary())
+                <span class="text-sm font-medium text-wow-gold">{{ $summary }}</span>
+            @endif
+            <span class="text-sm text-gray-400">Updated {{ $this->dataFreshness() }}</span>
+        </div>
     </div>
 </x-slot>
 
@@ -172,13 +248,33 @@ new #[Layout('layouts.app')] class extends Component
             {{-- Card Grid --}}
             <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3" wire:loading.class="opacity-50">
                 @foreach ($this->watchedItems as $item)
+                    @php $sig = $item->_signal; @endphp
                     <div
                         wire:key="card-{{ $item->id }}"
                         wire:click="selectItem({{ $item->id }})"
-                        class="cursor-pointer rounded-lg border border-gray-700/50 bg-wow-dark p-5 transition-colors hover:border-wow-gold/50 {{ $selectedItemId === $item->id ? 'ring-2 ring-wow-gold' : '' }}"
+                        class="cursor-pointer rounded-lg border bg-wow-dark p-5 transition-colors hover:border-wow-gold/50
+                            {{ $selectedItemId === $item->id ? 'ring-2 ring-wow-gold' : '' }}
+                            {{ $sig['signal'] === 'buy' ? 'border-green-500/60' : ($sig['signal'] === 'sell' ? 'border-red-500/60' : 'border-gray-700/50') }}"
                     >
                         <div class="mb-3 flex items-start justify-between">
-                            <h3 class="font-medium text-gray-100">{{ $item->name }}</h3>
+                            <div class="flex items-center gap-2">
+                                <h3 class="font-medium text-gray-100">{{ $item->name }}</h3>
+
+                                @if ($sig['signal'] === 'buy')
+                                    <span class="signal-pulse-buy rounded-full bg-green-500/20 px-2 py-0.5 text-xs font-semibold text-green-400 ring-1 ring-green-500/50">
+                                        BUY -{{ $sig['magnitude'] }}%
+                                    </span>
+                                @elseif ($sig['signal'] === 'sell')
+                                    <span class="signal-pulse-sell rounded-full bg-red-500/20 px-2 py-0.5 text-xs font-semibold text-red-400 ring-1 ring-red-500/50">
+                                        SELL +{{ $sig['magnitude'] }}%
+                                    </span>
+                                @elseif ($sig['signal'] === 'insufficient_data')
+                                    <span class="rounded-full bg-gray-700/50 px-2 py-0.5 text-xs italic text-gray-500">
+                                        Collecting data
+                                    </span>
+                                @endif
+                            </div>
+
                             @if ($item->priceSnapshots->isNotEmpty())
                                 @php
                                     $trend = $this->trendDirection($item);
@@ -200,7 +296,7 @@ new #[Layout('layouts.app')] class extends Component
                         </div>
 
                         @if ($item->priceSnapshots->isEmpty())
-                            <p class="text-sm text-gray-500 italic">Awaiting first snapshot</p>
+                            <p class="text-sm italic text-gray-500">Awaiting first snapshot</p>
                         @else
                             @php
                                 $latestPrice = $item->priceSnapshots->first()->median_price;
