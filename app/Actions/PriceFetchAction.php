@@ -7,6 +7,7 @@ namespace App\Actions;
 use App\Services\BlizzardTokenService;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 use RuntimeException;
 
 class PriceFetchAction
@@ -16,18 +17,14 @@ class PriceFetchAction
     ) {}
 
     /**
-     * Fetch commodity listings from Blizzard and filter to catalog item IDs.
+     * Download commodity data from Blizzard and persist to a temp file.
      *
-     * Streams the large (~50MB+) response to a temp file to avoid holding
-     * the entire payload in PHP memory, then extracts only catalog listings
-     * by reading the file in chunks.
+     * Streams the large (~50MB+) response to a temp file. Returns the file
+     * path, Last-Modified header, and response hash for gate checks.
      *
-     * Returns listings pre-grouped by blizzard item ID for efficient aggregation.
-     *
-     * @param  int[]  $itemIds  Blizzard item IDs to include in the result
-     * @return array{groupedListings: array<int, array<array{unit_price: int, quantity: int}>>, lastModified: ?string, responseHash: string}
+     * @return array{tempFilePath: string, lastModified: ?string, responseHash: string}
      */
-    public function __invoke(array $itemIds): array
+    public function __invoke(): array
     {
         $region = config('services.blizzard.region', 'us');
         $token = $this->tokenService->getToken();
@@ -66,71 +63,21 @@ class PriceFetchAction
 
         $responseHash = md5_file($tempFile);
 
-        $catalogSet = array_flip($itemIds);
-        $groupedListings = $this->extractListings($tempFile, $catalogSet);
-
+        // Move to persistent storage so downstream jobs can access it
+        $storagePath = 'temp/commodities_'.md5(uniqid((string) mt_rand(), true)).'.json';
+        Storage::disk('local')->put($storagePath, file_get_contents($tempFile));
         @unlink($tempFile);
 
-        Log::info(sprintf(
-            'PriceFetchAction: %d catalog items with listings extracted',
-            count($groupedListings),
-        ));
+        $persistedPath = Storage::disk('local')->path($storagePath);
+
+        Log::info('PriceFetchAction: commodity data downloaded', [
+            'path' => $persistedPath,
+        ]);
 
         return [
-            'groupedListings' => $groupedListings,
-            'lastModified'    => $lastModified,
-            'responseHash'    => $responseHash,
+            'tempFilePath' => $persistedPath,
+            'lastModified' => $lastModified,
+            'responseHash' => $responseHash,
         ];
-    }
-
-    /**
-     * Stream through the temp file in chunks, decode individual auction
-     * objects, and group by item ID. Memory stays manageable because
-     * we only store {unit_price, quantity} per listing entry.
-     *
-     * @return array<int, array<array{unit_price: int, quantity: int}>>
-     */
-    private function extractListings(string $filePath, array $catalogSet): array
-    {
-        $handle = fopen($filePath, 'r');
-        $grouped = [];
-        $buffer = '';
-
-        while (! feof($handle)) {
-            $buffer .= fread($handle, 131072); // 128KB chunks
-
-            // Match each top-level object in the auctions array.
-            // Objects are delimited by },{ or }] at the end.
-            while (preg_match('/\{[^{}]*\{"id":(\d+)\}[^{}]*\}/', $buffer, $match, PREG_OFFSET_CAPTURE)) {
-                $fullMatch = $match[0][0];
-                $offset = $match[0][1];
-                $itemId = (int) $match[1][0];
-
-                if (isset($catalogSet[$itemId])) {
-                    $entry = json_decode($fullMatch, true);
-                    if ($entry) {
-                        $grouped[$itemId][] = [
-                            'unit_price' => (int) ($entry['unit_price'] ?? 0),
-                            'quantity'   => (int) ($entry['quantity'] ?? 0),
-                        ];
-                    }
-                }
-
-                // Advance buffer past this match
-                $buffer = substr($buffer, $offset + strlen($fullMatch));
-            }
-
-            // Keep tail that might contain a partial object
-            if (strlen($buffer) > 500) {
-                $lastBrace = strrpos($buffer, '}');
-                if ($lastBrace !== false) {
-                    $buffer = substr($buffer, $lastBrace + 1);
-                }
-            }
-        }
-
-        fclose($handle);
-
-        return $grouped;
     }
 }
