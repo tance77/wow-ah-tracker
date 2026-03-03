@@ -10,6 +10,9 @@ trait FormatsAuctionData
 {
     public function formatGold(int $copper): string
     {
+        $negative = $copper < 0;
+        $copper = abs($copper);
+
         $g = intdiv($copper, 10000);
         $s = intdiv($copper % 10000, 100);
         $c = $copper % 100;
@@ -25,7 +28,7 @@ trait FormatsAuctionData
             $parts[] = $c.'c';
         }
 
-        return implode(' ', $parts);
+        return ($negative ? '-' : '').implode(' ', $parts);
     }
 
     public function rollingSignal(WatchedItem $item): array

@@ -64,13 +64,11 @@ new #[Layout('layouts.app')] class extends Component
         $thirtyDayLow = $thirtyDaySnapshots->min('min_price');
         $thirtyDayHigh = $thirtyDaySnapshots->max('median_price');
 
-        $signal = $this->rollingSignal($this->watchedItem);
-        $rollingAvg = $signal['rollingAvg'];
         $distanceToBuy = null;
         $distanceToSell = null;
-        if ($rollingAvg > 0 && $currentMedian > 0) {
-            $buyLevel = (int) round($rollingAvg * (1 - $this->watchedItem->buy_threshold / 100));
-            $sellLevel = (int) round($rollingAvg * (1 + $this->watchedItem->sell_threshold / 100));
+        if ($sevenDayAvg > 0 && $currentMedian > 0) {
+            $buyLevel = (int) round($sevenDayAvg * (1 - $this->watchedItem->buy_threshold / 100));
+            $sellLevel = (int) round($sevenDayAvg * (1 + $this->watchedItem->sell_threshold / 100));
             $distanceToBuy = $currentMedian - $buyLevel;
             $distanceToSell = $sellLevel - $currentMedian;
         }
