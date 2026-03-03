@@ -66,7 +66,7 @@ class DispatchPriceBatchesJob implements ShouldQueue
 
                 Log::info('DispatchPriceBatchesJob: all batches completed, metadata updated.');
             })
-            ->catch(function (\Throwable $e) use ($filePath) {
+            ->catch(function (\Illuminate\Bus\Batch $batch, \Throwable $e) use ($filePath) {
                 Log::error('DispatchPriceBatchesJob: batch failed', [
                     'error' => $e->getMessage(),
                 ]);

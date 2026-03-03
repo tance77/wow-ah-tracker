@@ -65,6 +65,7 @@ class PriceFetchAction
 
         // Move to persistent storage so downstream jobs can access it
         $storagePath = 'temp/commodities_'.md5(uniqid((string) mt_rand(), true)).'.json';
+        Storage::disk('local')->makeDirectory('temp');
         Storage::disk('local')->put($storagePath, file_get_contents($tempFile));
         @unlink($tempFile);
 
