@@ -532,7 +532,7 @@ new #[Layout('layouts.app')] class extends Component
                 labels: {
                     style: { colors: '#9ca3af' },
                     datetimeUTC: false,
-                    format: timeframe === '24h' ? 'HH:mm' : (timeframe === '30d' ? 'MMM dd' : 'MMM dd'),
+                    format: timeframe === '24h' ? 'h TT' : (timeframe === '30d' ? 'MMM dd' : 'MMM dd'),
                 },
             },
             yaxis: {
