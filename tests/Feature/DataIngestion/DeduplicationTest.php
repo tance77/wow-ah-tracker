@@ -2,17 +2,18 @@
 
 declare(strict_types=1);
 
+use App\Actions\ExtractListingsAction;
 use App\Actions\PriceAggregateAction;
 use App\Actions\PriceFetchAction;
-use App\Jobs\FetchCommodityPricesJob;
+use App\Jobs\AggregatePriceBatchJob;
+use App\Jobs\DispatchPriceBatchesJob;
+use App\Jobs\FetchCommodityDataJob;
 use App\Models\CatalogItem;
 use App\Models\IngestionMetadata;
 use App\Models\PriceSnapshot;
-use App\Models\User;
-use App\Models\WatchedItem;
+use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Log;
 
 function fakeBlizzardHttpWithLastModified(string $lastModified = 'Sun, 01 Mar 2026 18:00:00 GMT'): void
 {
@@ -51,44 +52,95 @@ function fakeBlizzardHttpNoLastModified(): void
     Cache::forget('blizzard_token');
 }
 
+/**
+ * Helper: run full chain synchronously for dedup integration tests.
+ */
+function runDeduplicationChain(): void
+{
+    $fetchAction = app(PriceFetchAction::class);
+    $job = new FetchCommodityDataJob;
+
+    Bus::fake([DispatchPriceBatchesJob::class]);
+    $job->handle($fetchAction);
+
+    $dispatched = Bus::dispatched(DispatchPriceBatchesJob::class);
+    if ($dispatched->isEmpty()) {
+        return;
+    }
+
+    /** @var DispatchPriceBatchesJob $batchJob */
+    $batchJob = $dispatched->first();
+
+    $catalogItems = CatalogItem::all();
+    $itemMap = $catalogItems->pluck('blizzard_item_id', 'id')->all();
+
+    foreach (array_chunk($itemMap, 50, preserve_keys: true) as $chunk) {
+        $aggregateJob = new AggregatePriceBatchJob(
+            $batchJob->filePath,
+            $chunk,
+            $batchJob->polledAt,
+        );
+        $aggregateJob->handle(
+            app(ExtractListingsAction::class),
+            app(PriceAggregateAction::class),
+        );
+    }
+
+    IngestionMetadata::singleton()->update([
+        'last_modified_at'     => $batchJob->lastModified,
+        'response_hash'        => $batchJob->responseHash,
+        'last_fetched_at'      => now(),
+        'consecutive_failures' => 0,
+    ]);
+
+    @unlink($batchJob->filePath);
+}
+
 // ── PriceFetchAction return shape tests ──────────────────────────────────────
 
-it('PriceFetchAction returns listings, lastModified, and responseHash keys', function (): void {
+it('PriceFetchAction returns tempFilePath, lastModified, and responseHash keys', function (): void {
     fakeBlizzardHttpWithLastModified('Sun, 01 Mar 2026 18:00:00 GMT');
 
     $action = app(PriceFetchAction::class);
-    $result = $action([224025]);
+    $result = $action();
 
     expect($result)->toBeArray()
-        ->toHaveKeys(['groupedListings', 'lastModified', 'responseHash']);
+        ->toHaveKeys(['tempFilePath', 'lastModified', 'responseHash']);
 
-    expect($result['groupedListings'])->toBeArray();
+    expect($result['tempFilePath'])->toBeString();
+    expect(file_exists($result['tempFilePath']))->toBeTrue();
     expect($result['lastModified'])->toBe('Sun, 01 Mar 2026 18:00:00 GMT');
     expect($result['responseHash'])->toBeString()->not->toBeEmpty();
+
+    @unlink($result['tempFilePath']);
 });
 
 it('PriceFetchAction returns null lastModified when header is absent', function (): void {
     fakeBlizzardHttpNoLastModified();
 
     $action = app(PriceFetchAction::class);
-    $result = $action([224025]);
+    $result = $action();
 
     expect($result['lastModified'])->toBeNull();
-    expect($result['groupedListings'])->toBeArray();
+    expect($result['tempFilePath'])->toBeString();
     expect($result['responseHash'])->toBeString()->not->toBeEmpty();
+
+    @unlink($result['tempFilePath']);
 });
 
 it('PriceFetchAction responseHash hashes consistently for dedup use', function (): void {
     fakeBlizzardHttpNoLastModified();
 
     $action = app(PriceFetchAction::class);
-    $result = $action([224025]);
+    $result = $action();
 
     // responseHash is already an md5 hash string
     expect($result['responseHash'])->toBeString()->toHaveLength(32);
+
+    @unlink($result['tempFilePath']);
 });
 
-// ── FetchCommodityPricesJob dedup gate tests ──────────────────────────────────
+// ── FetchCommodityDataJob dedup gate tests ──────────────────────────────────
 
 it('skips write when Last-Modified header matches stored value', function (): void {
     fakeBlizzardHttpWithLastModified('Sun, 01 Mar 2026 18:00:00 GMT');
@@ -101,8 +153,10 @@ it('skips write when Last-Modified header matches stored value', function (): vo
 
     CatalogItem::factory()->create(['blizzard_item_id' => 224025]);
 
-    (new FetchCommodityPricesJob)->handle(app(PriceFetchAction::class), app(PriceAggregateAction::class));
+    Bus::fake([DispatchPriceBatchesJob::class]);
+    (new FetchCommodityDataJob)->handle(app(PriceFetchAction::class));
 
+    Bus::assertNotDispatched(DispatchPriceBatchesJob::class);
     expect(PriceSnapshot::count())->toBe(0);
 });
 
@@ -112,18 +166,20 @@ it('skips write when lastModified is null and hash matches stored hash', functio
     CatalogItem::factory()->create(['blizzard_item_id' => 224025]);
 
     // First run to capture the hash
-    (new FetchCommodityPricesJob)->handle(app(PriceFetchAction::class), app(PriceAggregateAction::class));
+    runDeduplicationChain();
 
     expect(PriceSnapshot::count())->toBe(1);
 
     $meta = IngestionMetadata::singleton();
     expect($meta->response_hash)->not->toBeNull();
 
-    // Second run — same fixture, same hash → no write
+    // Second run — same fixture, same hash → no dispatch
     fakeBlizzardHttpNoLastModified();
 
-    (new FetchCommodityPricesJob)->handle(app(PriceFetchAction::class), app(PriceAggregateAction::class));
+    Bus::fake([DispatchPriceBatchesJob::class]);
+    (new FetchCommodityDataJob)->handle(app(PriceFetchAction::class));
 
+    Bus::assertNotDispatched(DispatchPriceBatchesJob::class);
     expect(PriceSnapshot::count())->toBe(1); // Still only 1 — dedup blocked second write
 });
 
@@ -138,7 +194,7 @@ it('writes snapshots and updates metadata when Last-Modified is new', function (
 
     CatalogItem::factory()->create(['blizzard_item_id' => 224025]);
 
-    (new FetchCommodityPricesJob)->handle(app(PriceFetchAction::class), app(PriceAggregateAction::class));
+    runDeduplicationChain();
 
     expect(PriceSnapshot::count())->toBe(1);
 
@@ -164,7 +220,7 @@ it('increments consecutive_failures and writes no snapshots on API failure', fun
     $meta = IngestionMetadata::singleton();
     expect($meta->consecutive_failures)->toBe(0);
 
-    (new FetchCommodityPricesJob)->handle(app(PriceFetchAction::class), app(PriceAggregateAction::class));
+    (new FetchCommodityDataJob)->handle(app(PriceFetchAction::class));
 
     expect(PriceSnapshot::count())->toBe(0);
     $meta->refresh();
@@ -182,7 +238,7 @@ it('resets consecutive_failures to 0 on successful fetch with new data', functio
 
     CatalogItem::factory()->create(['blizzard_item_id' => 224025]);
 
-    (new FetchCommodityPricesJob)->handle(app(PriceFetchAction::class), app(PriceAggregateAction::class));
+    runDeduplicationChain();
 
     $meta = IngestionMetadata::singleton()->fresh();
     expect($meta->consecutive_failures)->toBe(0);

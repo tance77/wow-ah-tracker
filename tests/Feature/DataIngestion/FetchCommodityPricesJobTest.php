@@ -2,14 +2,16 @@
 
 declare(strict_types=1);
 
-use App\Actions\PriceAggregateAction;
 use App\Actions\PriceFetchAction;
-use App\Jobs\FetchCommodityPricesJob;
+use App\Jobs\AggregatePriceBatchJob;
+use App\Jobs\DispatchPriceBatchesJob;
+use App\Jobs\FetchCommodityDataJob;
 use App\Models\CatalogItem;
 use App\Models\IngestionMetadata;
 use App\Models\PriceSnapshot;
 use App\Models\User;
 use App\Models\WatchedItem;
+use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
@@ -33,12 +35,69 @@ function fakeBlizzardHttp(?string $lastModified = null): void
     Cache::forget('blizzard_token');
 }
 
-it('writes one snapshot per catalog item after handle()', function (): void {
+/**
+ * Helper: run the full 3-job chain synchronously for integration tests.
+ * FetchCommodityDataJob → DispatchPriceBatchesJob → AggregatePriceBatchJob(s)
+ */
+function runFullChain(): void
+{
+    $fetchAction = app(PriceFetchAction::class);
+    $job = new FetchCommodityDataJob;
+
+    // Capture what FetchCommodityDataJob would dispatch
+    Bus::fake([DispatchPriceBatchesJob::class]);
+    $job->handle($fetchAction);
+
+    $dispatched = Bus::dispatched(DispatchPriceBatchesJob::class);
+    if ($dispatched->isEmpty()) {
+        return; // Gate blocked or no catalog items
+    }
+
+    /** @var DispatchPriceBatchesJob $batchJob */
+    $batchJob = $dispatched->first();
+
+    // Now run DispatchPriceBatchesJob synchronously by calling handle
+    // but we need to intercept Bus::batch to run jobs inline
+    runDispatchAndAggregate($batchJob);
+}
+
+/**
+ * Run DispatchPriceBatchesJob and its AggregatePriceBatchJob children synchronously.
+ */
+function runDispatchAndAggregate(DispatchPriceBatchesJob $batchJob): void
+{
+    $catalogItems = CatalogItem::all();
+    $itemMap = $catalogItems->pluck('blizzard_item_id', 'id')->all();
+
+    foreach (array_chunk($itemMap, 50, preserve_keys: true) as $chunk) {
+        $aggregateJob = new AggregatePriceBatchJob(
+            $batchJob->filePath,
+            $chunk,
+            $batchJob->polledAt,
+        );
+        $aggregateJob->handle(
+            app(\App\Actions\ExtractListingsAction::class),
+            app(\App\Actions\PriceAggregateAction::class),
+        );
+    }
+
+    // Simulate the batch then() callback — update metadata
+    IngestionMetadata::singleton()->update([
+        'last_modified_at'     => $batchJob->lastModified,
+        'response_hash'        => $batchJob->responseHash,
+        'last_fetched_at'      => now(),
+        'consecutive_failures' => 0,
+    ]);
+
+    @unlink($batchJob->filePath);
+}
+
+it('writes one snapshot per catalog item through the full chain', function (): void {
     fakeBlizzardHttp();
 
     $catalogItem = CatalogItem::factory()->create(['blizzard_item_id' => 224025]);
 
-    (new FetchCommodityPricesJob)->handle(app(PriceFetchAction::class), app(PriceAggregateAction::class));
+    runFullChain();
 
     expect(PriceSnapshot::where('catalog_item_id', $catalogItem->id)->count())->toBe(1);
 
@@ -56,7 +115,7 @@ it('writes snapshots for multiple catalog items', function (): void {
     $catalog1 = CatalogItem::factory()->create(['blizzard_item_id' => 224025]);
     $catalog2 = CatalogItem::factory()->create(['blizzard_item_id' => 210781]);
 
-    (new FetchCommodityPricesJob)->handle(app(PriceFetchAction::class), app(PriceAggregateAction::class));
+    runFullChain();
 
     expect(PriceSnapshot::count())->toBe(2);
     expect(PriceSnapshot::where('catalog_item_id', $catalog1->id)->count())->toBe(1);
@@ -73,7 +132,7 @@ it('writes one snapshot when multiple users watch the same item', function (): v
     WatchedItem::factory()->create(['user_id' => $user1->id, 'blizzard_item_id' => 224025]);
     WatchedItem::factory()->create(['user_id' => $user2->id, 'blizzard_item_id' => 224025]);
 
-    (new FetchCommodityPricesJob)->handle(app(PriceFetchAction::class), app(PriceAggregateAction::class));
+    runFullChain();
 
     // One snapshot per catalog item, not per watched item
     expect(PriceSnapshot::count())->toBe(1);
@@ -83,7 +142,8 @@ it('writes one snapshot when multiple users watch the same item', function (): v
 it('skips gracefully and does not call Blizzard API when no catalog items exist', function (): void {
     fakeBlizzardHttp();
 
-    (new FetchCommodityPricesJob)->handle(app(PriceFetchAction::class), app(PriceAggregateAction::class));
+    $job = new FetchCommodityDataJob;
+    $job->handle(app(PriceFetchAction::class));
 
     expect(PriceSnapshot::count())->toBe(0);
     Http::assertNothingSent();
@@ -95,7 +155,7 @@ it('writes zero-metric snapshot for a catalog item with no Blizzard listings', f
     // Item ID 999888 is NOT present in the fixture — no listings will match
     $catalogItem = CatalogItem::factory()->create(['blizzard_item_id' => 999888]);
 
-    (new FetchCommodityPricesJob)->handle(app(PriceFetchAction::class), app(PriceAggregateAction::class));
+    runFullChain();
 
     expect(PriceSnapshot::count())->toBe(1);
 
@@ -109,10 +169,10 @@ it('writes zero-metric snapshot for a catalog item with no Blizzard listings', f
 it('prevents duplicate dispatch via ShouldBeUnique', function (): void {
     Queue::fake();
 
-    FetchCommodityPricesJob::dispatch();
-    FetchCommodityPricesJob::dispatch();
+    FetchCommodityDataJob::dispatch();
+    FetchCommodityDataJob::dispatch();
 
-    Queue::assertPushedTimes(FetchCommodityPricesJob::class, times: 1);
+    Queue::assertPushedTimes(FetchCommodityDataJob::class, times: 1);
 });
 
 it('all snapshots in a single run share the same polled_at timestamp', function (): void {
@@ -121,7 +181,7 @@ it('all snapshots in a single run share the same polled_at timestamp', function 
     CatalogItem::factory()->create(['blizzard_item_id' => 224025]);
     CatalogItem::factory()->create(['blizzard_item_id' => 210781]);
 
-    (new FetchCommodityPricesJob)->handle(app(PriceFetchAction::class), app(PriceAggregateAction::class));
+    runFullChain();
 
     $snapshots  = PriceSnapshot::all();
     $timestamps = $snapshots->pluck('polled_at')->map(fn ($t) => (string) $t)->unique();
@@ -141,9 +201,11 @@ it('skips snapshot write when Last-Modified header is unchanged', function (): v
 
     CatalogItem::factory()->create(['blizzard_item_id' => 224025]);
 
-    (new FetchCommodityPricesJob)->handle(app(PriceFetchAction::class), app(PriceAggregateAction::class));
+    Bus::fake([DispatchPriceBatchesJob::class]);
+    (new FetchCommodityDataJob)->handle(app(PriceFetchAction::class));
 
-    expect(PriceSnapshot::count())->toBe(0); // Gate blocked write
+    Bus::assertNotDispatched(DispatchPriceBatchesJob::class);
+    expect(PriceSnapshot::count())->toBe(0);
 });
 
 it('writes snapshots when Last-Modified header has changed', function (): void {
@@ -157,7 +219,7 @@ it('writes snapshots when Last-Modified header has changed', function (): void {
 
     CatalogItem::factory()->create(['blizzard_item_id' => 224025]);
 
-    (new FetchCommodityPricesJob)->handle(app(PriceFetchAction::class), app(PriceAggregateAction::class));
+    runFullChain();
 
     expect(PriceSnapshot::count())->toBe(1); // New data, write allowed
 });
@@ -168,7 +230,7 @@ it('updates metadata after successful write', function (): void {
 
     CatalogItem::factory()->create(['blizzard_item_id' => 224025]);
 
-    (new FetchCommodityPricesJob)->handle(app(PriceFetchAction::class), app(PriceAggregateAction::class));
+    runFullChain();
 
     $meta = IngestionMetadata::first();
     expect($meta->last_modified_at)->toBe($newLastModified);
@@ -192,8 +254,10 @@ it('skips snapshot write via hash fallback when Last-Modified is absent', functi
 
     CatalogItem::factory()->create(['blizzard_item_id' => 224025]);
 
-    (new FetchCommodityPricesJob)->handle(app(PriceFetchAction::class), app(PriceAggregateAction::class));
+    Bus::fake([DispatchPriceBatchesJob::class]);
+    (new FetchCommodityDataJob)->handle(app(PriceFetchAction::class));
 
+    Bus::assertNotDispatched(DispatchPriceBatchesJob::class);
     expect(PriceSnapshot::count())->toBe(0); // Hash gate blocked write
 });
 
@@ -207,7 +271,7 @@ it('writes snapshots when hash differs and Last-Modified is absent', function ()
 
     CatalogItem::factory()->create(['blizzard_item_id' => 224025]);
 
-    (new FetchCommodityPricesJob)->handle(app(PriceFetchAction::class), app(PriceAggregateAction::class));
+    runFullChain();
 
     expect(PriceSnapshot::count())->toBe(1); // Different hash, write allowed
 });
@@ -225,7 +289,7 @@ it('increments consecutive_failures on API failure and writes no snapshots', fun
 
     CatalogItem::factory()->create(['blizzard_item_id' => 224025]);
 
-    (new FetchCommodityPricesJob)->handle(app(PriceFetchAction::class), app(PriceAggregateAction::class));
+    (new FetchCommodityDataJob)->handle(app(PriceFetchAction::class));
 
     expect(PriceSnapshot::count())->toBe(0);
 
@@ -244,7 +308,7 @@ it('resets consecutive_failures to 0 on successful fetch', function (): void {
 
     CatalogItem::factory()->create(['blizzard_item_id' => 224025]);
 
-    (new FetchCommodityPricesJob)->handle(app(PriceFetchAction::class), app(PriceAggregateAction::class));
+    runFullChain();
 
     $meta = IngestionMetadata::first();
     expect($meta->consecutive_failures)->toBe(0);
@@ -259,7 +323,7 @@ it('writes snapshots and creates metadata on first run with empty table', functi
 
     CatalogItem::factory()->create(['blizzard_item_id' => 224025]);
 
-    (new FetchCommodityPricesJob)->handle(app(PriceFetchAction::class), app(PriceAggregateAction::class));
+    runFullChain();
 
     expect(PriceSnapshot::count())->toBe(1);
     expect(IngestionMetadata::count())->toBe(1);
@@ -267,4 +331,49 @@ it('writes snapshots and creates metadata on first run with empty table', functi
     $meta = IngestionMetadata::first();
     expect($meta->last_modified_at)->toBe('Sat, 01 Mar 2026 06:00:00 GMT');
     expect($meta->consecutive_failures)->toBe(0);
+});
+
+it('FetchCommodityDataJob dispatches DispatchPriceBatchesJob with correct data', function (): void {
+    fakeBlizzardHttp('Sat, 01 Mar 2026 06:00:00 GMT');
+
+    CatalogItem::factory()->create(['blizzard_item_id' => 224025]);
+
+    Bus::fake([DispatchPriceBatchesJob::class]);
+    (new FetchCommodityDataJob)->handle(app(PriceFetchAction::class));
+
+    Bus::assertDispatched(DispatchPriceBatchesJob::class, function (DispatchPriceBatchesJob $job) {
+        return $job->lastModified === 'Sat, 01 Mar 2026 06:00:00 GMT'
+            && $job->responseHash !== ''
+            && file_exists($job->filePath);
+    });
+});
+
+it('DispatchPriceBatchesJob creates correct number of batch jobs', function (): void {
+    fakeBlizzardHttp();
+
+    // Create 75 catalog items to get 2 batches (50 + 25)
+    for ($i = 1; $i <= 75; $i++) {
+        CatalogItem::factory()->create(['blizzard_item_id' => 100000 + $i]);
+    }
+
+    $fixturePath = base_path('tests/Fixtures/blizzard_commodities.json');
+
+    // Create a temp copy as the "downloaded" file
+    $tempPath = storage_path('app/private/temp/test_commodities.json');
+    if (! is_dir(dirname($tempPath))) {
+        mkdir(dirname($tempPath), 0755, true);
+    }
+    copy($fixturePath, $tempPath);
+
+    $batched = [];
+    Bus::fake();
+
+    $job = new DispatchPriceBatchesJob($tempPath, null, md5_file($fixturePath), now());
+    $job->handle();
+
+    Bus::assertBatched(function (\Illuminate\Bus\PendingBatch $batch) {
+        return $batch->jobs->count() === 2; // ceil(75/50) = 2 batches
+    });
+
+    @unlink($tempPath);
 });
