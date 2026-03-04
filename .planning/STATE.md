@@ -24,7 +24,7 @@ See: .planning/PROJECT.md (updated 2026-03-02)
 
 Phase: 8 of 8 — All phases complete
 Status: v1.0 MVP SHIPPED (2026-03-02)
-Last activity: 2026-03-02 — Milestone v1.0 archived
+Last activity: 2026-03-04 - Completed quick task 1: Add helpful descriptions to Distance to Buy, Distance to Sell, and 7-Day Volatility on item page
 
 Progress: [██████████] 100%
 
@@ -42,6 +42,12 @@ None.
 ### Blockers/Concerns
 
 None — all v1.0 blockers resolved.
+
+### Quick Tasks Completed
+
+| # | Description | Date | Commit | Directory |
+|---|-------------|------|--------|-----------|
+| 1 | Add helpful descriptions to Distance to Buy, Distance to Sell, and 7-Day Volatility on item page | 2026-03-04 | 5998a9f | [1-add-helpful-descriptions-to-distance-to-](./quick/1-add-helpful-descriptions-to-distance-to-/) |
 
 ## Session Continuity
 
