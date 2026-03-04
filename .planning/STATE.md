@@ -24,7 +24,7 @@ See: .planning/PROJECT.md (updated 2026-03-02)
 
 Phase: 8 of 8 — All phases complete
 Status: v1.0 MVP SHIPPED (2026-03-02)
-Last activity: 2026-03-04 - Completed quick task 1: Add helpful descriptions to Distance to Buy, Distance to Sell, and 7-Day Volatility on item page
+Last activity: 2026-03-04 - Completed quick task 2: Fix incorrect "Time since last update" on item page — use ordered DB query for latest snapshot
 
 Progress: [██████████] 100%
 
@@ -48,6 +48,7 @@ None — all v1.0 blockers resolved.
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
 | 1 | Add helpful descriptions to Distance to Buy, Distance to Sell, and 7-Day Volatility on item page | 2026-03-04 | 5998a9f | [1-add-helpful-descriptions-to-distance-to-](./quick/1-add-helpful-descriptions-to-distance-to-/) |
+| 2 | Fix incorrect "Time since last update" on item page — use ordered DB query for latest snapshot | 2026-03-04 | 4511c69 | [2-fix-incorrect-time-since-last-update-on-](./quick/2-fix-incorrect-time-since-last-update-on-/) |
 
 ## Session Continuity
 
