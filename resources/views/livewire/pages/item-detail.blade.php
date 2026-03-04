@@ -44,7 +44,7 @@ new #[Layout('layouts.app')] class extends Component
             ->where('polled_at', '>=', $now->copy()->subHours(24))
             ->get();
 
-        $latest = $this->watchedItem->priceSnapshots->first();
+        $latest = $this->watchedItem->priceSnapshots()->latest('polled_at')->first();
         $currentMedian = $latest?->median_price ?? 0;
         $currentMin = $latest?->min_price ?? 0;
         $currentVolume = $latest?->total_volume ?? 0;
