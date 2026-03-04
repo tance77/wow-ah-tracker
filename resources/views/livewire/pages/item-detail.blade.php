@@ -300,6 +300,7 @@ new #[Layout('layouts.app')] class extends Component
                     <div class="mt-1 text-lg font-semibold {{ $stats['volatility'] !== null ? ($stats['volatility'] < 5 ? 'text-green-400' : ($stats['volatility'] <= 15 ? 'text-yellow-400' : 'text-red-400')) : 'text-gray-100' }}">
                         {{ $stats['volatility'] !== null ? $stats['volatility'].'%' : '—' }}
                     </div>
+                    <div class="mt-1 text-xs text-gray-500">How much the price fluctuates. Under 5% = stable, over 15% = volatile.</div>
                 </div>
             </div>
 
@@ -330,12 +331,22 @@ new #[Layout('layouts.app')] class extends Component
                     <div class="mt-1 text-lg font-semibold text-green-400">
                         {{ $stats['distanceToBuy'] !== null ? $this->formatGold($stats['distanceToBuy']) : '—' }}
                     </div>
+                    @if ($stats['distanceToBuy'] !== null)
+                        <div class="mt-1 text-xs text-gray-500">
+                            {{ $stats['distanceToBuy'] > 0 ? 'Price is ' . $this->formatGold(abs($stats['distanceToBuy'])) . ' above your buy target. Wait for it to drop.' : 'Price is at or below your buy target!' }}
+                        </div>
+                    @endif
                 </div>
                 <div class="rounded-lg border border-gray-700/50 bg-wow-dark p-4">
                     <div class="text-xs font-medium uppercase tracking-wider text-gray-500">Distance to Sell</div>
                     <div class="mt-1 text-lg font-semibold text-red-400">
                         {{ $stats['distanceToSell'] !== null ? $this->formatGold($stats['distanceToSell']) : '—' }}
                     </div>
+                    @if ($stats['distanceToSell'] !== null)
+                        <div class="mt-1 text-xs text-gray-500">
+                            {{ $stats['distanceToSell'] > 0 ? 'Price needs to rise ' . $this->formatGold(abs($stats['distanceToSell'])) . ' more to hit your sell target.' : 'Price is at or above your sell target!' }}
+                        </div>
+                    @endif
                 </div>
             </div>
 
