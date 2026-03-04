@@ -188,15 +188,15 @@ new #[Layout('layouts.app')] class extends Component
                                                     <h3 class="flex items-center gap-1.5 font-medium {{ $item->catalogItem?->rarityColorClass() ?? 'text-gray-100' }}">{{ $item->catalogItem?->name ?? $item->name }} <x-tier-pip :tier="$item->catalogItem?->quality_tier" /></h3>
 
                                                     @if ($sig['signal'] === 'buy')
-                                                        <span class="signal-pulse-buy rounded-full bg-green-500/20 px-2 py-0.5 text-xs font-semibold text-green-400 ring-1 ring-green-500/50">
+                                                        <span class="signal-pulse-buy rounded-full bg-green-500/20 px-2 py-0.5 text-xs font-semibold text-green-400 ring-1 ring-green-500/50" title="Price is {{ $sig['magnitude'] }}% below the 7-day average ({{ $this->formatGold($sig['rollingAvg']) }})">
                                                             BUY -{{ $sig['magnitude'] }}%
                                                         </span>
                                                     @elseif ($sig['signal'] === 'sell')
-                                                        <span class="signal-pulse-sell rounded-full bg-red-500/20 px-2 py-0.5 text-xs font-semibold text-red-400 ring-1 ring-red-500/50">
+                                                        <span class="signal-pulse-sell rounded-full bg-red-500/20 px-2 py-0.5 text-xs font-semibold text-red-400 ring-1 ring-red-500/50" title="Price is {{ $sig['magnitude'] }}% above the 7-day average ({{ $this->formatGold($sig['rollingAvg']) }})">
                                                             SELL +{{ $sig['magnitude'] }}%
                                                         </span>
                                                     @elseif ($sig['signal'] === 'insufficient_data')
-                                                        <span class="rounded-full bg-gray-700/50 px-2 py-0.5 text-xs italic text-gray-500">
+                                                        <span class="rounded-full bg-gray-700/50 px-2 py-0.5 text-xs italic text-gray-500" title="Need at least 24 snapshots over 7 days to calculate signal">
                                                             Collecting data
                                                         </span>
                                                     @endif
@@ -207,7 +207,7 @@ new #[Layout('layouts.app')] class extends Component
                                                         $trend = $this->trendDirection($item);
                                                         $pct = $this->trendPercent($item);
                                                     @endphp
-                                                    <span class="flex items-center gap-1 text-sm {{ $trend === 'up' ? 'text-green-400' : ($trend === 'down' ? 'text-red-400' : 'text-gray-500') }}">
+                                                    <span class="flex items-center gap-1 text-sm {{ $trend === 'up' ? 'text-green-400' : ($trend === 'down' ? 'text-red-400' : 'text-gray-500') }}" title="{{ $pct !== null ? 'Price changed ' . ($pct > 0 ? '+' : '') . $pct . '% since last update' : 'No price change since last update' }}">
                                                         @if ($trend === 'up')
                                                             <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"/></svg>
                                                         @elseif ($trend === 'down')
@@ -242,6 +242,11 @@ new #[Layout('layouts.app')] class extends Component
                                                         <span class="text-amber-700">{{ $c }}c</span>
                                                     @endif
                                                 </div>
+                                                @if ($sig['rollingAvg'] > 0)
+                                                    <div class="mt-1 text-xs text-gray-400">
+                                                        7d avg: <span class="text-gray-300">{{ $this->formatGold($sig['rollingAvg']) }}</span>
+                                                    </div>
+                                                @endif
                                             @endif
                                         </a>
                                     @endforeach
@@ -285,6 +290,7 @@ new #[Layout('layouts.app')] class extends Component
                                             <tr class="border-b border-gray-700/50 bg-wow-dark/50 text-left text-xs font-medium uppercase tracking-wider text-gray-400">
                                                 <th class="px-4 py-3">Item</th>
                                                 <th class="px-4 py-3">Price</th>
+                                                <th class="px-4 py-3">7d Avg</th>
                                                 <th class="px-4 py-3">Trend</th>
                                                 <th class="px-4 py-3">Signal</th>
                                             </tr>
@@ -322,13 +328,20 @@ new #[Layout('layouts.app')] class extends Component
                                                             </a>
                                                         @endif
                                                     </td>
+                                                    <td class="px-4 py-3 text-sm text-gray-400">
+                                                        @if ($sig['rollingAvg'] > 0)
+                                                            {{ $this->formatGold($sig['rollingAvg']) }}
+                                                        @else
+                                                            <span class="italic text-gray-500">—</span>
+                                                        @endif
+                                                    </td>
                                                     <td class="px-4 py-3">
                                                         @if ($item->catalogItem?->priceSnapshots?->isNotEmpty())
                                                             @php
                                                                 $trend = $this->trendDirection($item);
                                                                 $pct = $this->trendPercent($item);
                                                             @endphp
-                                                            <span class="flex items-center gap-1 text-sm {{ $trend === 'up' ? 'text-green-400' : ($trend === 'down' ? 'text-red-400' : 'text-gray-500') }}">
+                                                            <span class="flex items-center gap-1 text-sm {{ $trend === 'up' ? 'text-green-400' : ($trend === 'down' ? 'text-red-400' : 'text-gray-500') }}" title="{{ $pct !== null ? 'Price changed ' . ($pct > 0 ? '+' : '') . $pct . '% since last update' : 'No price change since last update' }}">
                                                                 @if ($trend === 'up')
                                                                     <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"/></svg>
                                                                 @elseif ($trend === 'down')
@@ -344,15 +357,15 @@ new #[Layout('layouts.app')] class extends Component
                                                     </td>
                                                     <td class="px-4 py-3">
                                                         @if ($sig['signal'] === 'buy')
-                                                            <span class="signal-pulse-buy rounded-full bg-green-500/20 px-2 py-0.5 text-xs font-semibold text-green-400 ring-1 ring-green-500/50">
+                                                            <span class="signal-pulse-buy rounded-full bg-green-500/20 px-2 py-0.5 text-xs font-semibold text-green-400 ring-1 ring-green-500/50" title="Price is {{ $sig['magnitude'] }}% below the 7-day average ({{ $this->formatGold($sig['rollingAvg']) }})">
                                                                 BUY -{{ $sig['magnitude'] }}%
                                                             </span>
                                                         @elseif ($sig['signal'] === 'sell')
-                                                            <span class="signal-pulse-sell rounded-full bg-red-500/20 px-2 py-0.5 text-xs font-semibold text-red-400 ring-1 ring-red-500/50">
+                                                            <span class="signal-pulse-sell rounded-full bg-red-500/20 px-2 py-0.5 text-xs font-semibold text-red-400 ring-1 ring-red-500/50" title="Price is {{ $sig['magnitude'] }}% above the 7-day average ({{ $this->formatGold($sig['rollingAvg']) }})">
                                                                 SELL +{{ $sig['magnitude'] }}%
                                                             </span>
                                                         @elseif ($sig['signal'] === 'insufficient_data')
-                                                            <span class="rounded-full bg-gray-700/50 px-2 py-0.5 text-xs italic text-gray-500">
+                                                            <span class="rounded-full bg-gray-700/50 px-2 py-0.5 text-xs italic text-gray-500" title="Need at least 24 snapshots over 7 days to calculate signal">
                                                                 Collecting data
                                                             </span>
                                                         @endif
