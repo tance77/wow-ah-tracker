@@ -24,7 +24,7 @@ See: .planning/PROJECT.md (updated 2026-03-02)
 
 Phase: 8 of 8 — All phases complete
 Status: v1.0 MVP SHIPPED (2026-03-02)
-Last activity: 2026-03-04 - Completed quick task 4: Add descriptions to all remaining stat cards on item detail page
+Last activity: 2026-03-04 - Completed quick task 5: Add profession grouping to dashboard with manual tagging on watchlist
 
 Progress: [██████████] 100%
 
@@ -51,9 +51,10 @@ None — all v1.0 blockers resolved.
 | 2 | Fix incorrect "Time since last update" on item page — use ordered DB query for latest snapshot | 2026-03-04 | 4511c69 | [2-fix-incorrect-time-since-last-update-on-](./quick/2-fix-incorrect-time-since-last-update-on-/) |
 | 3 | Improve readability of buy/sell signal alert bar — structured labeled layout with bright values | 2026-03-04 | a06385f | [3-improve-readability-of-buy-sell-signal-a](./quick/3-improve-readability-of-buy-sell-signal-a/) |
 | 4 | Add descriptions to all remaining stat cards on item detail page | 2026-03-04 | 875de47 | [4-add-descriptions-to-all-remaining-item-p](./quick/4-add-descriptions-to-all-remaining-item-p/) |
+| 5 | Add profession grouping to dashboard with manual tagging on watchlist | 2026-03-04 | bf4656c | [5-add-profession-grouping-to-dashboard-wit](./quick/5-add-profession-grouping-to-dashboard-wit/) |
 
 ## Session Continuity
 
 Last session: 2026-03-04
-Stopped at: Completed quick task 4: Add descriptions to all remaining stat cards on item detail page.
+Stopped at: Completed quick task 5: Add profession grouping to dashboard with manual tagging on watchlist.
 Resume file: None
