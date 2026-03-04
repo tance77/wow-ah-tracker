@@ -93,6 +93,12 @@ new #[Layout('layouts.app')] class extends Component
         $item = auth()->user()->watchedItems()->findOrFail($id);
         $item->update([$field => max(1, min(100, $value))]);
     }
+
+    public function updateProfession(int $id, ?string $value): void
+    {
+        $item = auth()->user()->watchedItems()->findOrFail($id);
+        $item->update(['profession' => $value === '' ? null : $value]);
+    }
 }; ?>
 
 <x-slot name="header">
@@ -205,6 +211,7 @@ new #[Layout('layouts.app')] class extends Component
                             <thead>
                                 <tr class="border-b border-gray-700/50 text-left text-xs font-medium uppercase tracking-wide text-gray-400">
                                     <th class="px-6 py-3">Item Name</th>
+                                    <th class="px-6 py-3 text-center">Profession</th>
                                     <th class="px-6 py-3 text-center">Buy Threshold (%)</th>
                                     <th class="px-6 py-3 text-center">Sell Threshold (%)</th>
                                     <th class="px-6 py-3 text-right">Remove</th>
@@ -229,6 +236,19 @@ new #[Layout('layouts.app')] class extends Component
                                                     <span class="block text-xs text-gray-500">ID: {{ $item->blizzard_item_id }}</span>
                                                 </div>
                                             </div>
+                                        </td>
+
+                                        <!-- Profession -->
+                                        <td class="px-6 py-4 text-center">
+                                            <select
+                                                wire:change="updateProfession({{ $item->id }}, $event.target.value)"
+                                                class="rounded-md border border-gray-600 bg-wow-darker px-2 py-1 text-sm text-gray-100 focus:border-wow-gold focus:ring-wow-gold"
+                                            >
+                                                <option value="">-- None --</option>
+                                                @foreach (\App\Models\WatchedItem::PROFESSIONS as $profession)
+                                                    <option value="{{ $profession }}" {{ $item->profession === $profession ? 'selected' : '' }}>{{ $profession }}</option>
+                                                @endforeach
+                                            </select>
                                         </td>
 
                                         <!-- Buy Threshold -->

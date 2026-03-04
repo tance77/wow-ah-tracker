@@ -13,12 +13,29 @@ class WatchedItem extends Model
 {
     use HasFactory;
 
+    public const PROFESSIONS = [
+        'Alchemy',
+        'Blacksmithing',
+        'Cooking',
+        'Enchanting',
+        'Engineering',
+        'Fishing',
+        'Herbalism',
+        'Inscription',
+        'Jewelcrafting',
+        'Leatherworking',
+        'Mining',
+        'Skinning',
+        'Tailoring',
+    ];
+
     protected $fillable = [
         'user_id',
         'blizzard_item_id',
         'name',
         'buy_threshold',
         'sell_threshold',
+        'profession',
     ];
 
     protected $casts = [
