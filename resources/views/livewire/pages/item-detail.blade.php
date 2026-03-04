@@ -286,14 +286,17 @@ new #[Layout('layouts.app')] class extends Component
                 <div class="rounded-lg border border-gray-700/50 bg-wow-dark p-4">
                     <div class="text-xs font-medium uppercase tracking-wider text-gray-500">Current Median</div>
                     <div class="mt-1 text-lg font-semibold text-gray-100">{{ $stats['currentMedian'] ? $this->formatGold($stats['currentMedian']) : '—' }}</div>
+                    <div class="mt-1 text-xs text-gray-500">The middle price of all current auctions. Half are listed above, half below.</div>
                 </div>
                 <div class="rounded-lg border border-gray-700/50 bg-wow-dark p-4">
                     <div class="text-xs font-medium uppercase tracking-wider text-gray-500">Current Min</div>
                     <div class="mt-1 text-lg font-semibold text-gray-100">{{ $stats['currentMin'] ? $this->formatGold($stats['currentMin']) : '—' }}</div>
+                    <div class="mt-1 text-xs text-gray-500">The cheapest listing on the auction house right now.</div>
                 </div>
                 <div class="rounded-lg border border-gray-700/50 bg-wow-dark p-4">
                     <div class="text-xs font-medium uppercase tracking-wider text-gray-500">7-Day Average</div>
                     <div class="mt-1 text-lg font-semibold text-gray-100">{{ $stats['sevenDayAvg'] ? $this->formatGold($stats['sevenDayAvg']) : '—' }}</div>
+                    <div class="mt-1 text-xs text-gray-500">Average median price over the last 7 days. Used as the baseline for buy/sell signals.</div>
                 </div>
                 <div class="rounded-lg border border-gray-700/50 bg-wow-dark p-4">
                     <div class="text-xs font-medium uppercase tracking-wider text-gray-500">7d Volatility</div>
@@ -315,6 +318,7 @@ new #[Layout('layouts.app')] class extends Component
                             —
                         @endif
                     </div>
+                    <div class="mt-1 text-xs text-gray-500">The cheapest min and highest median seen in the last 7 days.</div>
                 </div>
                 <div class="rounded-lg border border-gray-700/50 bg-wow-dark p-4">
                     <div class="text-xs font-medium uppercase tracking-wider text-gray-500">30-Day Low / High</div>
@@ -325,6 +329,7 @@ new #[Layout('layouts.app')] class extends Component
                             —
                         @endif
                     </div>
+                    <div class="mt-1 text-xs text-gray-500">The cheapest min and highest median seen in the last 30 days.</div>
                 </div>
                 <div class="rounded-lg border border-gray-700/50 bg-wow-dark p-4">
                     <div class="text-xs font-medium uppercase tracking-wider text-gray-500">Distance to Buy</div>
@@ -355,20 +360,24 @@ new #[Layout('layouts.app')] class extends Component
                 <div class="rounded-lg border border-gray-700/50 bg-wow-dark p-4">
                     <div class="text-xs font-medium uppercase tracking-wider text-gray-500">Current Volume</div>
                     <div class="mt-1 text-lg font-semibold text-gray-100">{{ $stats['currentVolume'] ? number_format($stats['currentVolume']) : '—' }}</div>
+                    <div class="mt-1 text-xs text-gray-500">Total number of auctions currently listed for this item.</div>
                 </div>
                 <div class="rounded-lg border border-gray-700/50 bg-wow-dark p-4">
                     <div class="text-xs font-medium uppercase tracking-wider text-gray-500">7-Day Avg Volume</div>
                     <div class="mt-1 text-lg font-semibold text-gray-100">{{ $stats['sevenDayAvgVolume'] ? number_format($stats['sevenDayAvgVolume']) : '—' }}</div>
+                    <div class="mt-1 text-xs text-gray-500">Average number of listings per snapshot over the last 7 days.</div>
                 </div>
                 <div class="rounded-lg border border-gray-700/50 bg-wow-dark p-4">
                     <div class="text-xs font-medium uppercase tracking-wider text-gray-500">24h Volume Change</div>
                     <div class="mt-1 text-lg font-semibold {{ $stats['volumeChange'] !== null ? ($stats['volumeChange'] >= 0 ? 'text-green-400' : 'text-red-400') : 'text-gray-100' }}">
                         {{ $stats['volumeChange'] !== null ? ($stats['volumeChange'] >= 0 ? '+' : '').$stats['volumeChange'].'%' : '—' }}
                     </div>
+                    <div class="mt-1 text-xs text-gray-500">How much listing volume changed compared to the previous 24 hours.</div>
                 </div>
                 <div class="rounded-lg border border-gray-700/50 bg-wow-dark p-4">
                     <div class="text-xs font-medium uppercase tracking-wider text-gray-500">30-Day Avg Volume</div>
                     <div class="mt-1 text-lg font-semibold text-gray-100">{{ $stats['thirtyDayAvgVolume'] ? number_format($stats['thirtyDayAvgVolume']) : '—' }}</div>
+                    <div class="mt-1 text-xs text-gray-500">Average number of listings per snapshot over the last 30 days. Compare to 7-day to spot trends.</div>
                 </div>
             </div>
         </div>
