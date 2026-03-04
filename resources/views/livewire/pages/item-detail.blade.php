@@ -254,22 +254,22 @@ new #[Layout('layouts.app')] class extends Component
             {{ $signal['signal'] === 'insufficient_data' ? 'bg-amber-500/10 text-amber-400 ring-1 ring-amber-500/30' : '' }}
         ">
             @if ($signal['signal'] === 'buy')
-                <div class="flex items-center justify-between">
+                <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                     <span class="signal-pulse-buy">BUY SIGNAL -{{ $signal['magnitude'] }}%</span>
-                    <span class="text-sm font-normal text-green-400/70">
-                        Price {{ $this->formatGold($this->stats['currentMedian']) }} vs
-                        7d avg {{ $this->formatGold($signal['rollingAvg']) }}
-                        (threshold {{ $watchedItem->buy_threshold }}%)
-                    </span>
+                    <div class="flex flex-wrap gap-x-4 gap-y-1 text-sm font-normal">
+                        <span class="text-green-400/60">Price <span class="font-semibold text-green-300">{{ $this->formatGold($this->stats['currentMedian']) }}</span></span>
+                        <span class="text-green-400/60">7d Avg <span class="font-semibold text-green-300">{{ $this->formatGold($signal['rollingAvg']) }}</span></span>
+                        <span class="text-green-400/60">Threshold <span class="font-semibold text-green-300">{{ $watchedItem->buy_threshold }}%</span></span>
+                    </div>
                 </div>
             @elseif ($signal['signal'] === 'sell')
-                <div class="flex items-center justify-between">
+                <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                     <span class="signal-pulse-sell">SELL SIGNAL +{{ $signal['magnitude'] }}%</span>
-                    <span class="text-sm font-normal text-red-400/70">
-                        Price {{ $this->formatGold($this->stats['currentMedian']) }} vs
-                        7d avg {{ $this->formatGold($signal['rollingAvg']) }}
-                        (threshold {{ $watchedItem->sell_threshold }}%)
-                    </span>
+                    <div class="flex flex-wrap gap-x-4 gap-y-1 text-sm font-normal">
+                        <span class="text-red-400/60">Price <span class="font-semibold text-red-300">{{ $this->formatGold($this->stats['currentMedian']) }}</span></span>
+                        <span class="text-red-400/60">7d Avg <span class="font-semibold text-red-300">{{ $this->formatGold($signal['rollingAvg']) }}</span></span>
+                        <span class="text-red-400/60">Threshold <span class="font-semibold text-red-300">{{ $watchedItem->sell_threshold }}%</span></span>
+                    </div>
                 </div>
             @elseif ($signal['signal'] === 'insufficient_data')
                 Collecting data...
