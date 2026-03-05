@@ -5,7 +5,7 @@ milestone_name: Shuffles
 status: executing
 stopped_at: Completed 12-batch-calculator-and-profit-summary/12-02-PLAN.md
 last_updated: "2026-03-05T06:00:16.980Z"
-last_activity: 2026-03-05 — Completed quick task 10: Fix New Shuffle button
+last_activity: 2026-03-05 — Completed quick task 11: Make step wizard more user-friendly
 progress:
   total_phases: 4
   completed_phases: 4
@@ -102,9 +102,10 @@ None — Phase 9 data foundation complete.
 | 8 | Spruce up login page layout — button full-width on own row, links centered below | 2026-03-04 | d14db15 | [8-spruce-up-login-page-layout](./quick/8-spruce-up-login-page-layout/) |
 | 9 | Change name field to username on register/profile/navigation — DB migration + all views + tests | 2026-03-05 | 3eaa4fb | [9-change-name-field-to-username-on-registe](./quick/9-change-name-field-to-username-on-registe/) |
 | 10 | Fix New Shuffle button outside Livewire boundary — move from header slot into Livewire-tracked DOM | 2026-03-04 | fc2a062 | [10-the-new-shuffle-button-after-there-is-al](./quick/10-the-new-shuffle-button-after-there-is-al/) |
+| 11 | Make step wizard more user-friendly — step numbering, conversion ratio summaries, sectioned add-step form | 2026-03-05 | 8b2e325 | [11-make-the-step-wizard-more-user-friendly](./quick/11-make-the-step-wizard-more-user-friendly/) |
 
 ## Session Continuity
 
-Last session: 2026-03-04T00:00:00.000Z
-Stopped at: Completed quick-10 (Fix New Shuffle button)
+Last session: 2026-03-05T06:16:05Z
+Stopped at: Completed quick-11 (Make step wizard more user-friendly)
 Resume file: None
