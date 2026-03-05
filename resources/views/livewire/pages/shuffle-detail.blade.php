@@ -572,7 +572,7 @@ new #[Layout('layouts.app')] class extends Component
             wire:click="exportShuffle"
             class="text-sm text-gray-400 transition-colors hover:text-wow-gold"
         >
-            Export JSON
+            Share
         </button>
     </div>
 </x-slot>

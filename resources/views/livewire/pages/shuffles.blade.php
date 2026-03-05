@@ -247,7 +247,7 @@ new #[Layout('layouts.app')] class extends Component
                             class="cursor-pointer rounded-md border border-gray-600 px-4 py-2 text-sm font-medium text-gray-300 transition-colors hover:border-wow-gold hover:text-wow-gold focus:outline-none"
                             x-data
                         >
-                            Import JSON
+                            Import Shuffle
                             <input type="file" accept=".json" wire:model="importFile" class="hidden" x-ref="importInput" @change="$nextTick(() => $wire.importShuffle())" />
                         </label>
                     </div>
@@ -259,7 +259,7 @@ new #[Layout('layouts.app')] class extends Component
                         class="cursor-pointer rounded-md border border-gray-600 px-4 py-2 text-sm font-medium text-gray-300 transition-colors hover:border-wow-gold hover:text-wow-gold focus:outline-none"
                         x-data
                     >
-                        Import JSON
+                        Import Shuffle
                         <input type="file" accept=".json" wire:model="importFile" class="hidden" @change="$nextTick(() => $wire.importShuffle())" />
                     </label>
                     <button wire:click="createShuffle" class="rounded-md bg-wow-gold px-4 py-2 text-sm font-semibold text-wow-darker transition-colors hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-wow-gold focus:ring-offset-2 focus:ring-offset-wow-dark">
@@ -366,7 +366,7 @@ new #[Layout('layouts.app')] class extends Component
                                             wire:click="exportShuffle({{ $shuffle->id }})"
                                             class="text-sm text-gray-400 transition-colors hover:text-wow-gold focus:outline-none"
                                         >
-                                            Export
+                                            Share
                                         </button>
                                         <button
                                             wire:click="cloneShuffle({{ $shuffle->id }})"
