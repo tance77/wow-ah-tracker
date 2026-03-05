@@ -152,8 +152,10 @@ class SyncCatalogBatchJob implements ShouldQueue
                             'namespace' => "static-{$this->region}",
                         ])
                 )->all());
-            } catch (\Throwable) {
-                // Icons are optional
+            } catch (\Throwable $e) {
+                Log::warning('SyncCatalogBatchJob: media fetch failed', [
+                    'error' => $e->getMessage(),
+                ]);
             }
         }
 
