@@ -28,7 +28,7 @@ Full details: `milestones/v1.0-ROADMAP.md`
 **Milestone Goal:** Add a Shuffles section where users can define multi-step item conversion chains and calculate batch profit using live AH prices.
 
 - [x] **Phase 9: Data Foundation** — Schema, models, and factories for shuffles and shuffle steps (completed 2026-03-05)
-- [ ] **Phase 10: Shuffle CRUD and Navigation** — List, create, edit, and delete named shuffles with navigation access
+- [x] **Phase 10: Shuffle CRUD and Navigation** — List, create, edit, and delete named shuffles with navigation access (completed 2026-03-05)
 - [ ] **Phase 11: Step Editor, Yield Config, and Auto-Watch** — Add/remove/reorder steps with yield ranges; auto-watch items for price polling
 - [ ] **Phase 12: Batch Calculator and Profit Summary** — Enter input quantity, see per-step yields and costs, total profit with AH cut and break-even
 
@@ -59,7 +59,7 @@ Plans:
   3. User can rename an existing shuffle and see the updated name reflected in the list
   4. User can delete a shuffle and it is removed from the list
   5. Shuffles list shows a profitability badge (green/red or neutral) next to each shuffle name
-**Plans:** 1/2 plans executed
+**Plans:** 2/2 plans complete
 
 Plans:
 - [ ] 10-01-PLAN.md — Routes, navigation, profitPerUnit model method, shuffles list page, and feature tests
@@ -104,6 +104,6 @@ Plans:
 | 7. Dashboard and Price Charts | v1.0 | 2/2 | Complete | 2026-03-01 |
 | 8. Buy/Sell Signal Indicators | v1.0 | 2/2 | Complete | 2026-03-02 |
 | 9. Data Foundation | v1.1 | 2/2 | Complete | 2026-03-05 |
-| 10. Shuffle CRUD and Navigation | 1/2 | In Progress|  | - |
+| 10. Shuffle CRUD and Navigation | 2/2 | Complete   | 2026-03-05 | - |
 | 11. Step Editor, Yield Config, and Auto-Watch | v1.1 | 0/? | Not started | - |
 | 12. Batch Calculator and Profit Summary | v1.1 | 0/? | Not started | - |
