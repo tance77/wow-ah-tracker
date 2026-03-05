@@ -63,6 +63,12 @@ new #[Layout('layouts.guest')] class extends Component
                 </a>
             @endif
 
+            @if (Route::has('register'))
+                <a class="underline text-sm text-gray-400 hover:text-wow-gold rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-wow-gold focus:ring-offset-wow-darker transition-colors ms-4" href="{{ route('register') }}" wire:navigate>
+                    {{ __('Create an account') }}
+                </a>
+            @endif
+
             <x-primary-button class="ms-3">
                 {{ __('Log in') }}
             </x-primary-button>
