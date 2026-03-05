@@ -9,11 +9,11 @@ Requirements for Crafting Profitability milestone. Each maps to roadmap phases.
 
 ### Recipe Data Import
 
-- [ ] **IMPORT-01**: User can run `artisan blizzard:sync-recipes` to seed all Midnight expansion recipes from Blizzard API
-- [ ] **IMPORT-02**: Seed command auto-watches all reagents and crafted items (deduped across professions)
-- [ ] **IMPORT-03**: Seed command supports `--dry-run` flag to preview without writing
-- [ ] **IMPORT-04**: Seed command supports `--report-gaps` to log API field coverage (missing crafted_item, etc.)
-- [ ] **IMPORT-05**: Seed command is idempotent — re-runnable after game patches to pick up new recipes
+- [x] **IMPORT-01**: User can run `artisan blizzard:sync-recipes` to seed all Midnight expansion recipes from Blizzard API
+- [x] **IMPORT-02**: Seed command auto-watches all reagents and crafted items (deduped across professions)
+- [x] **IMPORT-03**: Seed command supports `--dry-run` flag to preview without writing
+- [x] **IMPORT-04**: Seed command supports `--report-gaps` to log API field coverage (missing crafted_item, etc.)
+- [x] **IMPORT-05**: Seed command is idempotent — re-runnable after game patches to pick up new recipes
 - [x] **IMPORT-06**: Recipes table tracks `last_synced_at` timestamp
 
 ### Profitability Calculation
@@ -75,11 +75,11 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| IMPORT-01 | Phase 13 | Pending |
-| IMPORT-02 | Phase 13 | Pending |
-| IMPORT-03 | Phase 13 | Pending |
-| IMPORT-04 | Phase 13 | Pending |
-| IMPORT-05 | Phase 13 | Pending |
+| IMPORT-01 | Phase 13 | Complete |
+| IMPORT-02 | Phase 13 | Complete |
+| IMPORT-03 | Phase 13 | Complete |
+| IMPORT-04 | Phase 13 | Complete |
+| IMPORT-05 | Phase 13 | Complete |
 | IMPORT-06 | Phase 13 | Complete |
 | PROFIT-01 | Phase 14 | Pending |
 | PROFIT-02 | Phase 14 | Pending |

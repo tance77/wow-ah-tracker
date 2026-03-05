@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Crafting Profitability
 status: planning
-stopped_at: Completed 13-01-PLAN.md
-last_updated: "2026-03-05T19:25:58.964Z"
+stopped_at: Completed 13-02-PLAN.md
+last_updated: "2026-03-05T19:33:06.326Z"
 last_activity: 2026-03-05 - Roadmap created for v1.2 (phases 13-16, 19 requirements mapped)
 progress:
   total_phases: 8
-  completed_phases: 4
+  completed_phases: 5
   total_plans: 10
-  completed_plans: 9
+  completed_plans: 10
   percent: 0
 ---
 
@@ -47,6 +47,7 @@ Progress: [░░░░░░░░░░] 0%
 
 *Updated after each plan completion*
 | Phase 13-recipe-data-model-and-seed-command P01 | 2 | 1 tasks | 10 files |
+| Phase 13-recipe-data-model-and-seed-command P02 | 6 | 1 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -62,6 +63,8 @@ v1.0 and v1.1 decisions archived — see milestones/ for full history.
 - `Http::pool()` with 20-item batches for recipe detail fetch — sequential would take 80-130 seconds
 - Gear output items flagged `is_commodity = false` and displayed as "realm AH — not tracked"
 - [Phase 13-recipe-data-model-and-seed-command]: Dual nullable FK columns (crafted_item_id_silver, crafted_item_id_gold) with nullOnDelete for quality-tier crafted items
+- [Phase 13-recipe-data-model-and-seed-command]: Http::fake() patterns must be ordered most-specific first — skill-tier and media patterns before generic profession/ID wildcard
+- [Phase 13-recipe-data-model-and-seed-command]: Reagents use delete+re-insert for idempotency; unknown reagent items auto-create minimal CatalogItem entries to satisfy FK
 
 ### Pending Todos
 
@@ -94,6 +97,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-05T19:25:58.933Z
-Stopped at: Completed 13-01-PLAN.md
+Last session: 2026-03-05T19:33:06.324Z
+Stopped at: Completed 13-02-PLAN.md
 Resume file: None
