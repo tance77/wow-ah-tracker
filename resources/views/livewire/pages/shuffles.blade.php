@@ -54,6 +54,61 @@ new #[Layout('layouts.app')] class extends Component
 
         unset($this->shuffles);
     }
+
+    public function cloneShuffle(int $id): void
+    {
+        $original = auth()->user()->shuffles()->findOrFail($id);
+
+        $clone = auth()->user()->shuffles()->create([
+            'name' => $original->name . ' (Copy)',
+        ]);
+
+        $steps = $original->steps()->with('byproducts')->get();
+        $watchItemIds = [];
+
+        foreach ($steps as $step) {
+            $newStep = $clone->steps()->create([
+                'input_blizzard_item_id' => $step->input_blizzard_item_id,
+                'output_blizzard_item_id' => $step->output_blizzard_item_id,
+                'input_qty' => $step->input_qty,
+                'output_qty_min' => $step->output_qty_min,
+                'output_qty_max' => $step->output_qty_max,
+                'sort_order' => $step->sort_order,
+            ]);
+
+            foreach ($step->byproducts as $bp) {
+                $newStep->byproducts()->create([
+                    'blizzard_item_id' => $bp->blizzard_item_id,
+                    'item_name' => $bp->item_name,
+                    'chance_percent' => $bp->chance_percent,
+                    'quantity' => $bp->quantity,
+                ]);
+
+                $watchItemIds[] = $bp->blizzard_item_id;
+            }
+
+            $watchItemIds[] = $step->input_blizzard_item_id;
+            $watchItemIds[] = $step->output_blizzard_item_id;
+        }
+
+        // Auto-watch all unique item IDs
+        foreach (array_unique($watchItemIds) as $blizzardItemId) {
+            $catalogItem = \App\Models\CatalogItem::where('blizzard_item_id', $blizzardItemId)->first();
+            $name = $catalogItem?->name ?? "Item #{$blizzardItemId}";
+
+            auth()->user()->watchedItems()->firstOrCreate(
+                ['blizzard_item_id' => $blizzardItemId],
+                [
+                    'name' => $name,
+                    'buy_threshold' => null,
+                    'sell_threshold' => null,
+                    'created_by_shuffle_id' => $clone->id,
+                ]
+            );
+        }
+
+        $this->redirect(route('shuffles.show', $clone), navigate: true);
+    }
 }; ?>
 
 <x-slot name="header">
@@ -185,9 +240,15 @@ new #[Layout('layouts.app')] class extends Component
                                     <!-- Actions -->
                                     <td class="px-6 py-4 text-right" onclick="event.stopPropagation()">
                                         <button
+                                            wire:click="cloneShuffle({{ $shuffle->id }})"
+                                            class="text-sm text-gray-400 transition-colors hover:text-wow-gold focus:outline-none"
+                                        >
+                                            Clone
+                                        </button>
+                                        <button
                                             x-data
                                             @click="$dispatch('open-modal', 'confirm-delete-{{ $shuffle->id }}')"
-                                            class="text-sm text-red-400 transition-colors hover:text-red-300 focus:outline-none"
+                                            class="ml-3 text-sm text-red-400 transition-colors hover:text-red-300 focus:outline-none"
                                         >
                                             Delete
                                         </button>
