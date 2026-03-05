@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-03-05)
 Phase: 13 of 16 (Recipe Data Model and Seed Command)
 Plan: — (not yet planned)
 Status: Ready to plan
-Last activity: 2026-03-05 - Completed quick task 17: Fix blizzard:sync-catalog command timeout on Laravel Cloud
+Last activity: 2026-03-05 - Completed quick task 18: Refactor sync-catalog to dispatch batched jobs
 
 Progress: [░░░░░░░░░░] 0%
 
@@ -99,6 +99,7 @@ None.
 | 15 | Add hourly realm auction price polling for BoE items — parallel pipeline with brace-depth parsing | 2026-03-05 | 267682f | [15-add-hourly-realm-auction-price-polling-f](./quick/15-add-hourly-realm-auction-price-polling-f/) |
 | 16 | Add secondary byproducts with drop chance to shuffle steps — model, UI, calculator EV | 2026-03-05 | 1df5c82 | [16-add-secondary-byproducts-with-drop-chanc](./quick/16-add-secondary-byproducts-with-drop-chanc/) |
 | 17 | Fix blizzard:sync-catalog command timeout on Laravel Cloud (exceeds 15min limit) | 2026-03-05 | b44b10d | [17-fix-blizzard-sync-catalog-command-timeou](./quick/17-fix-blizzard-sync-catalog-command-timeou/) |
+| 18 | Refactor sync-catalog to dispatch batched jobs instead of processing inline | 2026-03-05 | 0c6b84f | [18-refactor-sync-catalog-to-dispatch-batche](./quick/18-refactor-sync-catalog-to-dispatch-batche/) |
 
 ## Session Continuity
 
