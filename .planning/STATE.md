@@ -87,9 +87,10 @@ None.
 | 11 | Make step wizard more user-friendly — step numbering, conversion ratio summaries, sectioned add-step form | 2026-03-05 | 8b2e325 | [11-make-the-step-wizard-more-user-friendly](./quick/11-make-the-step-wizard-more-user-friendly/) |
 | 12 | Add --realm flag to sync-catalog for BoE auction items from connected-realm endpoint | 2026-03-05 | 6e2149d | [12-add-realm-auction-support-to-blizzard-sy](./quick/12-add-realm-auction-support-to-blizzard-sy/) |
 | 13 | Fix realm sync stopping after fetching auctions — stream response to disk instead of loading into memory | 2026-03-05 | 18e1cc5 | [13-fix-realm-sync-stopping-after-fetching-a](./quick/13-fix-realm-sync-stopping-after-fetching-a/) |
+| 14 | Fix realm auction regex to handle item objects with extra fields (context, bonus_list, modifiers) | 2026-03-05 | ea8d09d | [14-fix-realm-auction-regex-to-handle-item-o](./quick/14-fix-realm-auction-regex-to-handle-item-o/) |
 
 ## Session Continuity
 
 Last session: 2026-03-05
-Stopped at: Roadmap created for v1.2 Crafting Profitability — ready to plan Phase 13
+Stopped at: Completed quick-14 — fix realm auction regex
 Resume file: None
