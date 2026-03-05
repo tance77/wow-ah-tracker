@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Shuffles
 status: executing
-stopped_at: Completed 12-batch-calculator-and-profit-summary/12-01-PLAN.md
-last_updated: "2026-03-05T05:45:09.111Z"
+stopped_at: Completed 12-batch-calculator-and-profit-summary/12-02-PLAN.md
+last_updated: "2026-03-05T05:56:05.431Z"
 last_activity: 2026-03-05 — Phase 9 Plan 02 complete (factories and test suite)
 progress:
   total_phases: 4
-  completed_phases: 3
+  completed_phases: 4
   total_plans: 8
-  completed_plans: 7
+  completed_plans: 8
   percent: 50
 ---
 
@@ -51,6 +51,7 @@ Progress: [█████░░░░░] 50%
 | Phase 11-step-editor-yield-config-and-auto-watch P01 | 3 | 2 tasks | 4 files |
 | Phase 11-step-editor-yield-config-and-auto-watch P02 | 9min | 2 tasks | 4 files |
 | Phase 12-batch-calculator-and-profit-summary P01 | 4min | 2 tasks | 3 files |
+| Phase 12-batch-calculator-and-profit-summary P02 | 10 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -77,6 +78,7 @@ All v1.0 decisions archived — see `milestones/v1.0-ROADMAP.md` for full histor
 - [Phase 12-batch-calculator-and-profit-summary]: profitPerUnit() cascade: floor(qty * output_qty_min / input_qty) per step, starting from 1 unit input
 - [Phase 12-batch-calculator-and-profit-summary]: Carbon staleness: use polled_at->diffInMinutes(now()) not now()->diffInMinutes(past) to get positive elapsed minutes
 - [Phase 12-batch-calculator-and-profit-summary]: priceData() avoids N+1 via single CatalogItem query + single PriceSnapshot query with application-side groupBy
+- [Phase 12-batch-calculator-and-profit-summary]: Alpine component defined inline in Blade (not external JS file) for consistency with step editor pattern; wire:ignore prevents Livewire morph from resetting batchQty state
 
 ### Pending Todos
 
@@ -102,6 +104,6 @@ None — Phase 9 data foundation complete.
 
 ## Session Continuity
 
-Last session: 2026-03-05T05:45:09.108Z
-Stopped at: Completed 12-batch-calculator-and-profit-summary/12-01-PLAN.md
+Last session: 2026-03-05T05:56:05.429Z
+Stopped at: Completed 12-batch-calculator-and-profit-summary/12-02-PLAN.md
 Resume file: None

@@ -29,8 +29,8 @@ Requirements for Shuffles milestone. Each maps to roadmap phases.
 
 ### Batch Calculator
 
-- [ ] **CALC-01**: User can enter input quantity and see cascading yields per step
-- [ ] **CALC-02**: User can see per-step cost and value breakdown
+- [x] **CALC-01**: User can enter input quantity and see cascading yields per step
+- [x] **CALC-02**: User can see per-step cost and value breakdown
 - [x] **CALC-03**: User can see total profit summary (cost in, value out with 5% AH cut, net profit)
 - [x] **CALC-04**: User can see break-even input price per shuffle
 
@@ -82,8 +82,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | INTG-01 | Phase 11 | Complete |
 | INTG-02 | Phase 12 | Complete |
 | INTG-03 | Phase 12 | Complete |
-| CALC-01 | Phase 12 | Pending |
-| CALC-02 | Phase 12 | Pending |
+| CALC-01 | Phase 12 | Complete |
+| CALC-02 | Phase 12 | Complete |
 | CALC-03 | Phase 12 | Complete |
 | CALC-04 | Phase 12 | Complete |
 

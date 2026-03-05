@@ -30,7 +30,7 @@ Full details: `milestones/v1.0-ROADMAP.md`
 - [x] **Phase 9: Data Foundation** — Schema, models, and factories for shuffles and shuffle steps (completed 2026-03-05)
 - [x] **Phase 10: Shuffle CRUD and Navigation** — List, create, edit, and delete named shuffles with navigation access (completed 2026-03-05)
 - [x] **Phase 11: Step Editor, Yield Config, and Auto-Watch** — Add/remove/reorder steps with yield ranges; auto-watch items for price polling (completed 2026-03-05)
-- [ ] **Phase 12: Batch Calculator and Profit Summary** — Enter input quantity, see per-step yields and costs, total profit with AH cut and break-even
+- [x] **Phase 12: Batch Calculator and Profit Summary** — Enter input quantity, see per-step yields and costs, total profit with AH cut and break-even (completed 2026-03-05)
 
 ## Phase Details
 
@@ -91,7 +91,7 @@ Plans:
   3. User can see a profit summary row showing total cost in, total value out after 5% AH cut, and net profit — all displayed in gold/silver/copper format
   4. User can see the break-even input price (maximum they can pay per input unit and still profit)
   5. A staleness warning is shown when the latest price snapshot for any item in the chain is older than 1 hour
-**Plans:** 1/2 plans executed
+**Plans:** 2/2 plans complete
 
 Plans:
 - [ ] 12-01-PLAN.md — Refactor profitPerUnit() cascade, add priceData/calculatorSteps computed properties, and tests
@@ -114,4 +114,4 @@ Plans:
 | 9. Data Foundation | v1.1 | 2/2 | Complete | 2026-03-05 |
 | 10. Shuffle CRUD and Navigation | v1.1 | 2/2 | Complete | 2026-03-05 |
 | 11. Step Editor, Yield Config, and Auto-Watch | v1.1 | 2/2 | Complete | 2026-03-05 |
-| 12. Batch Calculator and Profit Summary | 1/2 | In Progress|  | - |
+| 12. Batch Calculator and Profit Summary | 2/2 | Complete   | 2026-03-05 | - |
