@@ -1,57 +1,61 @@
 # Requirements: WoW AH Tracker
 
-**Defined:** 2026-03-04
+**Defined:** 2026-03-05
 **Core Value:** See at a glance when crafting material prices dip or spike so I can act on buy/sell opportunities before the market corrects.
 
-## v1.1 Requirements
+## v1.2 Requirements
 
-Requirements for Shuffles milestone. Each maps to roadmap phases.
+Requirements for Crafting Profitability milestone. Each maps to roadmap phases.
 
-### Shuffle Management
+### Recipe Data Import
 
-- [x] **SHUF-01**: User can create a named shuffle with a descriptive name
-- [x] **SHUF-02**: User can define multi-step conversion chains (A → B → C)
-- [x] **SHUF-03**: User can edit an existing shuffle's name and steps
-- [x] **SHUF-04**: User can delete a shuffle
-- [x] **SHUF-05**: User can view a list of all saved shuffles with profitability badge
+- [ ] **IMPORT-01**: User can run `artisan blizzard:sync-recipes` to seed all Midnight expansion recipes from Blizzard API
+- [ ] **IMPORT-02**: Seed command auto-watches all reagents and crafted items (deduped across professions)
+- [ ] **IMPORT-03**: Seed command supports `--dry-run` flag to preview without writing
+- [ ] **IMPORT-04**: Seed command supports `--report-gaps` to log API field coverage (missing crafted_item, etc.)
+- [ ] **IMPORT-05**: Seed command is idempotent — re-runnable after game patches to pick up new recipes
+- [ ] **IMPORT-06**: Recipes table tracks `last_synced_at` timestamp
 
-### Yield Configuration
+### Profitability Calculation
 
-- [x] **YILD-01**: User can set a fixed yield ratio per conversion step
-- [x] **YILD-02**: User can set min/max yield range per step for probabilistic conversions
-- [x] **YILD-03**: User can reorder steps within a chain
+- [ ] **PROFIT-01**: Per-recipe reagent cost calculated from live AH prices (sum of reagent quantities × median price)
+- [ ] **PROFIT-02**: Per-recipe crafted item sell price shown for Tier 1 (Silver) and Tier 2 (Gold)
+- [ ] **PROFIT-03**: Profit calculated as `(sell_price × 0.95) - reagent_cost` with 5% AH cut on sell side
+- [ ] **PROFIT-04**: Median profit across both tiers displayed per recipe
 
-### Item Integration
+### Profession Overview
 
-- [x] **INTG-01**: Items added to a shuffle are auto-watched for price polling
-- [x] **INTG-02**: Shuffle calculator uses live median prices from latest price snapshots
-- [x] **INTG-03**: Price staleness warning shown when snapshot is older than 1 hour
+- [ ] **OVERVIEW-01**: Crafting page shows cards for each Midnight profession
+- [ ] **OVERVIEW-02**: Each profession card displays top 3-5 most profitable recipes
 
-### Batch Calculator
+### Recipe Table
 
-- [x] **CALC-01**: User can enter input quantity and see cascading yields per step
-- [x] **CALC-02**: User can see per-step cost and value breakdown
-- [x] **CALC-03**: User can see total profit summary (cost in, value out with 5% AH cut, net profit)
-- [x] **CALC-04**: User can see break-even input price per shuffle
+- [ ] **TABLE-01**: Per-profession page shows all recipes in a sortable table (default: median profit descending)
+- [ ] **TABLE-02**: Table columns: recipe name, reagent cost, Tier 1 profit, Tier 2 profit, median profit
+- [ ] **TABLE-03**: Recipes with missing price data flagged with indicator
+- [ ] **TABLE-04**: Stale price warning shown when any snapshot is > 1 hour old
+- [ ] **TABLE-05**: Per-reagent cost breakdown available on hover/expand
+- [ ] **TABLE-06**: Non-commodity recipes (gear) displayed as "realm AH — not tracked"
 
-## v2 Requirements
+### Navigation
+
+- [ ] **NAV-01**: "Crafting" link added to main navigation
+
+## Future Requirements
 
 Deferred to future release. Tracked but not in current roadmap.
 
-### Notifications
+### Advanced Calculation
 
-- **NOTF-01**: Discord webhook alerts when thresholds are breached
-- **NOTF-02**: User-configurable notification preferences
+- **ADVN-01**: Yield quantity handling for multi-output recipes (alchemy/cooking)
+- **ADVN-02**: Specialization-aware profit adjustments
+- **ADVN-03**: Concentration cost factored into Tier 2 profit calculation
 
-### Analytics
+### Advanced Features
 
-- **ANLX-01**: Volume/supply trend chart overlay
-- **ANLX-02**: Percent-from-average labels on chart data points
-
-### Shuffle Enhancements
-
-- **SHFE-01**: Per-output vendor vs AH toggle (omit AH cut for vendored items)
-- **SHFE-02**: Historical profitability trend chart over time
+- **ADVN-04**: Manual crafted item ID override for API gap workarounds
+- **ADVN-05**: Periodic scheduled recipe refresh job
+- **ADVN-06**: Gear/weapon crafting profit via connected-realm AH pricing
 
 ## Out of Scope
 
@@ -59,11 +63,11 @@ Explicitly excluded. Documented to prevent scope creep.
 
 | Feature | Reason |
 |---------|--------|
-| Full recipe-based crafting calculator | Scope explosion — nested sub-recipes, quality tiers, specialization bonuses. Deferred as ADVN-01 |
-| Monte Carlo yield simulation | Over-engineered for personal tool — min/max range communicates uncertainty sufficiently |
-| Multi-region/realm pricing | US commodities only by API design — no realm difference for commodities |
-| Automated shuffle profit alerts | No notification infrastructure yet; 15-min polling cadence is sufficient |
-| Multi-output per step (e.g., prospecting yields multiple gem types) | Significant schema complexity; single output per step with separate steps for each output type |
+| Gear/weapon crafting profit | Requires connected-realm AH API; different pricing pipeline |
+| Specialization-aware profit | Requires character profile API with different OAuth scope |
+| Concentration optimizer | CraftSim territory; full simulation engine complexity |
+| Mobile app | Web only, responsive Tailwind |
+| Multi-region | US only |
 
 ## Traceability
 
@@ -71,27 +75,31 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| SHUF-01 | Phase 10 | Complete |
-| SHUF-02 | Phase 11 | Complete |
-| SHUF-03 | Phase 10 | Complete |
-| SHUF-04 | Phase 10 | Complete |
-| SHUF-05 | Phase 10 | Complete |
-| YILD-01 | Phase 11 | Complete |
-| YILD-02 | Phase 11 | Complete |
-| YILD-03 | Phase 11 | Complete |
-| INTG-01 | Phase 11 | Complete |
-| INTG-02 | Phase 12 | Complete |
-| INTG-03 | Phase 12 | Complete |
-| CALC-01 | Phase 12 | Complete |
-| CALC-02 | Phase 12 | Complete |
-| CALC-03 | Phase 12 | Complete |
-| CALC-04 | Phase 12 | Complete |
+| IMPORT-01 | — | Pending |
+| IMPORT-02 | — | Pending |
+| IMPORT-03 | — | Pending |
+| IMPORT-04 | — | Pending |
+| IMPORT-05 | — | Pending |
+| IMPORT-06 | — | Pending |
+| PROFIT-01 | — | Pending |
+| PROFIT-02 | — | Pending |
+| PROFIT-03 | — | Pending |
+| PROFIT-04 | — | Pending |
+| OVERVIEW-01 | — | Pending |
+| OVERVIEW-02 | — | Pending |
+| TABLE-01 | — | Pending |
+| TABLE-02 | — | Pending |
+| TABLE-03 | — | Pending |
+| TABLE-04 | — | Pending |
+| TABLE-05 | — | Pending |
+| TABLE-06 | — | Pending |
+| NAV-01 | — | Pending |
 
 **Coverage:**
-- v1.1 requirements: 15 total
-- Mapped to phases: 15
-- Unmapped: 0
+- v1.2 requirements: 19 total
+- Mapped to phases: 0
+- Unmapped: 19 ⚠️
 
 ---
-*Requirements defined: 2026-03-04*
-*Last updated: 2026-03-04 after roadmap creation*
+*Requirements defined: 2026-03-05*
+*Last updated: 2026-03-05 after initial definition*
