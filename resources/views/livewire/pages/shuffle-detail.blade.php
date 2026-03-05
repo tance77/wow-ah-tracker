@@ -851,8 +851,8 @@ new #[Layout('layouts.app')] class extends Component
                                                                     <span class="flex-1 text-sm text-gray-100">{{ $selectedByproductName }}</span>
                                                                     <button
                                                                         wire:click="$set('selectedByproductItemId', null); $set('selectedByproductName', null)"
-                                                                        class="text-gray-500 hover:text-gray-300"
-                                                                    >&times;</button>
+                                                                        class="rounded bg-gray-700 px-1.5 py-0.5 text-xs font-medium text-gray-300 transition-colors hover:bg-red-700 hover:text-white"
+                                                                    >Clear</button>
                                                                 </div>
                                                             @else
                                                                 <div
@@ -950,12 +950,14 @@ new #[Layout('layouts.app')] class extends Component
 
                                         <!-- Add Byproduct Button -->
                                         @if ($addingByproductForStep !== $step->id)
-                                            <button
-                                                wire:click="$set('addingByproductForStep', {{ $step->id }})"
-                                                class="mt-2 text-xs text-gray-500 hover:text-wow-gold"
-                                            >
-                                                + Byproduct
-                                            </button>
+                                            <div class="mt-3 border-t border-gray-700/30 pt-3">
+                                                <button
+                                                    wire:click="$set('addingByproductForStep', {{ $step->id }})"
+                                                    class="rounded-md border border-dashed border-gray-600 px-3 py-1.5 text-xs font-medium text-gray-400 transition-colors hover:border-wow-gold hover:text-wow-gold"
+                                                >
+                                                    + Add Byproduct
+                                                </button>
+                                            </div>
                                         @endif
 
                                     </div>
@@ -1003,8 +1005,8 @@ new #[Layout('layouts.app')] class extends Component
                                             <span class="flex-1 text-sm text-gray-100">{{ $selectedInputName }}</span>
                                             <button
                                                 wire:click="$set('selectedInputItemId', null); $set('selectedInputName', null)"
-                                                class="text-gray-500 hover:text-gray-300"
-                                            >&times;</button>
+                                                class="rounded bg-gray-700 px-1.5 py-0.5 text-xs font-medium text-gray-300 transition-colors hover:bg-red-700 hover:text-white"
+                                            >Clear</button>
                                         </div>
                                     @else
                                         <div
@@ -1064,8 +1066,8 @@ new #[Layout('layouts.app')] class extends Component
                                             <span class="flex-1 text-sm text-gray-100">{{ $selectedOutputName }}</span>
                                             <button
                                                 wire:click="$set('selectedOutputItemId', null); $set('selectedOutputName', null)"
-                                                class="text-gray-500 hover:text-gray-300"
-                                            >&times;</button>
+                                                class="rounded bg-gray-700 px-1.5 py-0.5 text-xs font-medium text-gray-300 transition-colors hover:bg-red-700 hover:text-white"
+                                            >Clear</button>
                                         </div>
                                     @else
                                         <div
@@ -1181,13 +1183,13 @@ new #[Layout('layouts.app')] class extends Component
                                     @disabled(!$selectedInputItemId || !$selectedOutputItemId)
                                     class="rounded-md bg-wow-gold px-4 py-2 text-sm font-semibold text-wow-darker transition-colors hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-wow-gold focus:ring-offset-2 focus:ring-offset-wow-dark disabled:cursor-not-allowed disabled:opacity-40"
                                 >
-                                    Add Step
+                                    Save Step
                                 </button>
                                 <button
                                     wire:click="$set('addingStep', false)"
                                     class="rounded-md border border-gray-600 px-4 py-2 text-sm font-medium text-gray-400 transition-colors hover:border-gray-500 hover:text-gray-200 focus:outline-none"
                                 >
-                                    Cancel
+                                    {{ $this->steps->count() > 0 ? 'Done' : 'Cancel' }}
                                 </button>
                             </div>
                         </div>
@@ -1279,6 +1281,25 @@ new #[Layout('layouts.app')] class extends Component
                                             </td>
                                             <td class="py-2 text-right text-gray-400" x-text="row.ratioLabel"></td>
                                         </tr>
+                                        <template x-for="(bp, bi) in row.byproducts" :key="'bp-'+i+'-'+bi">
+                                            <tr class="border-b border-gray-700/20">
+                                                <td class="py-1 pr-3"></td>
+                                                <td class="py-1 pr-3" colspan="2">
+                                                    <div class="flex items-center gap-1.5 pl-4 text-gray-500 italic">
+                                                        <span>↳</span>
+                                                        <span x-text="bp.name"></span>
+                                                        <span class="text-gray-600" x-text="'(' + bp.chance + '% × ' + bp.qty + ')'"></span>
+                                                        <template x-if="bp.hasPrice">
+                                                            <span class="text-gray-400" x-text="bp.evMin === bp.evMax ? 'EV: ' + formatGold(bp.evMin) : 'EV: ' + formatGold(bp.evMin) + ' - ' + formatGold(bp.evMax)"></span>
+                                                        </template>
+                                                        <template x-if="!bp.hasPrice">
+                                                            <span class="text-yellow-600">no price data</span>
+                                                        </template>
+                                                    </div>
+                                                </td>
+                                                <td class="py-1"></td>
+                                            </tr>
+                                        </template>
                                     </template>
                                 </tbody>
                             </table>
@@ -1374,6 +1395,19 @@ new #[Layout('layouts.app')] class extends Component
                                     const ratioLabel = step.output_qty_min === step.output_qty_max
                                         ? ratioMin + 'x'
                                         : ratioMin + 'x - ' + ratioMax + 'x';
+                                    const batchesMin = Math.floor(qtyMin / Math.max(1, step.input_qty));
+                                    const batchesMax = Math.floor(qtyMax / Math.max(1, step.input_qty));
+                                    const byproducts = (step.byproducts || []).map(bp => {
+                                        const bpPrice = this.prices[bp.blizzard_item_id]?.price ?? 0;
+                                        return {
+                                            name: bp.item_name,
+                                            chance: bp.chance_percent,
+                                            qty: bp.quantity,
+                                            evMin: Math.round(bpPrice * (bp.chance_percent / 100) * bp.quantity * batchesMin),
+                                            evMax: Math.round(bpPrice * (bp.chance_percent / 100) * bp.quantity * batchesMax),
+                                            hasPrice: bpPrice > 0,
+                                        };
+                                    });
                                     const row = {
                                         inQty: qtyMin,
                                         outMin,
@@ -1383,6 +1417,7 @@ new #[Layout('layouts.app')] class extends Component
                                         inputIcon: step.input_icon,
                                         outputIcon: step.output_icon,
                                         ratioLabel,
+                                        byproducts,
                                     };
                                     qtyMin = outMin;
                                     qtyMax = outMax;
@@ -1503,7 +1538,7 @@ new #[Layout('layouts.app')] class extends Component
                             formatGold(copper) {
                                 if (copper === null || copper === undefined) return '--';
                                 const neg = copper < 0;
-                                const abs = Math.abs(copper);
+                                const abs = Math.round(Math.abs(copper));
                                 const g = Math.floor(abs / 10000);
                                 const s = Math.floor((abs % 10000) / 100);
                                 const c = abs % 100;
