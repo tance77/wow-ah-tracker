@@ -1,157 +1,190 @@
 # Pitfalls Research
 
-**Domain:** WoW AH Tracker — v1.1 Shuffles (conversion chain profit calculator added to existing price tracker)
-**Researched:** 2026-03-04
-**Confidence:** HIGH for integration/architectural pitfalls (derived from actual codebase analysis). MEDIUM for WoW-domain yield mechanics (community sources). LOW for Livewire 4-specific edge cases flagged as needing verification.
+**Domain:** WoW AH Tracker — v1.2 Crafting Profitability (recipe-based profit calculator added to existing commodity price tracker)
+**Researched:** 2026-03-05
+**Confidence:** MEDIUM-HIGH. Blizzard API gaps verified via official developer forum threads. Midnight-specific quality tier behavior extrapolated from TWW patterns given API continuity. Integration pitfalls derived from actual codebase analysis.
 
 ---
 
 ## Critical Pitfalls
 
-### Pitfall 1: Floating-Point Profit Calculations on Copper Prices
+### Pitfall 1: Recipe Endpoint Does Not Include Crafted Item ID (Dragonflight Onward)
 
 **What goes wrong:**
-The existing codebase correctly stores prices as `BIGINT` copper integers. The shuffle calculator introduces multi-step math: cost = (input_price * quantity), revenue = (output_price * yield_ratio * quantity). When yield ratios are decimals (e.g., 1.7 dust per prospect on average), developers reach for `float` multiplication. Even one float operation in the chain contaminates all downstream results with IEEE 754 rounding errors. Profit displayed to the user can be off by hundreds of copper — enough to flip a borderline shuffle from profitable to loss.
+The Blizzard Game Data API `/data/wow/recipe/{recipeId}` endpoint stopped including a `crafted_item` field starting in Dragonflight. This was never restored. You query a recipe, receive reagent data (sometimes), but get no pointer to what item ID the recipe produces. Without the output item ID you cannot look up its price in the commodities feed — the entire profit calculation loop cannot close. This affects every single recipe in the Midnight profession set.
 
 **Why it happens:**
-Yield ratios are inherently fractional (prospecting 5 ore yields on average 1.4 gems). The natural instinct is to store these as `float` and multiply against copper prices. Nothing visually breaks — the error is sub-pixel on display — but the calculation logic is wrong.
+Developers assume the recipe endpoint is a complete, self-contained contract. It was in Shadowlands. Since Dragonflight introduced quality tiers (each quality produces a distinct item ID), Blizzard changed the data model but did not update the API to express multiple output item IDs per recipe. The omission is not documented prominently; it surfaces only when you inspect an actual API response.
 
 **How to avoid:**
-Keep all price arithmetic in integer copper until the final display conversion. For fractional yields, store the ratio as two integers: `yield_numerator` and `yield_denominator` (e.g., 7 and 5 for "1.4 per attempt"). Compute profit as: `(input_copper * yield_numerator) / yield_denominator` using integer division, rounding at the final step only. Never multiply copper prices by a PHP `float`. Use `intdiv()` or `(int) round()` at the display boundary, not mid-calculation.
+Build the recipe seeder to source output item ID mappings from Wowhead's item database or a maintained community mapping file, in addition to the Blizzard API. Store per-quality output item IDs as explicit columns: `crafted_item_id_silver` and `crafted_item_id_gold` (Midnight uses two quality tiers). Accept that the Blizzard recipe endpoint contributes reagent metadata; the crafted item IDs must come from a secondary source. Do not attempt to derive these at runtime from API calls alone.
 
 **Warning signs:**
-- Yield ratio stored as `FLOAT` or `DECIMAL` in migration
-- Any code path that does `$copper_price * $float_ratio` mid-calculation
-- Profit numbers with non-zero cent values (e.g., 12,450.37g) when inputs are whole-gold numbers
+- Recipe seeder produces rows with NULL `crafted_item_id_*` columns
+- Profit calculations show "no price data" for crafted items even when matching prices exist in the commodity feed
+- A test query to `/data/wow/recipe/{recipeId}` returns JSON without a `crafted_item` key
 
-**Phase to address:**
-Shuffles data model phase (migration design). The yield representation choice is irrecoverable once data is stored and referenced.
+**Phase to address:** Recipe data seeding phase — the earliest data work. Must be resolved before any profit calculation can be built.
 
 ---
 
-### Pitfall 2: Auto-Watch Orphaning Items When a Shuffle Is Deleted
+### Pitfall 2: Quality Tier Item IDs Are Not Derivable from the Item API
 
 **What goes wrong:**
-The requirement specifies that items added to a shuffle are automatically added to the watchlist. When a user deletes a shuffle, the auto-watched items remain on the watchlist forever — even if the only reason they were watched was the shuffle. The user's watchlist silently accumulates orphan items. Conversely, if auto-watch cleanup IS implemented too aggressively, it removes items that the user also watches independently (for price monitoring unrelated to shuffles), destroying their tracking history.
+In Midnight, crafted consumables and reagents have two quality levels (Silver and Gold — Bronze was removed). Each quality level is a distinct `blizzard_item_id`. The Blizzard `/data/wow/item/{itemId}` endpoint returns near-identical responses for both quality variants of the same item — it does not expose which quality tier an item represents. You cannot query the item endpoint and determine programmatically that "item 228233 is Silver quality, item 228234 is Gold quality" for the same base item.
 
 **Why it happens:**
-Auto-watch is implemented as a simple "add if not exists" on shuffle creation, with no tracking of why an item was added to the watch list. Without provenance tracking, cascade deletion cannot distinguish "auto-watched because of Shuffle A" from "manually added by user."
+Developers query the item endpoint expecting something equivalent to `quality_tier: 1` in the response. The field does not exist. This gap has been present throughout Dragonflight and The War Within, confirmed on Blizzard's developer forums as unresolved. Developers discover it mid-implementation when they try to build a quality-aware price display and find both item IDs return the same metadata.
 
 **How to avoid:**
-Track auto-watch provenance with a `source` column or a separate pivot table (`shuffle_watched_items`) linking shuffle steps to the WatchedItem they created. On shuffle deletion, only remove auto-watched items that have no other referencing shuffles AND were not independently watched before the shuffle was created. Use a `created_by_shuffle_id` nullable FK on `watched_items`, or a many-to-many join table, rather than relying on heuristics.
+Seed `crafted_item_id_silver` and `crafted_item_id_gold` as explicit separate schema columns per recipe row. Source these mappings from Wowhead (each quality variant has its own Wowhead item page with a distinct item ID visible in the URL). Treat this as static seed data — not something that can be derived from the API at runtime. For reagent quality variants (Silver-quality herb vs Gold-quality herb used as inputs), apply the same pattern: explicit item ID per quality tier.
 
 **Warning signs:**
-- Auto-watch implementation uses `firstOrCreate` without storing which shuffle triggered the creation
-- No database relationship between `shuffles` table and `watched_items` table for auto-watch tracking
-- Shuffle deletion does not query or update `watched_items`
+- Schema has a single `crafted_item_id` column with no quality differentiation
+- T1 and T2 profit rows show the same price (both pointing to the same item ID)
+- Any code path that calls the item API to determine quality tier
 
-**Phase to address:**
-Shuffles data model and auto-watch implementation phase. Must be designed before any shuffle creation logic is written.
+**Phase to address:** Recipe data seeding phase. The schema must have quality-specific item ID columns before the first migration runs — retrofitting requires a migration and full re-seed.
 
 ---
 
-### Pitfall 3: Using Live Price Queries Inside the Profit Calculator (N+1 on Multi-Step Chains)
+### Pitfall 3: Modified Crafting Slot Reagent Quantities Not in API Response
 
 **What goes wrong:**
-A conversion chain has N steps, each with input and output items. The profit calculator must fetch the "current price" for each item in the chain. A naive implementation queries the latest `PriceSnapshot` per item inside a loop — one query per item per step. A 3-step chain with 4 distinct items fires 4 separate queries. Wrapped in a Livewire reactive component that recalculates on quantity input, this fires on every keystroke. The page becomes sluggish immediately.
+The Blizzard recipe endpoint exposes `modified_crafting_slots` for optional finishing reagents (gems, embellishments, optional enchanting materials that boost craft quality). These slots include the slot type name and ID but NOT the quantity required. A recipe might require 2 optional gems but the API only tells you a gem slot exists — not how many. Profit calculations that silently skip optional reagent costs will systematically overstate profitability for recipes that use optional reagents, which includes most high-value crafted gear in Midnight.
 
 **Why it happens:**
-The existing codebase fetches snapshots per-item in the item detail view (acceptable there — single item). Developers copy that pattern into shuffle calculation without considering that a chain touches multiple items simultaneously.
+This is a known, unresolved API bug reported on Blizzard's developer forums. Regular `reagents[]` entries correctly include quantities; the gap is specific to `modified_crafting_slots`. Developers testing with simple recipes never hit the gap; it surfaces only when testing recipes with optional reagents, which tend to be tested later.
 
 **How to avoid:**
-Collect all item IDs needed for the entire chain up front. Execute one query: `PriceSnapshot::whereIn('catalog_item_id', $allItemIds)->latestPerItem()`. Use a subquery or `PARTITION BY` window function to get the latest snapshot per item in a single round trip. Cache the result in a Livewire computed property so it does not re-query on every reactive update — only re-fetch when explicitly refreshed or on page mount.
+For the initial implementation, exclude optional reagent costs from the profit formula and show an explicit "optional reagents not included" label on affected recipes. Alternatively, hardcode known quantities for common optional reagents (typically 1 per craft slot; verify against Wowhead). Store a `has_optional_reagents` boolean on the recipe row so the UI can display a consistent disclaimer without querying the API. Never ship this silently — a missing cost that looks like a zero is worse than a visible disclaimer.
 
 **Warning signs:**
-- `PriceSnapshot::where('catalog_item_id', $id)->latest()->first()` called inside a loop
-- Livewire component without a computed property for chain prices
-- Query count spikes with chain length (1-step chain: 2 queries; 3-step chain: 6 queries)
+- Profit figures for gem-socketed or embellished crafts appear significantly higher than CraftSim or TSM in-game reports
+- `modified_crafting_slots` response has slot type names but no `quantity` key
+- No `has_optional_reagents` column or UI disclaimer in the profession table
 
-**Phase to address:**
-Shuffles batch calculator UI phase. Must use a bulk-fetch pattern from day one — retrofitting after the loop pattern is established requires touching both the query logic and the Livewire component wiring.
+**Phase to address:** Profit calculation phase. Schema must accommodate nullable optional reagent quantities; UI must communicate when optional costs are excluded.
 
 ---
 
-### Pitfall 4: Storing Yield as a Single Average and Losing Min/Max Variance
+### Pitfall 4: Crafted Item Yield Quantity Not Reliably in Recipe Endpoint
 
 **What goes wrong:**
-WoW shuffles have probabilistic outputs. Prospecting yields 1-3 gems with some probability. Disenchanting yields variable dust/essence counts depending on item level. Storing only the average yield (e.g., `yield_ratio = 1.7`) makes the profit calculator look precise but hides meaningful variance. The user cannot distinguish between "this shuffle always yields 1.7 dust" (fixed, reliable) and "this shuffle yields 1 or 3 dust with equal probability" (high variance, risky at low quantities). Once data is stored as a single average, the variance information is gone.
+Some recipes produce multiple items per craft — alchemy potions yield 5 or 10 depending on recipe rank; some cooking recipes yield stacks. The Blizzard recipe endpoint has a `crafted_item.quantity` field in the schema but the value is absent or zero for multi-yield recipes. If your profit formula treats all recipes as yielding 1 item, a potion recipe that actually yields 5 appears 5x less profitable than it is. Alchemy and cooking categories are most affected.
 
 **Why it happens:**
-Averages are the obvious way to express "how much do I get per craft." The schema feels complete with a single yield column. Variance is treated as a UI concern, not a data concern.
+This is a documented API omission (confirmed on Blizzard developer forums). Developers test with weapon or armor recipes (always yield 1) and miss the gap. The calculation appears correct for 95% of recipe types and only breaks visibly for consumable recipes.
 
 **How to avoid:**
-Store `yield_min` and `yield_max` (integers) alongside `yield_avg` (stored as a rational — see Pitfall 1). Display a range ("1.4–2.1 per batch") rather than a single number. The batch calculator should show a best-case and worst-case profit band, not just an average. Use `yield_min` and `yield_max` as integers (minimum and maximum items per conversion attempt), and let the UI compute the average display.
+Seed a `yield_quantity` column per recipe. Source yield quantities from Wowhead during seeding, alongside the output item ID mapping. Default to 1 when unknown. Flag alchemy, cooking, and any recipe with "x5" or "x10" in its Wowhead description for manual review. Apply yield in the profit formula: `profit = (sell_price * 0.95 * yield_quantity) - reagent_cost`. Add a test asserting at least one alchemy recipe has `yield_quantity > 1`.
 
 **Warning signs:**
-- Schema has a single `yield` or `ratio` column with no min/max equivalent
-- Batch calculator shows one profit number without a range
-- The word "average" appears nowhere in the UI for yield-based outputs
+- All recipes have `yield_quantity = 1` including potions and flasks
+- No assertion or test on yield_quantity for alchemy/cooking recipe categories
+- Profit calculator has no yield multiplier in the formula
 
-**Phase to address:**
-Shuffles data model phase (migration). Adding min/max columns after launch requires a migration AND a UI update AND re-entry of all existing shuffle data.
+**Phase to address:** Recipe data seeding phase. The yield column must exist before the profit formula is implemented.
 
 ---
 
-### Pitfall 5: Circular Reference in Multi-Step Chains (A → B → A)
+### Pitfall 5: Auto-Watch Reagent Explosion Creates Duplicates and Queue Pressure
 
 **What goes wrong:**
-The chain editor allows a user to define steps where any item can be an output of one step and an input of another. Nothing prevents a user (or a bug) from creating a cycle: Step 1 output is "Draconite Ore", Step 2 input is "Draconite Ore", Step 2 output feeds back into Step 1. The profit calculator enters an infinite loop or blows the stack when traversing the chain graph.
+The existing system polls commodity prices for a small curated watchlist. Auto-watching all unique reagents across all Midnight recipes will insert a large batch of new `watched_items` rows at seeding time — estimated 50-150 distinct reagent item IDs across ~10 professions (many reagents are shared across professions). Two specific failure modes: (1) naive per-recipe-per-reagent inserts create duplicate `watched_items` rows for shared reagents, breaking the deduplication assumption the existing system relies on; (2) a sudden jump from a small watchlist to 150+ items increases `DispatchPriceBatchesJob` batch count and `CatalogItem::all()` load, which may interact unexpectedly with the `ShouldBeUnique` lock on `FetchCommodityDataJob`.
 
 **Why it happens:**
-Chain steps stored as ordered records feel linear by design, but if the same item ID appears as both input and output across steps, the logical graph is cyclic. Validation is often skipped because "users wouldn't do that."
+The auto-watch pattern from Shuffles (v1.1) works well for 3-8 items per shuffle. Recipe auto-watch fires for every reagent across every seeded recipe simultaneously — a structurally identical pattern at 10-20x the volume. The uniqueness constraint on `(user_id, blizzard_item_id)` in `watched_items` prevents duplicate rows at the DB level but does not prevent duplicate insert attempts that silently fail and confuse the seeder's row count.
 
 **How to avoid:**
-Before saving a shuffle, traverse the step graph and detect cycles. Simple approach for the ordered-steps model: collect all `output_item_id` values; assert none appear as `input_item_id` in any earlier step. For a general graph validator, use DFS with a visited set. Block saving with a user-facing error: "Step 3 creates a cycle — Draconite Ore is already an input in Step 1." Add a database constraint where possible (enforce ordering via `step_order`, and validate no backward references at the application layer).
+Collect all unique reagent `blizzard_item_id` values across all recipes in a single set before inserting. Run one `upsert` or `firstOrCreate` per unique item ID — not per recipe-reagent pair. Add the `(user_id, blizzard_item_id)` unique constraint explicitly if not already enforced. Test the full seeding step against a staging database before production to confirm queue batch counts remain stable. Track reagent auto-watch provenance with `created_by_recipe_source = true` so they can be distinguished from manually-added items.
 
 **Warning signs:**
-- No cycle-detection logic in shuffle save/update
-- Chain traversal uses recursion without a visited-set guard
-- UI allows selecting the same item as both input of step N and output of step N+1 without warning
+- Auto-watch seeder loops over recipe reagents without deduplication before DB insert
+- `watched_items` count after seeding is higher than the count of distinct reagent item IDs
+- Queue batch count in `DispatchPriceBatchesJob` doubles or triples immediately after seeding
 
-**Phase to address:**
-Shuffles CRUD and chain editor phase. Validation must be part of the initial save action, not a post-launch safety net.
+**Phase to address:** Auto-watch integration phase. Dedup logic must be validated before the recipe seeder runs against production data.
 
 ---
 
-### Pitfall 6: Blizzard AH Cut Not Factored Into Profit
+### Pitfall 6: AH Cut Not Applied to Crafted Item Sell Price
 
 **What goes wrong:**
-The Blizzard Auction House charges a 5% listing fee on successful sales (for commodities). A shuffle that shows "12,000g profit" before the cut actually yields ~11,400g. For high-volume shuffles or thin-margin chains, this 5% gap is the difference between profit and loss. Calculators that omit the AH cut systematically overstate profit, causing users to execute shuffles that lose money in practice.
+Commodity sales on the WoW Auction House incur a 5% transaction fee deducted from sale proceeds. A recipe output priced at 10,000g nets 9,500g. Profit calculations using raw commodity price as revenue will overstate profit by 5.26% (the inverse of the 5% fee). For thin-margin recipes near breakeven, this gap determines whether the craft is worth doing. The fee applies to the sell side only — buying reagents on the AH does not incur a buyer-side fee.
 
 **Why it happens:**
-Developers build the calculator using raw price data (which is what the API returns — the buy price, not the post-sale-fee price). The AH cut is a business rule, not a data field, so it gets forgotten until users notice their actual gold is less than predicted.
+The commodity endpoint returns the raw listed price — there is no `net_price` field. Developers build `profit = sell_price - reagent_cost` and omit the fee because it is a business rule, not a data field. The error is invisible in unit tests that use round numbers and only surfaces when comparing to in-game addon calculations.
 
 **How to avoid:**
-Apply a configurable `sell_efficiency` multiplier (default 0.95) to every output item's sell price before computing net profit. Make this explicit in the UI: display "Revenue (after 5% AH cut): X" and "Cost: Y" as separate line items before showing profit. Do not hardcode 0.95 — store it as a named constant (`AH_CUT = 0.05`) so it can be updated if Blizzard changes the fee structure.
+Define a named constant: `const AH_CUT_RATE = 0.05`. Apply it in the profit formula: `net_revenue = sell_price * (1 - AH_CUT_RATE)`. Display it explicitly in the UI as "After 5% AH cut." Do not apply the cut to reagent costs (the buyer of reagents does not pay the AH fee). Write a unit test: given sell_price=10000, reagent_cost=5000, assert profit=4500 not 5000.
 
 **Warning signs:**
-- Profit formula uses `output_price * quantity` without any deduction
-- No reference to "5%" or "AH cut" anywhere in the calculator code or comments
-- Calculator profit figures consistently exceed what users report earning in-game
+- Profit formula is `sell_price - reagent_cost` with no multiplier
+- No reference to `0.95` or `AH_CUT` in calculation code
+- Profit figures match sell price exactly when reagent cost is zero (should be 95% of sell price)
 
-**Phase to address:**
-Shuffles batch calculator UI phase. Must be in the profit formula from day one.
+**Phase to address:** Profit calculation phase. Must be in the formula from day one — retrofitting after users establish baseline expectations causes confusion.
 
 ---
 
-### Pitfall 7: Auto-Watch Adding Items Already Watched (Threshold Collision)
+### Pitfall 7: Recipe Data Seeded as a Migration Prevents Future Resyncs
 
 **What goes wrong:**
-The auto-watch feature adds items used in a shuffle to the watchlist. If the user already watches that item with custom buy/sell thresholds, the auto-watch upsert can overwrite or reset those thresholds. The user loses their carefully configured alerts silently.
+Midnight will receive content patches adding new profession recipes. If recipe data is seeded as a database migration (a one-time data file), re-running the sync after a patch requires either a new migration file or `migrate:fresh` — both are cumbersome and error-prone. Over time the recipe list falls behind and the tracker silently becomes incomplete. Each TWW content patch added 5-20+ new craftable items; Midnight will follow the same pattern.
 
 **Why it happens:**
-`firstOrCreate` or `updateOrCreate` is used for auto-watch without checking whether a manual entry already exists. The "create" half correctly adds new items; the "update" half silently clobbers existing user-configured thresholds.
+Database migrations are the obvious place to put initial data in a Laravel project — they run automatically and are tracked. Recipe seeding feels like a one-time setup operation. The distinction between schema migrations (must be immutable) and data seeds (must be re-runnable) is easy to collapse, especially when the initial implementation is the only time recipes need to be seeded.
 
 **How to avoid:**
-Auto-watch must use `firstOrCreate` only — never `updateOrCreate`. If a `WatchedItem` already exists for that `blizzard_item_id`, leave it completely unchanged. Log that the item was already watched (no-op). Only create a new `WatchedItem` if none exists, using null thresholds (the shuffle calculator uses live prices, not threshold alerts). Add an integration test that: (1) manually sets a threshold, (2) creates a shuffle using that item, (3) asserts the threshold is unchanged.
+Build recipe sync as an Artisan command: `artisan craft:sync-recipes`. Design it as an idempotent upsert by `blizzard_recipe_id` — run it twice, get identical results. Do not put recipe data in a migration file. Add a `last_synced_at` timestamp to the `recipes` table so it is visible when data was last refreshed. Document the command in a brief `CRAFTING.md` operations note for use after patches.
 
 **Warning signs:**
-- Auto-watch uses `updateOrCreate` instead of `firstOrCreate`
-- No test covering "auto-watch does not overwrite existing thresholds"
-- Thresholds set to null after a shuffle is added for a previously-watched item
+- Recipe data lives in a file named `2026_xx_seed_recipes.php` in `database/migrations/`
+- No `artisan craft:sync-recipes` command exists
+- Running the seeder twice creates duplicate recipe rows
 
-**Phase to address:**
-Auto-watch implementation phase. Include the regression test as a mandatory deliverable before the feature is marked complete.
+**Phase to address:** Recipe data seeding phase — establish the command-based pattern before any data is written.
+
+---
+
+### Pitfall 8: N+1 Serial API Call Pattern for Recipe Seeding
+
+**What goes wrong:**
+Fetching all Midnight recipes from the Blizzard API requires navigating three nested layers: profession list → skill tier list → recipe index → individual recipe detail. For 10 professions with ~40-80 recipes each, a full sync requires 400-800 individual recipe detail API calls. Done sequentially in a foreach loop, each synchronous `Http::get()` call waits for a response before the next begins. At 200ms average API latency, 600 calls takes ~120 seconds. The command appears to hang, and developers restart it mid-run — causing partial seeding.
+
+**Why it happens:**
+The first two API layers (profession list and skill tier list) return small payloads and are fast. Developers write a simple nested foreach and don't realize the recipe detail layer is the bottleneck. The sequential pattern works fine when tested against a single profession with 5 recipes during development.
+
+**How to avoid:**
+Use `Http::pool()` for the recipe detail layer. After collecting all recipe IDs from the index (fast), dispatch all recipe detail requests as a concurrent pool with a concurrency limit of 20-50. This reduces wall-clock time from ~120s to ~10s for 600 requests. Add a progress bar via `$this->withProgressBar()` in the Artisan command so the command never appears frozen. Throttle to stay well under the 36K/hr Blizzard API cap (600 requests is under 2% of the hourly budget — not a concern).
+
+**Warning signs:**
+- Recipe seeder makes one `Http::get()` call per recipe ID inside a sequential loop
+- No concurrency or pooling in the recipe fetch implementation
+- `craft:sync-recipes` command runs for 2+ minutes with no output
+
+**Phase to address:** Recipe data seeding phase. The concurrent fetch pattern must be designed upfront — sequential implementation will appear functional on partial test sets but fail at full scale.
+
+---
+
+### Pitfall 9: Gear/Equipment Output Items Are Realm-AH, Not Commodities
+
+**What goes wrong:**
+The existing system uses the commodities endpoint (`/auctions/commodities`) — the correct approach for crafting materials. Some Midnight crafted items (notably gear with secondary stats) are sold on the realm-specific AH, not the commodities AH. These items will never appear in the commodity price feed regardless of polling frequency. If the tracker treats a missing commodity price as "item not yet priced" rather than "item is not a commodity," it will permanently show "no price data" for craftable gear pieces, silently making them look like untrackable recipes.
+
+**Why it happens:**
+The item-vs-commodity distinction is invisible to the tracker — both look like `blizzard_item_id` integers. The commodities feed returns prices for stackable, non-unique goods. Crafted gear (armor, weapons with specific stats) is non-stackable and appears on per-realm AH, outside the commodities endpoint scope.
+
+**How to avoid:**
+During recipe seeding, flag each output item as `is_commodity: bool` based on whether the item is stackable and generic (potions, enchants, gems, cloth, ore — commodities) versus gear with stats (not a commodity). For non-commodity items, display "realm AH — not tracked" rather than "no price data." This sets correct expectations without implying a data collection failure. In v1.2 scope, consider skipping profit calculation for non-commodity output items entirely rather than showing misleading zeros.
+
+**Warning signs:**
+- All seeded recipe output items show "no price data" despite the commodity feed running normally
+- The tracker makes no distinction between "item not yet priced" and "item is not a commodity"
+- Gear recipes (plate armor, weapons) are included in the profession table with blank profit columns
+
+**Phase to address:** Recipe data seeding phase. The `is_commodity` flag must be set during seeding before the UI is built to display profit data.
 
 ---
 
@@ -159,27 +192,28 @@ Auto-watch implementation phase. Include the regression test as a mandatory deli
 
 | Shortcut | Immediate Benefit | Long-term Cost | When Acceptable |
 |----------|-------------------|----------------|-----------------|
-| Store yield as a single float average | Simpler schema, one column | Cannot show profit variance band; float precision errors on price math; impossible to reconstruct min/max later | Never — min/max integers cost nothing upfront |
-| Hardcode AH cut as 0.95 magic number | Faster to write | Invisible when Blizzard changes fee; can't be configured without a code change | Never — use a named constant at minimum |
-| Recalculate profit on every Livewire render without caching prices | No explicit caching logic needed | N+1 queries on every reactive update; sluggish UI at 3+ step chains | Never — computed properties are the Livewire-idiomatic solution |
-| Skip cycle detection and trust users | Less validation code | First user to create a cycle causes an infinite loop or 500 error | Never — one validation function prevents a class of bugs permanently |
-| Auto-watch with updateOrCreate | Handles create and update in one call | Silently destroys user-configured thresholds | Never — firstOrCreate only for auto-watch |
-| Reuse existing WatchedItem model for shuffle items without provenance tracking | No new table | Cannot clean up auto-watched items on shuffle delete; watchlist accumulates orphans | Never — provenance is required for correct cleanup semantics |
+| Seed recipes as a DB migration | Simple, runs with `php artisan migrate` | Cannot resync after patches without a new migration; stale data accumulates | Never — use an Artisan command from day one |
+| Single `crafted_item_id` column per recipe | Simpler schema | Cannot store per-quality item IDs; T1/T2 profit collapses to one number | Never — per-quality columns cost nothing upfront |
+| Omit AH cut from profit formula | Simpler calculation | Overstates profit by 5.26%; thin-margin crafts appear falsely profitable | Never — always apply 0.95 multiplier |
+| Use hardcoded recipe data with no sync command | No API complexity at seeding time | Goes stale after first content patch; no recovery path | Acceptable as seed baseline only if sync command also exists |
+| Skip optional reagent costs silently | Simpler launch | Overstates profit for embellished/gem recipes with no visible disclaimer | Never — always flag optional reagents as excluded in UI |
+| Watch reagents per-recipe without dedup | Simple loop | Duplicate watched_items; unpredictable price snapshot behavior | Never — deduplicate to unique item IDs before insert |
+| Sequential recipe API fetch | Simple to write | Full sync takes 2+ minutes; appears frozen; partial runs leave inconsistent state | Never for production — use Http::pool() |
 
 ---
 
 ## Integration Gotchas
 
-These apply specifically to the v1.1 Shuffles feature integrating with the existing v1.0 system.
-
-| Integration Point | Common Mistake | Correct Approach |
-|-------------------|----------------|------------------|
-| Price fetching for shuffles | Query `PriceSnapshot` per step in a loop, reusing the item-detail page pattern | Bulk-fetch all item prices in one query using `whereIn`; cache in Livewire computed property |
-| Auto-watch and existing WatchedItem | `updateOrCreate` that overwrites thresholds | `firstOrCreate` only; treat existing entry as user-owned, never modify it |
-| Copper price math with float yields | Multiply `$price_copper * $float_ratio` | Store yield as integer numerator/denominator; compute `intdiv($price * $numerator, $denominator)` |
-| Blizzard API prices in shuffle context | Use `min_price` as cost basis for inputs | Use `median_price` as cost basis (same as dashboard); min_price distorts shuffle profitability |
-| Livewire reactive quantity input | Re-query database on every quantity change | Separate price-fetch (on mount / manual refresh) from profit-calculation (pure PHP math on cached prices) |
-| Shuffle deletion and watched items | Delete shuffle row, leave watched_items untouched | Check provenance; remove auto-created WatchedItems that are exclusively shuffle-owned |
+| Integration | Common Mistake | Correct Approach |
+|-------------|----------------|------------------|
+| Blizzard recipe endpoint | Assume `crafted_item.id` is always present | Treat as absent; resolve output item IDs from Wowhead mapping during seeding |
+| Blizzard recipe endpoint | Assume `reagents[]` is always complete | Verify reagent count against Wowhead; flag recipes where API count differs |
+| Blizzard item endpoint | Query item ID to determine quality tier | Accept quality cannot be derived from item API; maintain explicit quality ID mapping |
+| Commodities price feed | Use raw `unit_price` as sell revenue | Multiply by 0.95 for AH cut before computing profit |
+| Commodities price feed | Assume all output item IDs appear in commodities | Gear with stats is realm-AH, never in commodities — flag with `is_commodity = false` |
+| Auto-watch seeder | Insert one WatchedItem per recipe-reagent pair | Deduplicate to unique item IDs first; use `firstOrCreate` on `(user_id, blizzard_item_id)` |
+| Blizzard OAuth token | Instantiate a new token client in the sync command | Reuse `BlizzardTokenService` — already handles caching and 23-hour refresh |
+| Recipe yield quantity | Assume all recipes yield 1 item | Source `yield_quantity` from Wowhead; flag alchemy and cooking for multi-yield review |
 
 ---
 
@@ -187,22 +221,21 @@ These apply specifically to the v1.1 Shuffles feature integrating with the exist
 
 | Trap | Symptoms | Prevention | When It Breaks |
 |------|----------|------------|----------------|
-| Per-item price queries inside chain traversal | Sluggish shuffle page; query count = 2x chain step count | Bulk `whereIn` fetch for all item IDs in chain; cache in Livewire computed property | Immediately at 3+ step chains with reactive quantity input |
-| Eager-loading full PriceSnapshot history for shuffle items | Memory spike on shuffle load; slow initial page render | Only load the single latest snapshot per item (one subquery), not the full history | After 30+ days of data accumulation — even for a few items, this is thousands of rows |
-| No index on `(catalog_item_id, polled_at)` for "latest snapshot" query | Shuffle price refresh slow even for 2-item chains | Confirm composite index exists from v1.0 schema; query planner uses it for ORDER BY + LIMIT 1 | At 10K+ snapshot rows per item (~3 months of data) |
-| Profit recalculation on every Livewire property update | Input lag when typing quantity; excess server round-trips | Use `wire:model.lazy` or `wire:model.blur` for quantity input to debounce recalculation | Immediately — every keystroke fires a server request without debounce |
+| Loading all price snapshots per reagent for profit calculation | Slow profession page load | Use only the latest snapshot per item (`polled_at DESC LIMIT 1`) | At 50+ reagents × months of 15-min snapshots ≈ 140K+ rows per reagent |
+| No index on `recipes.profession_id` | Slow profession page filter query | Add index at migration time before any data loads | Noticeable at 500+ recipe rows |
+| Eager-loading reagents without the catalog item join | N+1 in the profession detail page | Use `with(['reagents.catalogItem'])` on the Recipe query | First page load with 40+ recipes per profession |
+| Sequential recipe sync (no Http::pool) | Seeder runs 2+ minutes; appears frozen | Use Http::pool() with concurrency limit for recipe detail fetch layer | Any full sync run over 50 recipes |
+| Inserting watched_items one-by-one in a loop | Queue lock contention with FetchCommodityDataJob | Batch-insert after dedup; run outside queue process during seeding | When seeder runs while queue worker holds SQLite write lock |
 
 ---
 
 ## Security Mistakes
 
-These are specific to the shuffles feature. General security (auth, .env) is covered in v1.0 pitfalls.
-
 | Mistake | Risk | Prevention |
 |---------|------|------------|
-| No authorization check on shuffle CRUD | Any authenticated user modifies any shuffle (not relevant now since single-user, but bad habit) | Scope all shuffle queries to `auth()->user()` from day one — `Shuffle::where('user_id', auth()->id())` on every query |
-| Accepting unvalidated `step_order` from form input | User can POST arbitrary step orderings, causing chain traversal to misbehave | Enforce server-side ordering — recompute step order from position in the submitted steps array, never trust client-supplied order integers |
-| Storing item IDs from user input without verifying they exist in catalog | Shuffle references non-existent item; calculator silently returns zero profit | Validate each `blizzard_item_id` exists in `catalog_items` before saving a shuffle step |
+| Logging the Blizzard API token value during recipe sync | Credential leak in application logs | Log token acquisition event at DEBUG level; never log the token string itself — existing `BlizzardTokenService` pattern already handles this correctly |
+| Storing recipe data from Wowhead scraping without validation | Malformed item IDs corrupt recipe table | Validate all item IDs are positive integers; validate reagent quantities > 0 before insert; reject rows that fail validation with a logged warning |
+| No idempotency guard on sync command | Double-run during a patch creates duplicate recipes | Upsert by `blizzard_recipe_id`; add unique constraint on `recipes.blizzard_recipe_id` |
 
 ---
 
@@ -210,26 +243,25 @@ These are specific to the shuffles feature. General security (auth, .env) is cov
 
 | Pitfall | User Impact | Better Approach |
 |---------|-------------|-----------------|
-| Single profit number without variance | User doesn't know if a 10-batch trial will be profitable or a loss | Show profit range (best case with max yield, worst case with min yield) alongside average |
-| Showing profit without labeling AH cut | User expects 12,000g, gets 11,400g, blames the tool | Label "after AH cut" explicitly on revenue line; show gross and net separately |
-| No price freshness indicator on shuffle calculator | User runs a shuffle based on prices from 90 minutes ago | Show "Prices as of X minutes ago" with a manual refresh button on the shuffle calculator page |
-| Auto-watch silently adding items to watchlist | User confused why watchlist grew after adding a shuffle | Show a notification: "3 items added to watchlist for price tracking" when a shuffle is saved |
-| Deleting a shuffle silently removes items from watchlist | User loses price history for items they wanted to keep tracking | Show confirmation: "This will remove [items] from your watchlist. Keep them?" |
-| Profit displayed in raw copper | "450000 copper profit" is meaningless | Always display profit in gold with 2 decimal places: "+45.00g" with color coding (green/red) |
+| Showing profit without noting AH cut | User follows calculator, earns less gold than predicted — erodes trust | Always show "(after 5% AH cut)" label on the revenue or profit figure |
+| Displaying "N/A" for all missing-price recipes without distinction | User cannot tell if an item is untracked, not a commodity, or simply not yet priced | Show distinct states: "Tracking — no snapshot yet," "Not a commodity (realm AH)," and actual zero-profit |
+| Showing median profit without explaining it | User confused why median differs from T1 or T2 | Lead with per-tier profit (Silver / Gold); show median as a secondary "blended estimate" with a tooltip |
+| Sorting by raw gold profit without volume context | High-profit recipes may have near-zero AH volume — unsellable in practice | Add a volume indicator or tooltip noting "profit is theoretical; depends on actual AH volume" |
+| No "recipe data last synced" indicator | User sees stale data post-patch and loses confidence without understanding why | Show "Recipe data last synced: X days ago" with a callout if > 14 days old |
+| Showing optional reagent cost as zero rather than excluded | User assumes recipe is cheaper than it is | Show "optional reagents excluded from cost" label; never silently zero out a cost |
 
 ---
 
 ## "Looks Done But Isn't" Checklist
 
-- [ ] **AH cut applied:** Profit formula deducts 5% from sell-side revenue — verify by checking a known shuffle against hand-calculated expected profit
-- [ ] **Yield stored as min/max/avg:** Migration has `yield_min`, `yield_max` columns (not a single float) — verify with `DESCRIBE shuffle_steps`
-- [ ] **Copper math stays integer:** No float multiplication of copper values in profit calculation — verify by searching for `$.*price.*\*.*0\.` patterns in shuffle calculator code
-- [ ] **Cycle detection runs on save:** Creating a self-referencing chain returns a validation error — verify with a test that saves Step 1 output = Step 2 input = Step 1 input
-- [ ] **Auto-watch uses firstOrCreate:** Existing WatchedItem thresholds are unchanged after adding a shuffle — verify with integration test
-- [ ] **Provenance tracked:** Deleting a shuffle removes only its auto-created WatchedItems — verify an item watched before the shuffle remains on watchlist after shuffle deletion
-- [ ] **Bulk price fetch:** Shuffle calculator uses one query for all item prices, not N queries — verify with query log or Telescope during a 3-step chain load
-- [ ] **Median price used as cost basis:** Shuffle profit uses `median_price`, not `min_price`, for input cost — verify by checking which snapshot column is referenced in calculator logic
-- [ ] **Quantity input debounced:** Changing the batch quantity does not fire a server request on every keystroke — verify with browser network tab
+- [ ] **AH cut applied:** Verify profit formula contains `* 0.95` or equivalent — check that a sell_price of 10000 with zero reagent cost yields profit of 9500, not 10000
+- [ ] **Quality tier item IDs seeded:** Verify both Silver and Gold item IDs are populated for quality-tiered recipes — check for NULL in `crafted_item_id_silver` or `crafted_item_id_gold`
+- [ ] **Yield quantity for consumables:** Verify at least one alchemy or cooking recipe has `yield_quantity > 1` — spot-check a potion recipe profit against CraftSim in-game
+- [ ] **Reagent deduplication:** Verify that shared reagents (e.g., Midnight Ore used across Blacksmithing and Jewelcrafting) produce exactly one `watched_items` row — run `WatchedItem::groupBy('blizzard_item_id')->havingRaw('COUNT(*) > 1')->count()` and assert zero
+- [ ] **Optional reagents flagged:** Verify recipes with `modified_crafting_slots` have `has_optional_reagents = true` and that the UI shows a disclaimer — check at least one embellishment recipe
+- [ ] **Sync command idempotency:** Verify `artisan craft:sync-recipes` can be run twice without creating duplicate recipe rows — run it twice and assert `Recipe::count()` is unchanged on second run
+- [ ] **Non-commodity items handled:** Verify gear recipes with `is_commodity = false` show "realm AH — not tracked" rather than blank profit — check at least one Blacksmithing armor recipe
+- [ ] **Recipe sync performance:** Verify full sync completes in under 60 seconds — time it against all Midnight professions; sequential implementation will fail this threshold
 
 ---
 
@@ -237,12 +269,13 @@ These are specific to the shuffles feature. General security (auth, .env) is cov
 
 | Pitfall | Recovery Cost | Recovery Steps |
 |---------|---------------|----------------|
-| Yield stored as float (data already entered) | MEDIUM | Add `yield_min`/`yield_max` integer columns via migration; backfill from `yield_avg` as best estimate (both min=max=round(avg)); prompt user to correct ranges manually |
-| Float used in price math (calculation bug) | LOW | Pure code fix — no stored data affected; update profit formula to integer arithmetic; add regression test |
-| Auto-watch overwrote thresholds | MEDIUM | No automatic recovery — thresholds are gone; surface a "your thresholds may have been reset" notice; add restoration UI where user can re-enter |
-| Cycle created, calculator errored | LOW | Add cycle detection to save; clean up the offending shuffle step; calculator is purely computational so no stored results to fix |
-| AH cut missing from existing profit history | LOW | Pure display/calculation bug — no stored profit values exist (profit is calculated live); fix formula and profit numbers correct on next page load |
-| Orphan WatchedItems after shuffle deletions | MEDIUM | Write a one-time cleanup query to remove WatchedItems where `created_by_shuffle_id IS NOT NULL` and the shuffle no longer exists; add provenance tracking going forward |
+| Schema missing per-quality item ID columns | HIGH | New migration to add columns; re-run recipe seeder to populate them; existing profit rows show null until re-seeded |
+| AH cut omitted from profit formula | LOW | Fix the formula constant; profit recalculates at display time; no stored profit values in schema |
+| Recipe data seeded as migration (not command) | MEDIUM | Extract to an Artisan command class; mark original migration as non-destructive data-only run; document sync command for future patches |
+| Duplicate watched_items from reagent seeding | LOW | One-time dedup query to remove duplicate rows; add unique constraint to prevent recurrence; verify snapshot FK integrity |
+| Optional reagent quantities silently missing | LOW | Add `has_optional_reagents` flag; UI renders disclaimer; quantities can be hardcoded later from Wowhead |
+| Gear recipes showing as "no price" without explanation | LOW | Add `is_commodity` flag to recipe rows via migration; UI logic branches on this field |
+| Sequential recipe sync timing out at full scale | MEDIUM | Refactor fetch layer to use `Http::pool()`; no schema change needed; re-run sync to populate any recipes missed by timeout |
 
 ---
 
@@ -250,31 +283,33 @@ These are specific to the shuffles feature. General security (auth, .env) is cov
 
 | Pitfall | Prevention Phase | Verification |
 |---------|------------------|--------------|
-| Float price math in profit calculator | Shuffles data model (migration design) | No `FLOAT`/`DECIMAL` columns for price or yield; profit formula uses integer arithmetic only |
-| Auto-watch orphaning / threshold collision | Auto-watch implementation | Integration test: add shuffle, verify existing threshold unchanged; delete shuffle, verify pre-existing items remain |
-| N+1 price queries in calculator | Shuffles batch calculator UI | Query log shows single `whereIn` fetch per calculator load, not per-step |
-| Single yield average (no variance) | Shuffles data model (migration design) | Schema has `yield_min` and `yield_max` integer columns alongside average representation |
-| Circular chain references | Shuffles CRUD / chain editor | Validation test: cyclic chain save returns error, does not insert |
-| AH cut omitted from profit | Shuffles batch calculator UI | Hand-verify: 100 units × 1,000g output price = 95,000g revenue, not 100,000g |
-| min_price used instead of median_price | Shuffles batch calculator UI | Code review confirms `median_price` column used for all input cost calculations |
-| Quantity input triggering per-keystroke queries | Shuffles batch calculator UI | Network tab shows requests fire on blur/submit, not on every character |
+| Recipe endpoint missing crafted item ID | Recipe data seeding (schema + seeder) | Zero rows with NULL `crafted_item_id_silver` after full sync |
+| Quality tier item IDs not in item API | Recipe data seeding (schema + seeder) | Both Silver and Gold item IDs populated for quality-tiered recipes |
+| Modified slot reagent quantities missing | Profit calculation phase | `has_optional_reagents` flag present; UI disclaimer renders for affected recipes |
+| Crafted item yield quantity not in API | Recipe data seeding (schema + seeder) | At least one alchemy recipe has `yield_quantity > 1` |
+| Auto-watch reagent dedup failure | Auto-watch integration | No duplicate `blizzard_item_id` rows in `watched_items` after seeding |
+| AH cut not applied | Profit calculation phase | Unit test: sell_price=10000, reagent_cost=5000 → profit=4500 |
+| Recipe data goes stale after patches | Recipe data seeding (command design) | `artisan craft:sync-recipes` exists, is idempotent, completes without error |
+| N+1 serial API call pattern | Recipe data seeding (fetch implementation) | Full sync completes in under 60 seconds using Http::pool() |
+| Gear output items are realm-AH not commodities | Recipe data seeding (schema + seeder) | Gear recipes have `is_commodity = false`; UI shows "realm AH — not tracked" |
 
 ---
 
 ## Sources
 
-- Codebase analysis: `/Users/lancethompson/Github/wow-ah-tracker/app/Models/` — confirmed BIGINT copper storage pattern, WatchedItem/CatalogItem/PriceSnapshot relationships
-- Codebase analysis: `/Users/lancethompson/Github/wow-ah-tracker/.planning/PROJECT.md` — confirmed auto-watch requirement, batch calculator requirement, min/max yield requirement
-- [Livewire Reactive Properties — Official Docs](https://livewire.laravel.com/docs/4.x/attribute-reactive) — confirmed reactive props send full data on every parent update; performance implications
-- [Livewire Nesting — Official Docs](https://livewire.laravel.com/docs/4.x/nesting) — confirmed max 2-level nesting recommendation to avoid DOM diffing issues
-- [Livewire Best Practices — michael-rubel/livewire-best-practices](https://github.com/michael-rubel/livewire-best-practices) — confirmed large Eloquent model passing pitfall, non-deferred model binding as query killer
-- [The Lazy Goldmaker — MoP Beta Enchanting Shuffle Test](https://thelazygoldmaker.com/i-tested-the-enchanting-shuffles-on-the-mop-beta-so-you-dont-have-to) — confirmed variable yield output (e.g., 1.7 dust per bracer average), confirmed variance exists in shuffle outputs
-- [Wowpedia — Prospecting](https://wowpedia.fandom.com/wiki/Prospecting) — confirmed 5-ore input, probabilistic outputs, crowdsourced yield averages from Wowhead
-- [Blizzard AH Cut — Warmane Forum thread](https://forum.warmane.com/showthread.php?t=318786) — confirmed 5% AH cut on commodity sales (MEDIUM confidence — community source, consistent with official AH docs)
-- [WoW Money — WoWWiki Archive](https://wowwiki-archive.fandom.com/wiki/Money) — confirmed copper integer nature; pre-4.0 signed 32-bit overflow as historical validation of integer-only approach
-- [Ten Common Database Design Mistakes — Simple Talk / Redgate](https://www.red-gate.com/simple-talk/databases/sql-server/database-administration-sql-server/ten-common-database-design-mistakes/) — confirmed mixing derived metrics with raw values as design mistake; view-chaining breaks on upstream errors
-- [Laravel Eloquent Polymorphic Relationships](https://laravel.com/docs/12.x/eloquent-relationships) — confirmed polymorphic relations do not enforce foreign key constraints at DB level; dedicated tables preferred for data integrity in conversion step chains
+- Blizzard Developer Forum — "Dragonflight profession recipes crafted item id" (confirmed `crafted_item` field absent from Dragonflight recipe endpoint onward; community GitHub mapping referenced): https://us.forums.blizzard.com/en/blizzard/t/dragonflight-profession-recipes-crafted-item-id/37444 — MEDIUM confidence
+- Blizzard Developer Forum — "Reagent quality missing in game data API WoW retail" (confirmed quality tier not exposed in item API; each tier is a distinct item ID requiring manual mapping): https://us.forums.blizzard.com/en/blizzard/t/reagent-quality-missing-in-game-data-api-wow-retail/49998 — MEDIUM confidence
+- Blizzard Developer Forum — "Help with reagent quality from API" (confirmed each reagent quality has its own item ID; must be mapped manually via Wowhead): https://us.forums.blizzard.com/en/blizzard/t/help-with-reagent-quality-from-api/51961 — HIGH confidence
+- Blizzard Developer Forum — "Commodities API - Item Rank/Quality" (confirmed quality/rank not exposed throughout Dragonflight; manual mapping required): https://us.forums.blizzard.com/en/blizzard/t/commodities-api-item-rankquality/51895 — HIGH confidence
+- Blizzard Developer Forum — "Missing modified_crafting_slots quantity in recipe endpoint" (confirmed `modified_crafting_slots` returns slot types without quantity; unresolved bug): https://us.forums.blizzard.com/en/blizzard/t/missing-modifiedcraftingslots-quantity-in-recipe-endpoint/49170 — MEDIUM confidence
+- Blizzard Developer Forum — "[BUG] Professions API" (confirmed `crafted_item.quantity` absent for multi-yield recipes; cooking/alchemy affected): https://us.forums.blizzard.com/en/blizzard/t/bug-professions-api/6234 — MEDIUM confidence
+- Blizzard Developer Forum — "Profession Recipe API Incorrect Data" (confirmed reagent list incomplete for some recipe IDs): https://us.forums.blizzard.com/en/blizzard/t/profession-recipe-api-incorrect-data/12071 — MEDIUM confidence
+- WoW Professions — Midnight Alchemy Guide (confirmed two quality tiers in Midnight; Bronze removed; Silver/Gold only): https://www.wow-professions.com/midnight/alchemy-guide — MEDIUM confidence
+- WoW Professions — Midnight Blacksmithing Guide (confirmed Bronze quality removed; reagent quality simplified to Silver/Gold): https://www.wow-professions.com/midnight/blacksmithing-guide — MEDIUM confidence
+- Blizzard Blue Tracker — "Applications, Rate Limits & Throttling" (confirmed credit-based rate limit system; 36K/hr is community-documented cap): https://www.bluetracker.gg/wow/topic/us-en/8796351117-applications-rate-limits-throttling/ — MEDIUM confidence
+- Codebase analysis — existing `FetchCommodityDataJob`, `DispatchPriceBatchesJob`, `BlizzardTokenService`, `WatchedItem` model: local source — HIGH confidence
 
 ---
-*Pitfalls research for: WoW AH Tracker v1.1 Shuffles — conversion chain profit tracking added to existing price tracker*
-*Researched: 2026-03-04*
+
+*Pitfalls research for: WoW AH Tracker v1.2 — Crafting Profitability (recipe-based profit calculator added to existing price tracker)*
+*Researched: 2026-03-05*

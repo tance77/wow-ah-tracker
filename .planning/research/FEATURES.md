@@ -401,3 +401,320 @@ No dedicated web app for shuffle profit tracking with live prices and saved chai
 
 *Feature research for: WoW AH Tracker — v1.1 Shuffles milestone*
 *Researched: 2026-03-04*
+
+---
+---
+
+# Feature Research — v1.2 Crafting Profitability Milestone
+
+**Domain:** WoW crafting profitability calculator — recipe-based profit by profession, added to existing AH Tracker app
+**Researched:** 2026-03-05
+**Confidence:** MEDIUM — Midnight expansion launched recently; quality tier mechanics verified via multiple community guides (HIGH confidence); Blizzard API structure verified via RubyDoc and forum threads (MEDIUM confidence); API limitations around quality-tier crafted item pricing are a known gap (LOW confidence for that specific area).
+
+---
+
+## Background: How Crafting Profitability Works in WoW
+
+A crafting profit calculator answers: "If I buy the reagents on the AH and sell the crafted item, what is my margin?"
+
+The core formula is simple:
+
+```
+profit = (crafted_item_sell_price × 0.95) - sum(reagent_qty × reagent_price)
+```
+
+The complexity comes from:
+
+1. **Reagents are commodities** — prices are region-wide and polled reliably by the existing system.
+2. **Crafted items may or may not be commodities** — consumables (flasks, potions, food, enchants) are commodities and have region-wide AH prices. Gear and weapons are non-commodities, sold on connected-realm AH, which is a different API endpoint.
+3. **Quality tiers** — in Midnight, crafted consumables and reagents have two quality tiers (Silver = Tier 1, Gold = Tier 2). Each tier produces a distinct item ID with a different AH price.
+4. **Concentration mechanic** — players spend a regenerating resource (capped at 1,000; restores ~10/hr) to force Gold-quality output. This makes Gold-quality crafts time-gated rather than freely repeatable.
+5. **5% AH cut** — same as shuffles. No deposit fee on commodity AH.
+
+---
+
+## Midnight Quality Tier System (HIGH confidence)
+
+Midnight simplified crafting quality from three tiers (in The War Within) to two:
+
+| Tier | Name | Also Called | Characteristics |
+|------|------|-------------|-----------------|
+| Tier 1 | Silver | "at least Silver" | Baseline output, always achievable without Concentration |
+| Tier 2 | Gold | "Gold quality" | Premium tier, requires Concentration or high Skill; better stats |
+
+Key facts (verified across multiple sources):
+
+- **Consumables and reagents**: Only Silver and Gold. Always get at least Silver. Concentration immediately elevates to Gold.
+- **Weapons and armor**: Still have 5 quality ranks (not relevant for this milestone — PROJECT.md scope is consumables/crafting materials).
+- **Distinct item IDs per tier**: Silver-quality and Gold-quality versions of the same recipe produce different item IDs. This means different AH listings and different prices.
+- **Price spread**: Gold quality commands a premium due to higher stat values. Serious raiders and M+ players specifically seek Gold quality. Silver sells to alts and casual players.
+- **Concentration is a scarce resource**: ~4 days to fully regenerate from zero. This limits the volume of Gold-quality crafts per week and is the primary lever for premium pricing.
+
+---
+
+## What the Blizzard API Exposes for Professions (MEDIUM confidence)
+
+### Available Endpoints
+
+Based on RubyDoc for `BlizzardApi::Wow::Profession` and Blizzard forum threads:
+
+| Endpoint | Path | Returns |
+|----------|------|---------|
+| Profession index | `GET /data/wow/profession/index` | List of all professions with IDs |
+| Profession detail | `GET /data/wow/profession/{id}` | Profession name, description, skill tiers |
+| Profession skill tier | `GET /data/wow/profession/{id}/skill-tier/{tier_id}` | Recipes in this tier (list of recipe IDs + names) |
+| Recipe detail | `GET /data/wow/recipe/{id}` | Recipe name, reagents array, crafted_item, crafted_quantity |
+| Modified crafting index | `GET /data/wow/modified-crafting/` | Optional reagent slot types |
+| Modified crafting slot types | `GET /data/wow/modified-crafting/reagent-slot-type/` | Slot type definitions for quality reagents |
+
+### Recipe Response Structure (MEDIUM confidence)
+
+```json
+{
+  "id": 12345,
+  "name": "Recipe: Midnight Flask of Power",
+  "reagents": [
+    { "reagent": { "id": 111111, "name": "Quel'dorei Petal" }, "quantity": 3 },
+    { "reagent": { "id": 222222, "name": "Twilight Dust" }, "quantity": 1 }
+  ],
+  "crafted_item": { "id": 99999, "name": "Midnight Flask of Power" },
+  "crafted_quantity": { "value": 1 }
+}
+```
+
+### Known API Limitations (LOW confidence — requires empirical validation)
+
+- **Quality-tier item IDs**: The recipe endpoint's `crafted_item` field returns one item ID. For quality-aware recipes, the Silver and Gold output are separate item IDs. The API may not expose both IDs directly from the recipe endpoint — additional mapping via modified crafting slot data or Wowhead may be needed.
+- **modified_crafting_slots**: For Dragonflight/TWW-era recipes, quality reagents appear under `modified_crafting_slots` rather than `reagents`. Quantities in this field have been reported as sometimes zero (known bug). Midnight may have changed this — needs empirical testing.
+- **Crafted item prices**: Crafted items are NOT in the commodities endpoint if they are non-commodity (realm-specific) items. For consumables (flasks, potions, food, enchants), which ARE commodities, prices appear in the existing commodities API.
+
+**Practical implication**: Reagent costs (commodities) are easy. Crafted item prices for consumables are also fetchable via the same commodities API. Crafted item prices for gear/weapons require a connected-realm AH API call — out of scope for this milestone.
+
+---
+
+## Feature Landscape — Crafting Profitability
+
+### Table Stakes (Users Expect These)
+
+Features a crafting profitability section needs to not feel broken. These mirror what TSM, CraftSim, and WowCrafters all provide.
+
+| Feature | Why Expected | Complexity | Notes |
+|---------|--------------|------------|-------|
+| Profession overview page | Every crafting tool groups recipes by profession. No one wants a flat list of 500 recipes | LOW | Index page: /crafting — cards for each Midnight crafting profession with best profit teaser |
+| Per-profession recipe table | All tools show the full recipe list for a profession with sortable columns | MEDIUM | Detail page: /crafting/{profession} — table of all recipes with reagent cost, sell price, profit per craft |
+| Reagent cost column (live prices) | Prices must come from live AH data, not static numbers. The whole point is live margins | LOW | Sum of (reagent_qty × latest PriceSnapshot.median_price) per recipe. Reuse existing polling infrastructure |
+| Crafted item sell price column (live prices) | Without this there is no profit calc. Must show current AH price for the crafted item | MEDIUM | Crafted consumables (flasks, potions) are commodities — fetchable via existing commodities poller. Crafted item must have a WatchedItem record |
+| Profit per craft column | Core number. Sell price minus reagent cost minus 5% AH cut | LOW | (sell_price × 0.95) - reagent_cost. Displayed in gold/red for positive/negative margin |
+| Table sorting (by profit, by name) | Every table tool lets you sort by most profitable. Default sort by profit descending | LOW | Livewire sortable columns; default: profit desc |
+| Auto-watch reagents | Reagent prices must be polled or the calc has no data. Mirroring the v1.1 shuffle auto-watch pattern | MEDIUM | On recipe import: for each reagent item_id, ensure WatchedItem exists. Same pattern as shuffle auto-watch |
+| Tier 1 (Silver) profit shown | Baseline profit without spending Concentration. This is the floor | LOW | Tier 1 crafted item has its own item ID and AH price — track separately |
+| Tier 2 (Gold) profit shown | Premium profit using Concentration. This is the ceiling, but time-gated | LOW | Tier 2 crafted item has its own item ID and AH price — track separately |
+
+### Differentiators (Competitive Advantage)
+
+Features that go beyond what existing tools offer, given this app has live AH prices already integrated.
+
+| Feature | Value Proposition | Complexity | Notes |
+|---------|-------------------|------------|-------|
+| Median profit across both tiers | "What's the blended average if I craft some Silver, some Gold?" — directly specified in PROJECT.md | LOW | Simple: (tier1_profit + tier2_profit) / 2. Useful when Concentration supply is limited |
+| Profession overview with top-N profitable recipes | At-a-glance "what should I craft today across all professions" — no existing web tool does this cleanly | MEDIUM | Overview page shows top 3 recipes per profession by profit descending, with colored margin badge |
+| Staleness indicator on prices | Same as shuffles — surfaces when price data is stale so user knows calc confidence | LOW | Flag recipes where any reagent or crafted item snapshot is > 1 hour old |
+| Crafting cost breakdown (per-reagent line items) | Shows which reagent drives cost so you can shop around | LOW | Recipe detail/hover: show each reagent with qty, unit price, subtotal |
+| Missing price warning | If a reagent has no WatchedItem/snapshot, show the recipe as "incomplete" rather than silently wrong | LOW | Check all reagent item IDs for active WatchedItem records; flag missing ones |
+
+### Anti-Features (Commonly Requested, Often Problematic)
+
+| Feature | Why Requested | Why Problematic | Alternative |
+|---------|---------------|-----------------|-------------|
+| Gear / weapon crafting profit | Gear has 5 quality ranks and sells on connected-realm AH, not commodities API | Connected-realm AH requires a different endpoint, different polling strategy, realm-specific data. Doubles infrastructure scope. Crafted gear prices fluctuate dramatically and are server-specific | Scope to consumables and commodity crafts only. Document this limit in the UI. Gear is PROJECT.md out-of-scope already |
+| Crafting simulation (Concentration optimizer) | CraftSim's core feature — "which recipes should I use my 1,000 Concentration points on?" | Requires knowing each recipe's skill, specialization bonuses, inspiration proc rates, and concentration cost per quality tier. This is a full simulation engine, not a price lookup | Show profit per quality tier and let the user decide where to spend Concentration |
+| Specialization-aware profit | Some recipes yield more output or better quality based on which profession spec nodes you've unlocked | Requires per-character specialization data from the character profile API (authenticated endpoint, different OAuth scope). Personal tool doesn't maintain character data | Display baseline recipe profit only; note that specialization bonuses are not modeled |
+| Work Order integration | Crafting orders let others craft for you; order fee affects net profit | Work orders involve character-specific data and in-game UI flows — not accessible via game data APIs | Out of scope. Tool models only open AH purchases and sales |
+| Crafting queue / to-do list | "Queue up what to craft today" — CraftSim feature | Stateful, per-session workflow requiring significant UI complexity | Out of scope for v1.2. The recipe table is the input to a manual crafting workflow |
+| Historical profit trend chart | Show how margin has changed as reagent and crafted item prices moved over time | Requires storing calculated profit snapshots over time (same issue as historical shuffle profit) | Individual item price history charts already exist on the dashboard. User can correlate |
+
+---
+
+## Feature Dependencies — Crafting Profitability
+
+```
+[Recipe data import — Blizzard API profession/recipe fetch]
+    └──requires──> [Blizzard OAuth credentials (existing in .env)]
+    └──produces──> [Recipe records: reagents + crafted_item per recipe]
+    └──triggers──> [Auto-watch reagents and crafted items]
+
+[Auto-watch reagents + crafted items]
+    └──requires──> [Recipe data import]
+    └──creates──>  [WatchedItem records for each reagent and crafted item]
+                       └──enables──> [PriceSnapshot polling by scheduler]
+
+[Reagent cost calculation]
+    └──requires──> [PriceSnapshot data for each reagent]
+    └──requires──> [Recipe reagent quantities]
+
+[Crafted item sell price lookup]
+    └──requires──> [PriceSnapshot data for crafted item (both tiers)]
+    └──requires──> [Crafted item is a commodity (consumables only)]
+    └──note──> [Tier 1 and Tier 2 are separate item IDs — need separate WatchedItem records]
+
+[Tier 1 (Silver) profit]
+    └──requires──> [Reagent cost calculation]
+    └──requires──> [Tier 1 crafted item sell price]
+
+[Tier 2 (Gold) profit]
+    └──requires──> [Reagent cost calculation]
+    └──requires──> [Tier 2 crafted item sell price]
+
+[Median profit across tiers]
+    └──requires──> [Tier 1 profit]
+    └──requires──> [Tier 2 profit]
+
+[Profession overview page — top recipes per profession]
+    └──requires──> [Profit calculation for all recipes in that profession]
+    └──requires──> [Recipe-to-profession mapping from API import]
+
+[Per-profession recipe table]
+    └──requires──> [Profit calculation for all recipes]
+    └──requires──> [Recipe data import]
+    └──enhances──> [Table sorting by profit, name, tier]
+
+[Staleness indicator]
+    └──requires──> [PriceSnapshot.polled_at for all reagents and crafted items]
+```
+
+### Dependency Notes
+
+- **Recipe import must precede everything:** Unlike shuffles (user-defined chains), recipes come from Blizzard's API. A one-time (or periodic) import job must seed the database before any profit calc is possible.
+- **Two crafted item IDs per quality-aware recipe:** Tier 1 (Silver) and Tier 2 (Gold) outputs are separate item IDs. The recipe API may only expose one — the correct item IDs for both tiers may require cross-referencing Wowhead data or empirical testing. This is the single highest-risk unknown in v1.2. Plan for a manual override / seed file if the API doesn't expose both cleanly.
+- **Crafted consumables are commodities:** Flasks, potions, food, enchant scrolls — these are all commodities. The existing commodities poller can fetch their prices once WatchedItem records exist. No new API endpoint needed for these.
+- **Auto-watch mirrors v1.1 shuffle pattern:** The same mechanism (create WatchedItem on save/import) applies here. Both reagents AND crafted item IDs need WatchedItem records.
+- **Profession-to-recipe mapping lives in the API:** The skill tier endpoint lists recipe IDs per profession. Import must walk: profession index → skill tier list → recipe IDs → recipe detail per ID.
+
+---
+
+## MVP Definition — Crafting Profitability (v1.2)
+
+### Launch With (v1.2)
+
+Minimum to deliver a useful crafting profitability section.
+
+- [ ] Recipe import job — fetch all Midnight profession recipes from Blizzard API and seed DB (one-time + refreshable)
+- [ ] Auto-watch reagents and crafted items — create WatchedItem records for every item referenced in imported recipes
+- [ ] Profession overview page (/crafting) — cards per Midnight crafting profession with top profitable recipe highlight
+- [ ] Per-profession recipe table (/crafting/{profession}) — all recipes with: reagent cost, Tier 1 sell price, Tier 2 sell price, Tier 1 profit, Tier 2 profit, median profit
+- [ ] Sortable table — default sort by median profit descending; allow sort by name, tier 1 profit, tier 2 profit
+- [ ] Profit calculation — (sell × 0.95) - reagent_cost for each tier
+- [ ] Missing price indicator — flag recipes where reagent or crafted item prices are absent
+- [ ] Price staleness indicator — flag recipes where any price snapshot is > 1 hour old
+
+### Add After Validation (v1.x)
+
+- [ ] Per-recipe cost breakdown (hover/expand showing each reagent line item) — useful for identifying expensive reagents
+- [ ] Manual crafted item ID override — escape hatch if API doesn't expose both Tier 1 and Tier 2 item IDs correctly
+- [ ] Periodic recipe refresh job — re-import recipes on expansion patch days to catch new recipes
+
+### Future Consideration (v2+)
+
+- [ ] Gear/weapon crafting profit — requires connected-realm AH API, realm-specific pricing
+- [ ] Specialization-aware profit — requires character profile API integration
+- [ ] Concentration optimizer — full simulation engine (CraftSim territory)
+
+---
+
+## Feature Prioritization Matrix — Crafting Profitability
+
+| Feature | User Value | Implementation Cost | Priority |
+|---------|------------|---------------------|----------|
+| Recipe import job (Blizzard API) | HIGH | MEDIUM | P1 |
+| Auto-watch reagents + crafted items | HIGH | LOW | P1 |
+| Profession overview page | HIGH | LOW | P1 |
+| Per-profession recipe table | HIGH | MEDIUM | P1 |
+| Tier 1 profit column | HIGH | LOW | P1 |
+| Tier 2 profit column | HIGH | LOW | P1 |
+| Median profit column | MEDIUM | LOW | P1 |
+| Table sort (by profit) | HIGH | LOW | P1 |
+| Missing price indicator | MEDIUM | LOW | P1 |
+| Price staleness indicator | MEDIUM | LOW | P1 |
+| Per-recipe reagent cost breakdown | MEDIUM | LOW | P2 |
+| Manual item ID override | MEDIUM | LOW | P2 |
+| Periodic recipe refresh job | LOW | LOW | P2 |
+| Gear/weapon crafting profit | LOW | HIGH | P3 (out of scope) |
+| Specialization-aware profit | LOW | HIGH | P3 (out of scope) |
+| Concentration optimizer | LOW | HIGH | P3 (out of scope) |
+
+**Priority key:**
+- P1: Must have for v1.2 launch
+- P2: Should have, add when possible
+- P3: Nice to have / deferred
+
+---
+
+## Integration with Existing App
+
+The Crafting Profitability feature is additive, reusing every existing infrastructure piece.
+
+| Existing Piece | How Crafting Uses It |
+|----------------|----------------------|
+| `WatchedItem` model | Auto-watch creates WatchedItem records for all reagents and crafted items so they get polled |
+| `PriceSnapshot` model | Latest snapshot.median_price used for reagent costs and crafted item sell prices |
+| Blizzard API poller (scheduler) | Already running every 15 min — newly auto-watched items get prices within one poll cycle |
+| `CatalogItem` model | Reagents and crafted items are CatalogItems; recipe import populates catalog entries |
+| Auth (Breeze, single-user) | No changes — Crafting section lives behind existing auth middleware |
+| Tailwind CSS v4 / WoW dark theme | Gold/amber for profitable, red for negative margin; consistent with dashboard and shuffles |
+| Navigation layout | Add "Crafting" nav entry alongside Dashboard, Watchlist, Shuffles |
+| Existing commodities poller | Crafted consumables (flasks, potions, enchants) are commodities — their prices come from the same endpoint already being polled |
+
+**Critical difference from Shuffles:** Shuffles use user-entered yield ratios. Crafting Profitability uses API-sourced recipe data. This means an import job is required before the section is usable, and the data can go stale if Blizzard adds new recipes in a patch.
+
+---
+
+## Ecosystem Tool Comparison — Crafting Profitability
+
+| Feature | TSM (addon) | CraftSim (addon) | WowCrafters (web) | This App |
+|---------|-------------|------------------|-------------------|----------|
+| Recipe source | In-game profession window | In-game profession window | Blizzard API + Wowhead | Blizzard API |
+| Live AH prices | TSM data feed (addon) | TSM data feed (addon) | Not specified | Blizzard API 15-min polling |
+| Quality tier profit | Yes (complex) | Yes (simulation-based) | Yes (concentration-aware) | Tier 1 + Tier 2 + median |
+| Profession overview | Via crafting operations | Via recipe scan | Yes | Yes |
+| Sortable recipe table | Via crafting list | Via recipe scan | Yes | Yes |
+| Web-based (no addon) | No | No | Yes | Yes |
+| Specialization bonuses | Yes | Yes | Yes (concentration) | No (out of scope) |
+| Gear profit | Yes | Yes | No | No (out of scope) |
+| Personal tool / no account | No (account required) | No (in-game) | Unclear | Yes (single-user) |
+
+**Gap this fills:** The only web-based, no-addon-required crafting profitability calculator with live Blizzard API prices that also shows Tier 1 / Tier 2 / median profit columns. WowCrafters is closest but requires account setup and has unclear pricing methodology. This app's advantage is tight integration with the existing price polling infrastructure.
+
+---
+
+## Open Questions Requiring Empirical Validation
+
+These cannot be fully answered by research alone — they require hitting the live Blizzard API.
+
+1. **Does the recipe endpoint expose both Tier 1 and Tier 2 item IDs?** If not, how do we identify them? (Options: Wowhead scrape, manual seed file, modified-crafting endpoint). This is the highest-risk unknown.
+
+2. **Are all Midnight crafted consumables (flasks, potions) present in the commodities endpoint?** Assumption is yes — they should be commodities — but needs verification for Midnight specifically.
+
+3. **What is the Midnight expansion's skill tier ID?** The Blizzard API organizes recipes by expansion skill tier. We need the correct tier ID to filter to Midnight-only recipes.
+
+4. **Does `modified_crafting_slots` have the reagent quantity bug in Midnight?** Previous expansions had a known issue where quantities were zero. If this persists, quality reagent quantities must be sourced elsewhere.
+
+---
+
+## Sources
+
+- [WoW-Professions.com — Midnight Tailoring Guide](https://www.wow-professions.com/midnight/tailoring-guide) — Quality tier mechanics verified (HIGH confidence — content fetched)
+- [BlizzardApi Ruby gem — Profession class](https://rubydoc.info/gems/blizzard_api/BlizzardApi/Wow/Profession) — API endpoint paths (MEDIUM confidence — content fetched)
+- [Blizzard Forums — Modified Crafting API Support](https://us.forums.blizzard.com/en/blizzard/t/wow-game-data-api-modified-crafting-support/12727) — modified_crafting endpoints confirmed (MEDIUM confidence — content fetched)
+- [Blizzard Forums — Missing modified_crafting_slots quantity](https://us.forums.blizzard.com/en/blizzard/t/missing-modifiedcraftingslots-quantity-in-recipe-endpoint/49170) — known quantity bug (MEDIUM confidence)
+- [Wowhead — CraftSim feature overview](https://www.wowhead.com/news/calculate-your-profession-crafts-and-profit-with-craftsim-346538) — feature landscape for crafting profit tools (MEDIUM confidence — content fetched)
+- [WowCrafters](https://wowcrafters.com/) — web-based competitor feature overview (MEDIUM confidence — content fetched)
+- [Icy Veins — Best Professions to Make Gold in Midnight](https://www.icy-veins.com/wow/professions-making-gold) — profitability metrics and quality tier impact (MEDIUM confidence — content fetched)
+- [Multiple community gold guides](https://www.dtgre.com/2026/03/wow-midnight-gold-guide-farms-professions-lumber.html) — Silver/Gold quality tier price behavior (MEDIUM confidence — multiple sources converge)
+- [GitHub — wow-recipe-list-to-json](https://github.com/ArekusuNaito/wow-recipe-list-to-json) — recipe JSON structure example (MEDIUM confidence — content fetched)
+- [Blizzard API — Commodities endpoint structure](https://us.forums.blizzard.com/en/blizzard/t/immediate-change-to-auction-apis-for-commodities-with-927/31522) — confirmed commodities vs connected-realm separation (HIGH confidence)
+- PROJECT.md — feature requirements and constraints for v1.2 (HIGH confidence)
+
+---
+
+*Feature research for: WoW AH Tracker — v1.2 Crafting Profitability milestone*
+*Researched: 2026-03-05*

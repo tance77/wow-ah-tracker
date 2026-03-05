@@ -1,138 +1,204 @@
 # Stack Research
 
-**Domain:** WoW Auction House commodity price tracker (single-user Laravel web app)
-**Researched:** 2026-03-04 (v1.1 Shuffles milestone update)
-**Confidence:** HIGH for all recommendations below
+**Domain:** WoW AH Tracker — v1.2 Crafting Profitability (Blizzard Profession/Recipe API integration)
+**Researched:** 2026-03-05
+**Confidence:** HIGH for all key decisions (verified against existing codebase and API community documentation)
 
 ---
 
-## v1.1 Shuffles: Stack Delta
+## v1.2 Crafting Profitability: Stack Delta
 
-This document preserves the v1.0 stack baseline and appends a focused delta for the Shuffles milestone. The existing stack (Laravel 12, Livewire 4, Volt, Tailwind CSS v4, ApexCharts, Pest 3, SQLite, database queues) is unchanged and fully validated. Do not re-research those decisions.
+This document preserves the v1.1 stack baseline below and adds a focused delta for the Crafting Profitability milestone. The existing stack is unchanged and fully validated. No re-research of Laravel 12, Livewire 4, Volt, Tailwind CSS v4, ApexCharts, Pest 3, SQLite, or the Blizzard OAuth2 token service.
 
-### What Shuffles Adds
-
-Shuffles introduces three new concerns not present in v1.0:
-
-1. **Data model for conversion chains** — ordered sequences of steps, each with item references and ratio/yield data
-2. **Ratio/yield arithmetic** — multiply input quantities through steps, surface profit at each step
-3. **Dynamic multi-step forms** — Livewire form that grows/shrinks as the user adds/removes chain steps
-
-All three are solved entirely within the existing stack. No new packages are required.
+**Bottom line: Zero new Composer packages required.** Every API, HTTP, auth, and compute capability needed is already present.
 
 ---
 
-## No New Dependencies Needed
+## No New Dependencies Required
 
-The Shuffles feature can be built entirely with what is already installed. Each concern below is handled natively.
+| Capability | How It's Covered | Confidence |
+|------------|-----------------|------------|
+| Blizzard API HTTP requests | `Illuminate\Support\Facades\Http` | HIGH |
+| Concurrent batch fetching | `Http::pool()` — already in `SyncCatalogCommand` | HIGH |
+| OAuth2 token acquisition/caching | `App\Services\BlizzardTokenService::getToken()` — inject as-is | HIGH |
+| Database schema & models | Laravel Eloquent + SQLite migrations | HIGH |
+| Background command scheduling | Laravel Artisan command (one-time per patch, not recurring) | HIGH |
+| Profitability arithmetic | PHP 8.4 integer math — all prices are copper integers | HIGH |
+| UI pages | Livewire 4 / Volt SFC — existing pattern | HIGH |
+| Testing | Pest 3 — existing | HIGH |
 
-### Conversion Chain Data Model
+---
 
-**Use standard Eloquent with two new tables.** A `shuffles` table holds the named chain and a `shuffle_steps` table holds ordered steps with `position`, input item reference, yield ratio, and min/max yield. No package needed.
+## Blizzard API Endpoints for Recipe Fetching
+
+All endpoints use the **`static-{region}`** namespace — identical to the existing item detail lookups in `SyncCatalogCommand`.
+
+### Endpoint Chain (4 steps per profession)
+
+```
+1. GET /data/wow/profession/index
+   ?namespace=static-{region}
+   Returns: { professions: [ { id, name, key } ] }
+
+2. GET /data/wow/profession/{professionId}
+   ?namespace=static-{region}
+   Returns: skill_tiers: [ { id, name, key } ] — filter by name containing "Midnight"
+
+3. GET /data/wow/profession/{professionId}/skill-tier/{skillTierId}
+   ?namespace=static-{region}
+   Returns: recipes: [ { id, name, key } ]
+
+4. GET /data/wow/recipe/{recipeId}
+   ?namespace=static-{region}
+   Returns: name, reagents[], crafted_item (may be absent — see Pitfalls)
+```
+
+### Authentication Integration (existing token service — no changes)
 
 ```php
-// shuffle_steps columns:
-// id, shuffle_id, position (unsigned tinyint), catalog_item_id,
-// ratio_numerator (unsigned int), ratio_denominator (unsigned int),
-// min_yield (unsigned int nullable), max_yield (unsigned int nullable)
+// Inject BlizzardTokenService via constructor — identical to SyncCatalogCommand
+$token = $this->tokenService->getToken();
+
+Http::withToken($token)
+    ->get("https://{$region}.api.blizzard.com/data/wow/profession/index", [
+        'namespace' => "static-{$region}",
+    ]);
 ```
 
-Ordering by `position` in a `hasMany` relationship with `->orderBy('position')` is straightforward. No adjacency-list or recursive CTE package is needed — chains are linear sequences, not trees.
+### Recipe Response Structure (verified)
 
-**Why not JSON columns for steps?** Storing steps as a JSON column on `shuffles` would make individual step validation, indexing, and future extension harder. Separate rows are the correct choice when each step is a first-class entity with its own foreign key (`catalog_item_id`).
+```json
+{
+  "id": 12345,
+  "name": "Midnight Healing Potion",
+  "reagents": [
+    {
+      "reagent": { "id": 215000, "name": "Mote of Light" },
+      "quantity": 3
+    }
+  ],
+  "crafted_item": {
+    "id": 216000,
+    "name": "Midnight Healing Potion"
+  },
+  "crafted_quantity": { "value": 1 }
+}
+```
 
-### Ratio and Profit Arithmetic
+**Critical API limitations — verified, not assumed:**
 
-**Use PHP integer arithmetic throughout.** All prices are already stored as BIGINT UNSIGNED copper values (v1.0 decision). Ratios are stored as integer numerator/denominator pairs (e.g., 5 herbs → 1 pigment is stored as `ratio_numerator=1, ratio_denominator=5`).
+1. `crafted_item` is absent for many post-Dragonflight recipes. The API exposes the recipe spell ID, not the resulting AH item ID. This persists through The War Within (confirmed by Blizzard API forum discussions, September 2024). Workaround: when `crafted_item` is absent, match the crafted item from `catalog_items` by recipe name at query time.
 
-**PHP 8.4 BCMath\Number is available but not needed.** For yield multiplication and profit summation on integer copper values, standard PHP integer arithmetic is exact. BCMath is warranted only when you have non-integer intermediate values (e.g., price-per-unit in decimal gold). Since all math stays in copper integers, standard PHP is correct and simpler.
+2. Crafting difficulty is not exposed by the REST API. Confirmed missing through Dragonflight and The War Within. The Midnight in-game addon API added `C_TradeSkillUI.GetItemCraftedQualityInfo` (patch 12.0.0), but this is not available via REST.
+
+3. Crafted quality tier (Silver vs Gold) is not a field in the recipe API response. Handled at the application layer using the existing `catalog_items.quality_tier` column.
+
+---
+
+## Database: New Tables Required (no packages — pure Eloquent + migrations)
+
+### `professions` table
 
 ```php
-// Example: step yield from integer input
-$stepOutput = (int) floor($inputQty * $step->ratio_numerator / $step->ratio_denominator);
-$stepCost   = $inputQty * $latestPrice; // copper, integer
-$stepValue  = $stepOutput * $outputPrice; // copper, integer
-$profit     = $stepValue - $stepCost;
+Schema::create('professions', function (Blueprint $table) {
+    $table->id();
+    $table->unsignedInteger('blizzard_id')->unique();
+    $table->string('name');                    // "Alchemy", "Blacksmithing", etc.
+    $table->string('slug');                    // "alchemy", "blacksmithing" — for URLs
+    $table->timestamps();
+});
 ```
 
-No new library needed.
+### `recipes` table
 
-### Dynamic Multi-Step Form in Livewire
+```php
+Schema::create('recipes', function (Blueprint $table) {
+    $table->id();
+    $table->unsignedInteger('blizzard_id')->unique();
+    $table->foreignId('profession_id')->constrained();
+    $table->string('name');
+    $table->unsignedInteger('crafted_item_id')->nullable();  // blizzard_item_id; nullable due to API gap
+    $table->timestamps();
+});
+```
 
-**Use Livewire 4's built-in array property binding.** The chain builder form manages a PHP array property (e.g., `$steps = []`) where each element holds step data. Methods like `addStep()` and `removeStep($index)` mutate the array; `wire:model="steps.{$i}.ratio_numerator"` binds individual fields.
+### `recipe_reagents` pivot table
 
-**Validation uses wildcard rules.** Livewire 4 supports `'steps.*.catalog_item_id' => 'required|integer'` patterns in the `rules()` method or `#[Validate]` attributes. This is the documented approach for array field validation.
-
-**Known limitation:** Real-time (`.live`) validation on nested array fields has known rough edges in Livewire — error assignment can mismatch when rows are reordered. Mitigate by validating on explicit save, not on every keystroke.
-
-No third-party form builder package needed.
-
----
-
-## Recommended Stack (Complete — v1.0 + v1.1)
-
-### Core Technologies
-
-| Technology | Version | Purpose | Why Recommended |
-|------------|---------|---------|-----------------|
-| Laravel | ^12.0 | PHP web framework | Validated in v1.0. Scheduler, queues, Eloquent. No change. |
-| PHP | ^8.4 | Runtime | Project constraint. PHP 8.4 is now the pinned version. BCMath\Number available natively if ever needed. |
-| Livewire + Volt | ^4.0 / ^1.7 | Reactive UI, SFC pages | Validated in v1.0. Volt SFC pattern used for all pages including new Shuffles pages. |
-| Tailwind CSS | ^4.2 | Utility-first CSS | Validated in v1.0. WoW dark theme + gold/amber accents. No change. |
-| ApexCharts | ^5.7 | Time-series charts on dashboard | Validated in v1.0. Not used in Shuffles UI, but retained for dashboard. |
-| SQLite | 3.x | Primary data store | Validated in v1.0. Two new tables (shuffles, shuffle_steps) fit trivially. |
-
-### New Tables for Shuffles (no package — pure Eloquent)
-
-| Table | Purpose | Key Columns |
-|-------|---------|-------------|
-| `shuffles` | Named conversion chain | `id`, `user_id`, `name`, `description`, `timestamps` |
-| `shuffle_steps` | Ordered steps within a chain | `id`, `shuffle_id`, `position` (tinyint), `catalog_item_id`, `ratio_numerator`, `ratio_denominator`, `min_yield`, `max_yield` |
-
-### Supporting Libraries (unchanged from v1.0)
-
-| Library | Version | Purpose | Status |
-|---------|---------|---------|--------|
-| Laravel HTTP Client | Built-in | Blizzard API calls | Unchanged |
-| Laravel Breeze | ^2.3 (dev) | Auth scaffolding | Unchanged |
-| Laravel Pint | ^1.24 (dev) | Code style | Unchanged |
-| Pest PHP | ^3.8 (dev) | Test framework | Unchanged |
-| Faker | ^1.23 (dev) | Test factories | Unchanged |
-
----
-
-## Installation
-
-No new packages to install. The Shuffles feature is built with migrations + Eloquent + Livewire Volt pages already in the project.
-
-```bash
-# Generate migrations for new tables
-php artisan make:migration create_shuffles_table
-php artisan make:migration create_shuffle_steps_table
-
-# Generate models
-php artisan make:model Shuffle
-php artisan make:model ShuffleStep
-
-# Generate factories for tests
-php artisan make:factory ShuffleFactory
-php artisan make:factory ShuffleStepFactory
-
-# Run migrations
-php artisan migrate
+```php
+Schema::create('recipe_reagents', function (Blueprint $table) {
+    $table->id();
+    $table->foreignId('recipe_id')->constrained()->cascadeOnDelete();
+    $table->unsignedInteger('blizzard_item_id');  // joins to catalog_items.blizzard_item_id
+    $table->unsignedSmallInteger('quantity');
+    $table->timestamps();
+});
 ```
 
 ---
 
-## Alternatives Considered
+## Batch Fetching Strategy (copy existing `SyncCatalogCommand` pattern)
 
-| Recommended | Alternative | Why Not |
-|-------------|-------------|---------|
-| Integer numerator/denominator pairs for ratios | Decimal/float column for ratio | Float storage risks rounding errors in copper arithmetic. Int pairs are exact and self-documenting (e.g., 1/5 = "1 output per 5 inputs"). |
-| Separate `shuffle_steps` table with `position` column | JSON column on `shuffles` for steps | JSON steps can't have their own `catalog_item_id` FK constraint, can't be queried individually, and complicate validation. Separate rows are correct for entities. |
-| Plain Eloquent with `orderBy('position')` | `staudenmeir/laravel-adjacency-list` (recursive CTE package) | Chains are linear sequences, not trees. Recursive CTEs add no value. The adjacency-list package targets nested/recursive hierarchies. |
-| BCMath only if intermediate floats appear | BCMath for all arithmetic | Overkill. All values are copper integers. Standard PHP integer division with `floor()` is exact for this use case. |
-| Livewire native array binding + save-time validation | Third-party repeater form package | No package adds enough value to justify a dependency. Real-time nested validation is a Livewire limitation, not something a package reliably fixes. |
+The `SyncCatalogCommand::processBatch()` already implements the correct approach:
+
+- `Http::pool()` with 20-item chunks
+- 1-second `usleep(1_000_000)` pause between batches
+- 429 retry queue with 10-second backoff
+- Token injected via `BlizzardTokenService`
+
+Encapsulate recipe sync as a new Artisan command: `blizzard:sync-recipes`. Estimated request volume:
+
+| Step | Request Count |
+|------|--------------|
+| Profession index | 1 |
+| Profession details (13 crafting profs) | 13 |
+| Skill tier lists | ~13 |
+| Individual recipe details (~30-50 per profession) | ~400-650 |
+| **Total** | **~430-680** |
+
+At 20/batch with 1s pause: approximately 25-35 seconds total. Well under Blizzard's 36,000/hr limit.
+
+This is a **one-time per-patch seeding operation**, not a recurring scheduled job. Run manually with `php artisan blizzard:sync-recipes` after each game patch.
+
+---
+
+## Quality Tier Handling (no new code — existing system covers it)
+
+Midnight uses **two quality tiers** for consumables and reagents:
+- Tier 1 = Silver quality
+- Tier 2 = Gold quality
+
+(Weapons and gear retain 5 ranks, but the crafting profitability feature targets consumables/reagents where this two-tier system applies.)
+
+**How the existing system already handles this:**
+
+1. The commodities AH lists quality-tiered items as separate `blizzard_item_id` values with identical names (e.g., "Midnight Healing Potion" T1 = item 216000, T2 = item 216001).
+2. `SyncCatalogCommand::assignQualityTiers()` already groups catalog items by name, assigns `quality_tier` 1 and 2 in ascending item ID order.
+3. Each tier has its own `PriceSnapshot` history via `catalog_items`.
+
+**Profitability query approach:** Store ONE recipe row. At query time, LEFT JOIN `catalog_items` twice — once for tier 1 and once for tier 2 — matched by item name. This avoids duplicating recipe data.
+
+```php
+// Conceptual query — implemented in a service class
+$recipe = Recipe::with('reagents')->find($id);
+
+$reagentCost = $recipe->reagents->sum(function ($reagent) {
+    return $reagent->latestPrice() * $reagent->quantity;  // copper integers
+});
+
+$tier1Price = CatalogItem::where('name', $recipe->name)
+    ->where('quality_tier', 1)
+    ->latestPrice();  // copper integer
+
+$tier2Price = CatalogItem::where('name', $recipe->name)
+    ->where('quality_tier', 2)
+    ->latestPrice();  // copper integer
+
+$tier1Profit = $tier1Price - $reagentCost;
+$tier2Profit = $tier2Price - $reagentCost;
+$medianProfit = intdiv($tier1Profit + $tier2Profit, 2);
+```
+
+All arithmetic stays in copper integers. No floating point. Consistent with the established BIGINT UNSIGNED decision.
 
 ---
 
@@ -140,63 +206,91 @@ php artisan migrate
 
 | Avoid | Why | Use Instead |
 |-------|-----|-------------|
-| `staudenmeir/laravel-adjacency-list` | Designed for recursive trees. Shuffles chains are linear — parent/child recursion adds unnecessary complexity. | Eloquent `hasMany` with `orderBy('position')` |
-| `spatie/laravel-data` for shuffle chain DTOs | Shuffle chain data is simple enough that Eloquent models + array access is sufficient. Adding typed DTOs for a 4-field step model is over-engineering. | Plain Eloquent models |
-| Any "drag to reorder" JS library (Sortable.js, etc.) | Chain steps don't need drag reorder UX — numeric position input or up/down buttons are sufficient for a personal tool with short chains. | Simple `addStep()` / `removeStep()` / `moveUp()` Livewire methods |
-| Redis | Still no benefit. Shuffles adds zero new queue jobs. | Database queue driver (unchanged) |
-| Nova or Filament admin panel | Shuffles management is a user-facing page, not an admin feature. | Livewire Volt page with inline CRUD |
+| Third-party PHP Blizzard API clients (`meyersm/wow-php-api`, `chrisob120/wowsdk-php`, `LogansUA/blizzard-api-php-client`) | Unmaintained; add a dependency for zero benefit — `Http::pool()` + `BlizzardTokenService` already cover everything | Existing `BlizzardTokenService` + `Http` facade |
+| Wowhead scraping for recipe data | Fragile HTML parsing, violates ToS, unnecessary — Blizzard's static namespace returns all recipe data needed | Blizzard static API endpoints |
+| Redis / cache store for recipe data | Recipe data is static between patches; SQLite is fine for a personal tool | SQLite — re-run `blizzard:sync-recipes` after patches |
+| Separate "recipe item ID resolver" job | The API gap (missing `crafted_item`) is real but name-based join is simpler and requires no extra HTTP calls | Name-based join from `recipes.name` to `catalog_items.name` |
+| Queue jobs for recipe sync | Sync is one-time per patch, not recurring. A synchronous Artisan command is simpler and easier to debug | Artisan command with progress bar (same as `SyncCatalogCommand`) |
+| BCMath for profitability math | All prices are copper integers; standard PHP integer arithmetic is exact; no float intermediates needed | PHP 8.4 integer arithmetic with `intdiv()` |
+| Spatie packages (laravel-data, laravel-query-builder) | Profitability models are simple enough that plain Eloquent + service class is sufficient | Plain Eloquent + `ProfitCalculatorService` |
 
 ---
 
-## Stack Patterns for Shuffles
+## Integration Points with Existing Code
 
-**Profit calculation in a PHP service class:**
-- Extract `ShuffleCalculator::calculate(Shuffle $shuffle, int $inputQty): array` as a plain PHP class
-- Returns per-step breakdown and totals as arrays of copper integers
-- Keeps Volt component thin; makes the calculator independently testable with Pest
-- Prices come from `CatalogItem->priceSnapshots()->latest('polled_at')->first()` — already established in v1.0
-
-**Auto-watch integration:**
-- When a shuffle step is saved with a `catalog_item_id`, check if a `WatchedItem` exists for that `blizzard_item_id` and the current user
-- If not, create it via `auth()->user()->watchedItems()->firstOrCreate([...])` — same pattern used by the watchlist page
-- Run this in a model observer on `ShuffleStep::created` and `ShuffleStep::updated`, or inline in the Livewire save method
-
-**Batch calculator as a Livewire `$wire` interaction:**
-- Input quantity is a Livewire property (`public int $inputQty = 1`)
-- Profit breakdown is a `#[Computed]` property that runs `ShuffleCalculator::calculate()` on each request
-- No JavaScript needed — Livewire re-renders the breakdown table on every quantity change (`wire:model.live="inputQty"`)
-
-**Ordering steps in the chain:**
-- `shuffle_steps.position` is a 0-based or 1-based `tinyint unsigned`
-- `Shuffle::steps()` relationship: `return $this->hasMany(ShuffleStep::class)->orderBy('position');`
-- Reorder via swap: `moveStepUp($index)` swaps `position` values between adjacent steps
-- No complex sorting algorithm needed — chains will rarely exceed 4–5 steps
+| Existing Component | How Recipe Feature Uses It |
+|-------------------|---------------------------|
+| `BlizzardTokenService` | Constructor injection; `getToken()` call — unchanged |
+| `CatalogItem` model | `recipe_reagents.blizzard_item_id` references `catalog_items.blizzard_item_id` for prices |
+| `PriceSnapshot` (via `CatalogItem`) | Reagent cost = latest snapshot `median_price` × quantity |
+| `catalog_items.quality_tier` | T1/T2 lookup for crafted item price; populated by existing `assignQualityTiers()` |
+| `WatchedItem` | Auto-watch reagents: create `WatchedItem` rows for reagent `blizzard_item_id` values |
+| `Http::pool()` pattern | Copy `SyncCatalogCommand::processBatch()` — batch fetch recipe details |
+| `static-{region}` namespace | All profession/recipe endpoints use this — identical to item detail lookups |
+| Artisan command pattern | `blizzard:sync-recipes` follows same structure as `blizzard:sync-catalog` |
 
 ---
 
-## Version Compatibility
+## Midnight Expansion Profession Scope
 
-| Package | Compatible With | Notes |
-|---------|-----------------|-------|
-| Laravel ^12.0 | PHP ^8.4 | PHP 8.4 confirmed for this project |
-| Livewire ^4.0 + Volt ^1.7 | Laravel 12 | Validated in production (v1.0 shipped) |
-| Tailwind CSS ^4.2 | Vite + `@tailwindcss/vite` | CSS-first config, no `tailwind.config.js` |
-| ApexCharts ^5.7 | Vanilla JS via `window.ApexCharts` | Direct global — no ES module import in Volt SFCs |
-| SQLite 3.x | All new tables | WAL mode recommended if write contention ever appears (not a current concern) |
+14 professions total (confirmed):
+- Crafting (8): Alchemy, Blacksmithing, Enchanting, Engineering, Inscription, Jewelcrafting, Leatherworking, Tailoring
+- Gathering (3): Herbalism, Mining, Skinning
+- Secondary (2): Cooking, Fishing
+- (1 more tracked in-game but not in AH context)
+
+For the profitability feature, only crafting professions that produce AH-tradeable items are relevant. Gathering professions produce raw materials (already tracked as watched items). Suggested initial scope: Alchemy, Enchanting, Inscription, Jewelcrafting — these produce the most AH-relevant consumables.
+
+Alchemy alone has ~39 recipes (verified via Wowhead). Expect 30-60 recipes per crafting profession.
 
 ---
 
 ## Sources
 
-- Project v1.0 codebase (`composer.json`, `package.json`, existing models) — Version baseline (HIGH confidence, directly inspected)
-- [PHP 8.4 BCMath\Number](https://www.php.net/manual/en/book.bc.php) — Available natively in PHP 8.4; not needed for integer arithmetic (HIGH confidence)
-- [Livewire 4 Validation Docs](https://livewire.laravel.com/docs/4.x/validation) — Wildcard array validation rules supported (HIGH confidence)
-- [Livewire 4 wire:model Docs](https://livewire.laravel.com/docs/4.x/wire-model) — Array property binding pattern (HIGH confidence)
-- [Laravel Eloquent orderByPivot / orderBy on hasMany](https://laravel.com/docs/12.x/eloquent-relationships) — `orderBy('position')` on hasMany is built-in (HIGH confidence)
-- [staudenmeir/laravel-adjacency-list on GitHub](https://github.com/staudenmeir/laravel-adjacency-list) — Confirmed it targets recursive tree structures, not linear ordered lists; not appropriate here (HIGH confidence)
-- WebSearch: "Livewire 4 dynamic repeatable form fields array inputs 2025" — Confirms native array binding + save-time validation is the documented pattern; no third-party package is the consensus recommendation (MEDIUM confidence)
-- WebSearch: "PHP 8.4 BCMath decimal class new API 2024" — Confirms BCMath\Number is available in PHP 8.4 with operator overloading; confirmed as overkill for integer-only copper arithmetic (HIGH confidence)
+- Existing codebase `SyncCatalogCommand.php` — Verified `Http::pool()` pattern, `static-{region}` namespace, `BlizzardTokenService` injection, batch size, rate limit handling (HIGH confidence — directly read)
+- Existing codebase `BlizzardTokenService.php` — Confirmed token caching at 23h TTL, injectable via DI (HIGH confidence — directly read)
+- Existing codebase `CatalogItem.php` + migrations — Confirmed `quality_tier` column, `assignQualityTiers()` method, copper integer approach (HIGH confidence — directly read)
+- [Blizzard API forum: Dragonflight profession recipes crafted item id?](https://us.forums.blizzard.com/en/blizzard/t/dragonflight-profession-recipes-crafted-item-id/37444) — Developer-confirmed `crafted_item` absent in post-Dragonflight recipes; three separate IDs (spell, crafted item, recipe item) not reliably connected (HIGH confidence)
+- [Blizzard API forum: Profession recipes Difficulty API](https://us.forums.blizzard.com/en/blizzard/t/profession-recipes-difficulty-api/51769) — Developer-confirmed difficulty fields missing through Dragonflight and The War Within (HIGH confidence)
+- [Blizzard API forum: Help with reagent quality from API](https://us.forums.blizzard.com/en/blizzard/t/help-with-reagent-quality-from-api/51961) — Confirmed quality tier not exposed in REST API response; manual mapping required (HIGH confidence)
+- [Blizzard API forum: Is it possible to find the recipe item ID in TWW?](https://us.forums.blizzard.com/en/blizzard/t/is-it-possible-to-find-the-recipe-item-id-in-tww/52052) — Confirmed gap persists into The War Within as of September 2024 (HIGH confidence)
+- [Warcraft wiki: Patch 12.0.0 API changes](https://warcraft.wiki.gg/wiki/Patch_12.0.0/API_changes) — Confirmed new quality info APIs (`GetItemCraftedQualityInfo`, etc.) added to in-game addon API; REST API gap unchanged (MEDIUM confidence — addon API, not REST)
+- [BlizzardApi Ruby gem: Profession class](https://rubydoc.info/gems/blizzard_api/BlizzardApi/Wow/Profession) — Confirmed endpoint URL shapes: `/profession/{id}`, `/profession/{id}/skill-tier/{tierId}`, `/recipe/{id}` (MEDIUM confidence — Ruby wrapper validates endpoint shapes)
+- [Python recipe CSV gist by sangfoudre](https://gist.github.com/sangfoudre/21c2503167e766581003933f9a0ed2f2) — Confirmed response structure: `reagents[]` array with `reagent.id`, `reagent.name`, `quantity`; and `crafted_item.id`, `crafted_item.name` when present (MEDIUM confidence — pre-Dragonflight era data, but endpoint shape unchanged)
+- [Wowhead: Midnight Alchemy overview](https://www.wowhead.com/guide/midnight/professions/alchemy-overview-trainer-locations-recipes-tools) — ~39 recipes for Alchemy; two quality tiers (Silver/Gold) for consumables (HIGH confidence)
+- Multiple search results — Midnight uses Silver/Gold two-tier system for consumables/reagents; 5 ranks for gear (HIGH confidence — multiple independent sources agree)
 
 ---
-*Stack research for: WoW AH Tracker — v1.1 Shuffles milestone*
-*Researched: 2026-03-04*
+
+## v1.1 Shuffles Stack Baseline (preserved for reference)
+
+**Domain:** WoW Auction House commodity price tracker (single-user Laravel web app)
+**Researched:** 2026-03-04
+
+The v1.1 stack is unchanged and validated. Key decisions preserved below.
+
+### What Shuffles Added (no packages)
+
+- **Data model:** `shuffles` + `shuffle_steps` tables with Eloquent `hasMany` ordered by `position`
+- **Arithmetic:** Integer numerator/denominator ratio pairs; copper integer math with `intdiv()` and `floor()`
+- **Dynamic forms:** Livewire 4 native array property binding; save-time wildcard validation
+
+### Complete Technology Stack (v1.0 + v1.1, all validated)
+
+| Technology | Version | Purpose |
+|------------|---------|---------|
+| Laravel | ^12.0 | Web framework, scheduler, queues, Eloquent |
+| PHP | ^8.4 | Runtime |
+| Livewire + Volt | ^4.0 / ^1.7 | Reactive UI, SFC pages |
+| Tailwind CSS | ^4.2 | Utility CSS, WoW dark theme |
+| ApexCharts | ^5.7 | Time-series charts |
+| SQLite | 3.x | Primary data store |
+| Laravel HTTP Client | Built-in | Blizzard API calls |
+| Laravel Breeze | ^2.3 (dev) | Auth scaffolding |
+| Laravel Pint | ^1.24 (dev) | Code style |
+| Pest PHP | ^3.8 (dev) | Test framework |
+
+---
+
+*Stack research for: WoW AH Tracker v1.2 Crafting Profitability*
+*Researched: 2026-03-05*
