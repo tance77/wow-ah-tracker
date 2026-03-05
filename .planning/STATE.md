@@ -3,9 +3,9 @@ gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Crafting Profitability
 status: executing
-stopped_at: Completed 15-01-PLAN.md
-last_updated: "2026-03-05T22:21:29Z"
-last_activity: 2026-03-05 - Completed Phase 15 Plan 01 (slug migration, routes, nav link, tests)
+stopped_at: Completed 15-02-PLAN.md
+last_updated: "2026-03-05T23:10:09Z"
+last_activity: 2026-03-05 - Completed Phase 15 Plan 02 (crafting overview page with profession cards)
 progress:
   total_phases: 8
   completed_phases: 6
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-03-05)
 ## Current Position
 
 Phase: 15 of 16 (Profession Overview Page and Navigation)
-Plan: 1 of 2
-Status: Plan 01 complete, Plan 02 ready
-Last activity: 2026-03-05 - Completed Phase 15 Plan 01 (slug migration, routes, nav link, tests)
+Plan: 2 of 2
+Status: Phase 15 complete
+Last activity: 2026-03-05 - Completed Phase 15 Plan 02 (crafting overview page with profession cards)
 
-Progress: [######░░░░] 60%
+Progress: [#######░░░] 70%
 
 ## Performance Metrics
 
@@ -50,6 +50,7 @@ Progress: [######░░░░] 60%
 | Phase 13-recipe-data-model-and-seed-command P02 | 6 | 1 tasks | 2 files |
 | Phase 14-profit-calculation-action P01 | 2 min | 1 tasks | 2 files |
 | Phase 15-profession-overview-page-and-navigation P01 | 3 min | 2 tasks | 8 files |
+| Phase 15-profession-overview-page-and-navigation P02 | 6 min | 2 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -71,6 +72,8 @@ v1.0 and v1.1 decisions archived — see milestones/ for full history.
 - [Phase 14-profit-calculation-action]: median_profit = (T1+T2)/2 when both tiers present, not statistical median over time series
 - [Phase 15-profession-overview-page-and-navigation]: Slug route model binding on Profession via getRouteKeyName() override
 - [Phase 15-profession-overview-page-and-navigation]: Model booted() events for auto-slug generation on create/update
+- [Phase 15-profession-overview-page-and-navigation]: Dynamic underscore-prefixed properties on Profession model for computed display data
+- [Phase 15-profession-overview-page-and-navigation]: onerror img handler for graceful broken icon URL fallback
 
 ### Pending Todos
 
@@ -106,6 +109,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-05T22:21:29Z
-Stopped at: Completed 15-01-PLAN.md
-Resume file: .planning/phases/15-profession-overview-page-and-navigation/15-02-PLAN.md
+Last session: 2026-03-05T23:10:09Z
+Stopped at: Completed 15-02-PLAN.md
+Resume file: Phase 15 complete
