@@ -103,12 +103,12 @@ class SyncCatalogCommand extends Command
             while (! feof($handle)) {
                 $buffer .= fread($handle, 65536);
 
-                if (preg_match_all('/"item":\{"id":(\d+)\}/', $buffer, $matches)) {
+                if (preg_match_all('/"item":\{"id":(\d+)/', $buffer, $matches)) {
                     foreach ($matches[1] as $id) {
                         $uniqueIds[(int) $id] = true;
                     }
-                    $lastBrace = strrpos($buffer, '}');
-                    $buffer = $lastBrace !== false ? substr($buffer, $lastBrace + 1) : '';
+                    $lastItem = strrpos($buffer, '"item"');
+                    $buffer = $lastItem !== false ? substr($buffer, $lastItem) : '';
                 }
             }
 
@@ -159,12 +159,12 @@ class SyncCatalogCommand extends Command
                 while (! feof($handle)) {
                     $buffer .= fread($handle, 65536);
 
-                    if (preg_match_all('/"item":\{"id":(\d+)\}/', $buffer, $matches)) {
+                    if (preg_match_all('/"item":\{"id":(\d+)/', $buffer, $matches)) {
                         foreach ($matches[1] as $id) {
                             $realmItemIds[(int) $id] = true;
                         }
-                        $lastBrace = strrpos($buffer, '}');
-                        $buffer = $lastBrace !== false ? substr($buffer, $lastBrace + 1) : '';
+                        $lastItem = strrpos($buffer, '"item"');
+                        $buffer = $lastItem !== false ? substr($buffer, $lastItem) : '';
                     }
                 }
 
