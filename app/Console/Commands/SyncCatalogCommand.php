@@ -16,9 +16,10 @@ class SyncCatalogCommand extends Command
                             {--fresh : Re-sync all items, ignoring existing catalog entries}
                             {--dry-run : Show what would be imported without writing to the database}
                             {--tiers-only : Only run quality tier assignment (no API calls)}
-                            {--rarity-only : Re-fetch item data to populate missing rarity values}';
+                            {--rarity-only : Re-fetch item data to populate missing rarity values}
+                            {--realm : Also fetch item IDs from the connected-realm auctions endpoint (for BoE gear)}';
 
-    protected $description = 'Import commodity items from the Blizzard Auction House API into the catalog';
+    protected $description = 'Import commodity and realm auction items from the Blizzard Auction House API into the catalog';
 
     /**
      * Map Blizzard item_class.name → category slug.
@@ -121,6 +122,53 @@ class SyncCatalogCommand extends Command
 
             Log::info('SyncCatalog: commodities parsed', ['unique_items' => $uniqueIds->count()]);
             $this->info(sprintf('Found %s unique item IDs (cached for resume).', number_format($uniqueIds->count())));
+        }
+
+        // Step 1b: Optionally fetch realm auctions for BoE items
+        if ($this->option('realm')) {
+            $connectedRealmId = config('services.blizzard.connected_realm_id');
+            $this->info("Fetching realm auctions for connected-realm {$connectedRealmId}...");
+
+            $realmResponse = Http::withToken($token)
+                ->retry(2, 5000, throw: false)
+                ->timeout(120)
+                ->connectTimeout(15)
+                ->get("https://{$region}.api.blizzard.com/data/wow/connected-realm/{$connectedRealmId}/auctions", [
+                    'namespace' => "dynamic-{$region}",
+                ]);
+
+            if ($realmResponse->successful()) {
+                $realmAuctions = $realmResponse->json('auctions', []);
+                $realmItemIds = collect($realmAuctions)
+                    ->pluck('item.id')
+                    ->unique()
+                    ->values();
+
+                // Merge with commodity IDs (dedup)
+                $beforeCount = $uniqueIds->count();
+                $uniqueIds = $uniqueIds->merge($realmItemIds)->unique()->values();
+                $realmOnly = $uniqueIds->count() - $beforeCount;
+
+                $this->info(sprintf(
+                    'Realm auctions: %s unique items (%s new, not in commodities).',
+                    number_format($realmItemIds->count()),
+                    number_format($realmOnly),
+                ));
+
+                Log::info('SyncCatalog: realm auctions parsed', [
+                    'connected_realm_id' => $connectedRealmId,
+                    'realm_items' => $realmItemIds->count(),
+                    'new_items' => $realmOnly,
+                ]);
+            } else {
+                $this->warn("Realm auctions fetch failed: HTTP {$realmResponse->status()} — continuing with commodities only.");
+                Log::warning('SyncCatalog: realm auctions fetch failed', [
+                    'status' => $realmResponse->status(),
+                    'connected_realm_id' => $connectedRealmId,
+                ]);
+            }
+
+            unset($realmAuctions, $realmResponse);
         }
 
         // Step 2: Filter out existing items (unless --fresh)

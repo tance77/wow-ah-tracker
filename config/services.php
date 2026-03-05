@@ -41,6 +41,7 @@ return [
         'client_id' => env('BLIZZARD_CLIENT_ID'),
         'client_secret' => env('BLIZZARD_CLIENT_SECRET'),
         'region' => env('BLIZZARD_REGION', 'us'),
+        'connected_realm_id' => env('BLIZZARD_CONNECTED_REALM_ID', 76),
     ],
 
 ];
