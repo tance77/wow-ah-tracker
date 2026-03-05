@@ -57,17 +57,9 @@ new #[Layout('layouts.app')] class extends Component
 }; ?>
 
 <x-slot name="header">
-    <div class="flex items-center justify-between">
-        <h2 class="text-xl font-semibold leading-tight text-wow-gold">
-            {{ __('Shuffles') }}
-        </h2>
-        <button
-            wire:click="createShuffle"
-            class="rounded-md bg-wow-gold px-4 py-2 text-sm font-semibold text-wow-darker transition-colors hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-wow-gold focus:ring-offset-2 focus:ring-offset-wow-dark"
-        >
-            New Shuffle
-        </button>
-    </div>
+    <h2 class="text-xl font-semibold leading-tight text-wow-gold">
+        {{ __('Shuffles') }}
+    </h2>
 </x-slot>
 
 <div class="py-12">
@@ -90,6 +82,12 @@ new #[Layout('layouts.app')] class extends Component
                     </button>
                 </div>
             @else
+                <!-- New Shuffle Button -->
+                <div class="flex justify-end px-6 pt-4">
+                    <button wire:click="createShuffle" class="rounded-md bg-wow-gold px-4 py-2 text-sm font-semibold text-wow-darker transition-colors hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-wow-gold focus:ring-offset-2 focus:ring-offset-wow-dark">
+                        New Shuffle
+                    </button>
+                </div>
                 <!-- Shuffles Table -->
                 <div class="overflow-x-auto">
                     <table class="w-full text-sm">
