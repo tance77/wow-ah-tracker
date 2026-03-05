@@ -62,20 +62,24 @@ Plans:
 **Plans:** 2/2 plans complete
 
 Plans:
-- [ ] 10-01-PLAN.md — Routes, navigation, profitPerUnit model method, shuffles list page, and feature tests
-- [ ] 10-02-PLAN.md — Shuffle detail shell page and visual verification
+- [x] 10-01-PLAN.md — Routes, navigation, profitPerUnit model method, shuffles list page, and feature tests
+- [x] 10-02-PLAN.md — Shuffle detail shell page and visual verification
 
 ### Phase 11: Step Editor, Yield Config, and Auto-Watch
 **Goal**: Users can build multi-step conversion chains on a shuffle detail page, configure fixed or variable yield ratios per step, reorder steps, and have all items auto-watched for price polling
 **Depends on**: Phase 10
 **Requirements**: SHUF-02, YILD-01, YILD-02, YILD-03, INTG-01
 **Success Criteria** (what must be TRUE):
-  1. User can add a conversion step to a shuffle by selecting an input item and output item; chains of 2 or more steps are supported (A → B → C)
-  2. User can set a fixed yield quantity per step (e.g., 5 ore → 1 gem)
-  3. User can set a min/max yield range per step for probabilistic conversions (e.g., 5 ore → 1-3 gems)
+  1. User can add a conversion step to a shuffle by selecting an input item and output item; chains of 2 or more steps are supported (A -> B -> C)
+  2. User can set a fixed yield quantity per step (e.g., 5 ore -> 1 gem)
+  3. User can set a min/max yield range per step for probabilistic conversions (e.g., 5 ore -> 1-3 gems)
   4. User can drag or click to reorder steps within a chain and the new order is saved
   5. When a step is added or saved, all input and output items in the chain are automatically added to the watchlist (using `firstOrCreate` — existing watched items and thresholds are not modified)
-**Plans**: TBD
+**Plans:** 2 plans
+
+Plans:
+- [ ] 11-01-PLAN.md — Schema migrations (input_qty, nullable thresholds), ShuffleStep model updates, and feature tests
+- [ ] 11-02-PLAN.md — Full step editor UI with item search, yield config, reorder, and auto-watch
 
 ### Phase 12: Batch Calculator and Profit Summary
 **Goal**: Users can enter an input quantity and immediately see cascading yields, per-step cost and value breakdowns, total profit after the 5% AH cut, and the break-even input price — all calculated from live AH median prices
@@ -91,7 +95,7 @@ Plans:
 
 ## Progress
 
-**Execution Order:** 9 → 10 → 11 → 12
+**Execution Order:** 9 -> 10 -> 11 -> 12
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
@@ -104,6 +108,6 @@ Plans:
 | 7. Dashboard and Price Charts | v1.0 | 2/2 | Complete | 2026-03-01 |
 | 8. Buy/Sell Signal Indicators | v1.0 | 2/2 | Complete | 2026-03-02 |
 | 9. Data Foundation | v1.1 | 2/2 | Complete | 2026-03-05 |
-| 10. Shuffle CRUD and Navigation | 2/2 | Complete    | 2026-03-05 | - |
-| 11. Step Editor, Yield Config, and Auto-Watch | v1.1 | 0/? | Not started | - |
+| 10. Shuffle CRUD and Navigation | v1.1 | 2/2 | Complete | 2026-03-05 |
+| 11. Step Editor, Yield Config, and Auto-Watch | v1.1 | 0/2 | Planned | - |
 | 12. Batch Calculator and Profit Summary | v1.1 | 0/? | Not started | - |
