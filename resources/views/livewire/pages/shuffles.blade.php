@@ -8,14 +8,11 @@ use Illuminate\Support\Str;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
 use Livewire\Volt\Component;
-use Livewire\WithFileUploads;
-
 new #[Layout('layouts.app')] class extends Component
 {
     use FormatsAuctionData;
-    use WithFileUploads;
 
-    public $importFile = null;
+    public string $importJson = '';
 
     #[Computed]
     public function shuffles(): Collection
@@ -115,7 +112,7 @@ new #[Layout('layouts.app')] class extends Component
         $this->redirect(route('shuffles.show', $clone), navigate: true);
     }
 
-    public function exportShuffle(int $id)
+    public function exportShuffle(int $id): void
     {
         $shuffle = auth()->user()->shuffles()->findOrFail($id);
         $shuffle->load(['steps.inputCatalogItem', 'steps.outputCatalogItem', 'steps.byproducts']);
@@ -141,13 +138,8 @@ new #[Layout('layouts.app')] class extends Component
             ])->values()->all(),
         ];
 
-        $filename = Str::slug($shuffle->name) . '.json';
-
-        return response()->streamDownload(function () use ($data) {
-            echo json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
-        }, $filename, [
-            'Content-Type' => 'application/json',
-        ]);
+        $json = json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+        $this->dispatch('shuffle-exported', json: $json, shuffleId: $id);
     }
 
     public function importShuffle(): void
@@ -224,7 +216,15 @@ new #[Layout('layouts.app')] class extends Component
     </h2>
 </x-slot>
 
-<div class="py-12">
+<div
+    class="py-12"
+    x-data="{ copiedId: null }"
+    x-on:shuffle-exported.window="
+        navigator.clipboard.writeText($event.detail[0].json);
+        copiedId = $event.detail[0].shuffleId;
+        setTimeout(() => copiedId = null, 2000)
+    "
+>
     <div class="mx-auto max-w-7xl sm:px-6 lg:px-8">
 
         <div class="overflow-hidden bg-wow-dark shadow-sm sm:rounded-lg">
@@ -366,7 +366,8 @@ new #[Layout('layouts.app')] class extends Component
                                             wire:click="exportShuffle({{ $shuffle->id }})"
                                             class="text-sm text-gray-400 transition-colors hover:text-wow-gold focus:outline-none"
                                         >
-                                            Share
+                                            <span x-show="copiedId !== {{ $shuffle->id }}">Share</span>
+                                            <span x-show="copiedId === {{ $shuffle->id }}" x-cloak class="text-green-400">Copied!</span>
                                         </button>
                                         <button
                                             wire:click="cloneShuffle({{ $shuffle->id }})"

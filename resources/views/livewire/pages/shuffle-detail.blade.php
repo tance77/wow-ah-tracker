@@ -10,7 +10,6 @@ use App\Models\ShuffleStep;
 use App\Models\ShuffleStepByproduct;
 use App\Models\WatchedItem;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Str;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
 use Livewire\Volt\Component;
@@ -523,7 +522,7 @@ new #[Layout('layouts.app')] class extends Component
         $this->redirect(route('shuffles'), navigate: true);
     }
 
-    public function exportShuffle()
+    public function exportShuffle(): void
     {
         $this->shuffle->load(['steps.inputCatalogItem', 'steps.outputCatalogItem', 'steps.byproducts']);
 
@@ -548,18 +547,21 @@ new #[Layout('layouts.app')] class extends Component
             ])->values()->all(),
         ];
 
-        $filename = Str::slug($this->shuffle->name) . '.json';
-
-        return response()->streamDownload(function () use ($data) {
-            echo json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
-        }, $filename, [
-            'Content-Type' => 'application/json',
-        ]);
+        $json = json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+        $this->dispatch('shuffle-exported', json: $json);
     }
 }; ?>
 
 <x-slot name="header">
-    <div class="flex items-center justify-between">
+    <div
+        class="flex items-center justify-between"
+        x-data="{ copied: false }"
+        x-on:shuffle-exported.window="
+            navigator.clipboard.writeText($event.detail[0].json);
+            copied = true;
+            setTimeout(() => copied = false, 2000)
+        "
+    >
         <div class="flex items-center gap-4">
             <a href="{{ route('shuffles') }}" wire:navigate class="text-sm text-gray-400 transition-colors hover:text-wow-gold">
                 &larr; Back to Shuffles
@@ -572,7 +574,8 @@ new #[Layout('layouts.app')] class extends Component
             wire:click="exportShuffle"
             class="text-sm text-gray-400 transition-colors hover:text-wow-gold"
         >
-            Share
+            <span x-show="!copied">Share</span>
+            <span x-show="copied" x-cloak class="text-green-400">Copied!</span>
         </button>
     </div>
 </x-slot>
