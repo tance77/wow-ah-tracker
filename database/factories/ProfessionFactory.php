@@ -13,9 +13,12 @@ class ProfessionFactory extends Factory
 
     public function definition(): array
     {
+        $name = fake()->unique()->word();
+
         return [
             'blizzard_profession_id' => fake()->unique()->numberBetween(100, 999),
-            'name' => fake()->word(),
+            'name' => $name,
+            'slug' => \Illuminate\Support\Str::slug($name),
             'icon_url' => fake()->imageUrl(),
             'last_synced_at' => now(),
         ];

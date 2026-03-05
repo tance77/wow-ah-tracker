@@ -31,6 +31,14 @@ Volt::route('/shuffles/{shuffle}', 'pages.shuffle-detail')
     ->middleware(['auth', 'shuffle.owner'])
     ->name('shuffles.show');
 
+Volt::route('/crafting', 'pages.crafting')
+    ->middleware(['auth'])
+    ->name('crafting');
+
+Volt::route('/crafting/{profession}', 'pages.crafting-detail')
+    ->middleware(['auth'])
+    ->name('crafting.show');
+
 Route::view('profile', 'profile')
     ->middleware(['auth'])
     ->name('profile');
