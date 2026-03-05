@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Crafting Profitability
-status: roadmap_ready
-stopped_at: —
-last_updated: "2026-03-05"
-last_activity: 2026-03-05 - Roadmap created for v1.2 Crafting Profitability (phases 13-16, 19 requirements mapped)
+status: planning
+stopped_at: Phase 13 context gathered
+last_updated: "2026-03-05T19:07:59.690Z"
+last_activity: 2026-03-05 - Roadmap created for v1.2 (phases 13-16, 19 requirements mapped)
 progress:
-  total_phases: 4
-  completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
+  total_phases: 8
+  completed_phases: 4
+  total_plans: 8
+  completed_plans: 8
   percent: 0
 ---
 
@@ -91,6 +91,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-05
-Stopped at: Completed quick-14 — fix realm auction regex
-Resume file: None
+Last session: 2026-03-05T19:07:59.688Z
+Stopped at: Phase 13 context gathered
+Resume file: .planning/phases/13-recipe-data-model-and-seed-command/13-CONTEXT.md
