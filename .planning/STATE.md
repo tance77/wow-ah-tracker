@@ -2,12 +2,12 @@
 gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Crafting Profitability
-status: defining
+status: roadmap_ready
 stopped_at: —
 last_updated: "2026-03-05"
-last_activity: 2026-03-05 - Completed quick task 13: Fix realm sync stopping after fetching auctions
+last_activity: 2026-03-05 - Roadmap created for v1.2 Crafting Profitability (phases 13-16, 19 requirements mapped)
 progress:
-  total_phases: 0
+  total_phases: 4
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -20,65 +20,46 @@ progress:
 
 See: .planning/PROJECT.md (updated 2026-03-05)
 
-**Core value:** See at a glance when crafting material prices dip or spike so users can act on buy/sell opportunities before the market corrects.
-**Current focus:** Defining requirements for v1.2 Crafting Profitability
+**Core value:** See at a glance when crafting material prices dip or spike so I can act on buy/sell opportunities before the market corrects.
+**Current focus:** Phase 13 — Recipe Data Model and Seed Command
 
 ## Current Position
 
-Phase: Not started (defining requirements)
-Plan: —
-Status: Defining requirements
-Last activity: 2026-03-05 - Completed quick task 13: Fix realm sync stopping after fetching auctions
+Phase: 13 of 16 (Recipe Data Model and Seed Command)
+Plan: — (not yet planned)
+Status: Ready to plan
+Last activity: 2026-03-05 - Roadmap created for v1.2 (phases 13-16, 19 requirements mapped)
 
 Progress: [░░░░░░░░░░] 0%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 2 (v1.1)
-- Average duration: 1.5 min
-- Total execution time: 3 min
+- Total plans completed: 8 (v1.1 phases 9-12)
+- Average duration: ~4 min
+- Total execution time: ~33 min
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| 09-data-foundation | 2 | 3 min | 1.5 min |
+| v1.1 phases (9-12) | 8 | ~33 min | ~4 min |
 
 *Updated after each plan completion*
-| Phase 10-shuffle-crud-navigation P01 | 2 | 3 tasks | 6 files |
-| Phase 10-shuffle-crud-navigation P02 | 10 | 2 tasks | 3 files |
-| Phase 11-step-editor-yield-config-and-auto-watch P01 | 3 | 2 tasks | 4 files |
-| Phase 11-step-editor-yield-config-and-auto-watch P02 | 9min | 2 tasks | 4 files |
-| Phase 12-batch-calculator-and-profit-summary P01 | 4min | 2 tasks | 3 files |
-| Phase 12-batch-calculator-and-profit-summary P02 | 10 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
 ### Decisions
 
 Decisions are logged in PROJECT.md Key Decisions table.
-All v1.0 decisions archived — see `milestones/v1.0-ROADMAP.md` for full history.
+v1.0 and v1.1 decisions archived — see milestones/ for full history.
 
-**v1.1 decisions resolved in Phase 9:**
-- Auto-watch provenance: nullable `created_by_shuffle_id` FK on `watched_items` (FK approach confirmed, implemented)
-- Yield schema: `output_qty_min` / `output_qty_max` as `unsignedInteger` columns (implemented in migration)
-- Orphan cleanup: `deleting` model event (before delete) on Shuffle model, not DB-level cascade
-- Blizzard item IDs on shuffle_steps: `unsignedBigInteger` per project convention
-- [Phase 09-data-foundation]: Orphan cleanup subquery uses 'wi2.id' not bare 'id' to avoid SQLite ambiguous column error when joining multiple tables
-- [Phase 09-data-foundation]: ShuffleStepFactory uses Shuffle::factory() for shuffle_id to enable standalone step creation in tests
-- [Phase 10-shuffle-crud-navigation]: profitPerUnit() uses naive first-in/last-out calculation for Phase 10 badge display; Phase 12 batch calculator will refine for multi-step chains
-- [Phase 10-shuffle-crud-navigation]: Shuffle detail page is a shell only in Phase 10 — step editor ships in Phase 11
-- [Phase 10-shuffle-crud-navigation]: User isolation enforced via scoped relationship query (auth()->user()->shuffles()->findOrFail()), consistent with watchlist pattern
-- [Phase 10-shuffle-crud-navigation]: Modal panel given relative z-10 and @click.stop to fix buttons being unclickable behind fixed backdrop overlay
-- [Phase 11-step-editor-yield-config-and-auto-watch]: ShuffleStep uses deleted (post-delete) event for orphan cleanup so exists() check runs after step is removed from DB
-- [Phase 11-step-editor-yield-config-and-auto-watch]: TDD RED: 16 step editor tests intentionally fail until Plan 02 implements addStep/saveStep/moveStep/deleteStep Livewire methods
-- [Phase 11-step-editor-yield-config-and-auto-watch]: Auth split: EnsureShuffleOwner middleware handles HTTP-level 403 (Livewire mount must succeed for valid snapshot); addStep enforces 403 at action level for Livewire assertForbidden()
-- [Phase 11-step-editor-yield-config-and-auto-watch]: EnsureShuffleOwner middleware manually resolves Shuffle from string ID when SubstituteBindings hasn't run yet due to Volt route middleware priority ordering
-- [Phase 12-batch-calculator-and-profit-summary]: profitPerUnit() cascade: floor(qty * output_qty_min / input_qty) per step, starting from 1 unit input
-- [Phase 12-batch-calculator-and-profit-summary]: Carbon staleness: use polled_at->diffInMinutes(now()) not now()->diffInMinutes(past) to get positive elapsed minutes
-- [Phase 12-batch-calculator-and-profit-summary]: priceData() avoids N+1 via single CatalogItem query + single PriceSnapshot query with application-side groupBy
-- [Phase 12-batch-calculator-and-profit-summary]: Alpine component defined inline in Blade (not external JS file) for consistency with step editor pattern; wire:ignore prevents Livewire morph from resetting batchQty state
+**v1.2 critical pre-decisions (from research):**
+- Store per-quality crafted item IDs as nullable columns (`crafted_item_id_silver`, `crafted_item_id_gold`) — Blizzard API does not reliably return both
+- Profit calculated live at render time from `PriceSnapshot.median_price` — never persisted
+- Use highest-ID skill tier per profession to identify current expansion tier (robust to name changes)
+- `Http::pool()` with 20-item batches for recipe detail fetch — sequential would take 80-130 seconds
+- Gear output items flagged `is_commodity = false` and displayed as "realm AH — not tracked"
 
 ### Pending Todos
 
@@ -86,7 +67,8 @@ None.
 
 ### Blockers/Concerns
 
-None — Phase 9 data foundation complete.
+- **Phase 13 gate:** `crafted_item` field absent from Blizzard recipe API since Dragonflight. Use `--report-gaps` flag and `assignQualityTiers()` name-based resolution. If >50% missing, Wowhead mapping seed file required before Phase 13 is complete.
+- **Phase 13 gate:** Validate highest-ID skill tier heuristic on first live API run — log tier names returned per profession and confirm selection.
 
 ### Quick Tasks Completed
 
@@ -108,6 +90,6 @@ None — Phase 9 data foundation complete.
 
 ## Session Continuity
 
-Last session: 2026-03-05T18:56:12Z
-Stopped at: Completed quick-13 (Fix realm sync stopping after fetching auctions)
+Last session: 2026-03-05
+Stopped at: Roadmap created for v1.2 Crafting Profitability — ready to plan Phase 13
 Resume file: None

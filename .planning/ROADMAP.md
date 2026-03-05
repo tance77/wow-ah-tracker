@@ -3,7 +3,8 @@
 ## Milestones
 
 - ✅ **v1.0 MVP** — Phases 1-8 (shipped 2026-03-02)
-- 🚧 **v1.1 Shuffles** — Phases 9-12 (in progress)
+- ✅ **v1.1 Shuffles** — Phases 9-12 (shipped 2026-03-05)
+- 🚧 **v1.2 Crafting Profitability** — Phases 13-16 (in progress)
 
 ## Phases
 
@@ -23,14 +24,24 @@ Full details: `milestones/v1.0-ROADMAP.md`
 
 </details>
 
-### 🚧 v1.1 Shuffles (In Progress)
+<details>
+<summary>✅ v1.1 Shuffles (Phases 9-12) — SHIPPED 2026-03-05</summary>
 
-**Milestone Goal:** Add a Shuffles section where users can define multi-step item conversion chains and calculate batch profit using live AH prices.
+- [x] Phase 9: Data Foundation (2/2 plans) — completed 2026-03-05
+- [x] Phase 10: Shuffle CRUD and Navigation (2/2 plans) — completed 2026-03-05
+- [x] Phase 11: Step Editor, Yield Config, and Auto-Watch (2/2 plans) — completed 2026-03-05
+- [x] Phase 12: Batch Calculator and Profit Summary (2/2 plans) — completed 2026-03-05
 
-- [x] **Phase 9: Data Foundation** — Schema, models, and factories for shuffles and shuffle steps (completed 2026-03-05)
-- [x] **Phase 10: Shuffle CRUD and Navigation** — List, create, edit, and delete named shuffles with navigation access (completed 2026-03-05)
-- [x] **Phase 11: Step Editor, Yield Config, and Auto-Watch** — Add/remove/reorder steps with yield ranges; auto-watch items for price polling (completed 2026-03-05)
-- [x] **Phase 12: Batch Calculator and Profit Summary** — Enter input quantity, see per-step yields and costs, total profit with AH cut and break-even (completed 2026-03-05)
+</details>
+
+### 🚧 v1.2 Crafting Profitability (In Progress)
+
+**Milestone Goal:** Add a Crafting section that shows profit margins for all Midnight expansion recipes using live AH prices, organized by profession with sortable tables.
+
+- [ ] **Phase 13: Recipe Data Model and Seed Command** — Three migrations, three models, and a working `artisan blizzard:sync-recipes` command that seeds the database from the Blizzard API
+- [ ] **Phase 14: Profit Calculation Action** — `RecipeProfitAction` class with unit-tested profit formula covering Tier 1/Tier 2, AH cut, and NULL price handling
+- [ ] **Phase 15: Profession Overview Page and Navigation** — `/crafting` page with profession cards showing top profitable recipes; "Crafting" nav link
+- [ ] **Phase 16: Per-Profession Recipe Table** — `/crafting/{profession}` page with full sortable recipe table, missing-price indicators, staleness warnings, and non-commodity row states
 
 ## Phase Details
 
@@ -94,12 +105,59 @@ Plans:
 **Plans:** 2/2 plans complete
 
 Plans:
-- [ ] 12-01-PLAN.md — Refactor profitPerUnit() cascade, add priceData/calculatorSteps computed properties, and tests
-- [ ] 12-02-PLAN.md — Alpine.js batch calculator UI with step breakdown, profit summary, and visual verification
+- [x] 12-01-PLAN.md — Refactor profitPerUnit() cascade, add priceData/calculatorSteps computed properties, and tests
+- [x] 12-02-PLAN.md — Alpine.js batch calculator UI with step breakdown, profit summary, and visual verification
+
+### Phase 13: Recipe Data Model and Seed Command
+**Goal**: Recipe data from all Midnight expansion professions is seeded into the local database and all reagents and crafted items are auto-watched for price polling
+**Depends on**: Phase 12 (v1.1 complete)
+**Requirements**: IMPORT-01, IMPORT-02, IMPORT-03, IMPORT-04, IMPORT-05, IMPORT-06
+**Success Criteria** (what must be TRUE):
+  1. Running `artisan blizzard:sync-recipes` populates `professions`, `recipes`, and `recipe_reagents` tables with data from the live Blizzard API for all Midnight expansion professions
+  2. All reagents and crafted items seeded by the command appear in the watchlist so the 15-minute poller fetches their prices (no duplicates created on re-run)
+  3. Running the command a second time (simulating a game patch) updates existing records rather than creating duplicates — the database state is identical after any number of runs
+  4. Running `artisan blizzard:sync-recipes --dry-run` logs what would be written without modifying any database rows
+  5. Running `artisan blizzard:sync-recipes --report-gaps` logs the percentage of recipe API responses missing `crafted_item`, `crafted_quantity`, or other tracked fields
+  6. Each recipe row has a `last_synced_at` timestamp reflecting when it was last fetched from the API
+**Plans**: TBD
+
+### Phase 14: Profit Calculation Action
+**Goal**: Profit for any recipe can be calculated correctly from live AH prices, with the 5% AH cut applied to the sell side, per-quality-tier breakdown, and NULL prices handled gracefully
+**Depends on**: Phase 13
+**Requirements**: PROFIT-01, PROFIT-02, PROFIT-03, PROFIT-04
+**Success Criteria** (what must be TRUE):
+  1. Reagent cost for a recipe equals the sum of (reagent quantity x median AH price) across all reagents, calculated from the latest price snapshots
+  2. Crafted item sell price is shown separately for Tier 1 (Silver) and Tier 2 (Gold) quality
+  3. Profit is calculated as `(sell_price * 0.95) - reagent_cost` — a unit test asserts sell_price=10000, reagent_cost=5000 produces profit=4500 (not 5000)
+  4. Median profit across both tiers is calculable and displayed per recipe
+**Plans**: TBD
+
+### Phase 15: Profession Overview Page and Navigation
+**Goal**: Users can navigate to a Crafting section and see all Midnight professions at a glance with the most profitable recipes highlighted per profession
+**Depends on**: Phase 14
+**Requirements**: OVERVIEW-01, OVERVIEW-02, NAV-01
+**Success Criteria** (what must be TRUE):
+  1. A "Crafting" link appears in the main navigation and routes to `/crafting`
+  2. The `/crafting` page displays one card per Midnight crafting profession
+  3. Each profession card shows the top 3-5 most profitable recipes with their median profit values
+**Plans**: TBD
+
+### Phase 16: Per-Profession Recipe Table
+**Goal**: Users can view all recipes for a single profession in a sortable table, see full profit breakdowns, and identify recipes with missing or stale price data
+**Depends on**: Phase 15
+**Requirements**: TABLE-01, TABLE-02, TABLE-03, TABLE-04, TABLE-05, TABLE-06
+**Success Criteria** (what must be TRUE):
+  1. Clicking a profession card navigates to `/crafting/{profession}` showing all recipes in a table sorted by median profit descending by default; clicking any column header re-sorts the table
+  2. Each table row shows: recipe name, reagent cost, Tier 1 profit, Tier 2 profit, and median profit
+  3. Recipes where any reagent or crafted item has no price snapshot are flagged with a visible "price unavailable" indicator
+  4. A staleness warning is displayed when any price snapshot used in the table is more than 1 hour old
+  5. Clicking a recipe row or expand control reveals a per-reagent cost breakdown showing quantity, unit price, and subtotal for each reagent
+  6. Recipes that produce non-commodity gear items display "realm AH — not tracked" instead of profit values
+**Plans**: TBD
 
 ## Progress
 
-**Execution Order:** 9 -> 10 -> 11 -> 12
+**Execution Order:** 9 -> 10 -> 11 -> 12 -> 13 -> 14 -> 15 -> 16
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
@@ -114,4 +172,8 @@ Plans:
 | 9. Data Foundation | v1.1 | 2/2 | Complete | 2026-03-05 |
 | 10. Shuffle CRUD and Navigation | v1.1 | 2/2 | Complete | 2026-03-05 |
 | 11. Step Editor, Yield Config, and Auto-Watch | v1.1 | 2/2 | Complete | 2026-03-05 |
-| 12. Batch Calculator and Profit Summary | 2/2 | Complete    | 2026-03-05 | - |
+| 12. Batch Calculator and Profit Summary | v1.1 | 2/2 | Complete | 2026-03-05 |
+| 13. Recipe Data Model and Seed Command | v1.2 | 0/TBD | Not started | - |
+| 14. Profit Calculation Action | v1.2 | 0/TBD | Not started | - |
+| 15. Profession Overview Page and Navigation | v1.2 | 0/TBD | Not started | - |
+| 16. Per-Profession Recipe Table | v1.2 | 0/TBD | Not started | - |
