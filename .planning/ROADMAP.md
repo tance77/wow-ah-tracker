@@ -27,7 +27,7 @@ Full details: `milestones/v1.0-ROADMAP.md`
 
 **Milestone Goal:** Add a Shuffles section where users can define multi-step item conversion chains and calculate batch profit using live AH prices.
 
-- [ ] **Phase 9: Data Foundation** — Schema, models, and factories for shuffles and shuffle steps
+- [x] **Phase 9: Data Foundation** — Schema, models, and factories for shuffles and shuffle steps (completed 2026-03-05)
 - [ ] **Phase 10: Shuffle CRUD and Navigation** — List, create, edit, and delete named shuffles with navigation access
 - [ ] **Phase 11: Step Editor, Yield Config, and Auto-Watch** — Add/remove/reorder steps with yield ranges; auto-watch items for price polling
 - [ ] **Phase 12: Batch Calculator and Profit Summary** — Enter input quantity, see per-step yields and costs, total profit with AH cut and break-even
@@ -43,7 +43,7 @@ Full details: `milestones/v1.0-ROADMAP.md`
   2. `Shuffle` and `ShuffleStep` Eloquent models exist with correct relationships (`User::shuffles()`, `Shuffle::steps()` ordered by `sort_order`)
   3. `ShuffleFactory` and `ShuffleStepFactory` can seed test data; Pest tests can create and relate shuffles without errors
   4. Cascade deletes work: deleting a shuffle removes all its steps from the database
-**Plans:** 2 plans
+**Plans:** 2/2 plans complete
 
 Plans:
 - [x] 09-01-PLAN.md — Migrations and Eloquent models (shuffles, shuffle_steps, provenance FK)
@@ -99,7 +99,7 @@ Plans:
 | 6. Data Integrity Safeguards | v1.0 | 2/2 | Complete | 2026-03-01 |
 | 7. Dashboard and Price Charts | v1.0 | 2/2 | Complete | 2026-03-01 |
 | 8. Buy/Sell Signal Indicators | v1.0 | 2/2 | Complete | 2026-03-02 |
-| 9. Data Foundation | v1.1 | 1/2 | In progress | - |
+| 9. Data Foundation | 2/2 | Complete   | 2026-03-05 | - |
 | 10. Shuffle CRUD and Navigation | v1.1 | 0/? | Not started | - |
 | 11. Step Editor, Yield Config, and Auto-Watch | v1.1 | 0/? | Not started | - |
 | 12. Batch Calculator and Profit Summary | v1.1 | 0/? | Not started | - |

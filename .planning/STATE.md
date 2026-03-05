@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Shuffles
 status: executing
-stopped_at: Completed 09-01-PLAN.md
-last_updated: "2026-03-05T03:47:36Z"
-last_activity: 2026-03-05 — Phase 9 Plan 01 complete (data foundation migrations and models)
+stopped_at: Completed 09-02-PLAN.md
+last_updated: "2026-03-05T03:52:59.993Z"
+last_activity: 2026-03-05 — Phase 9 Plan 02 complete (factories and test suite)
 progress:
   total_phases: 4
-  completed_phases: 0
-  total_plans: 4
-  completed_plans: 1
-  percent: 25
+  completed_phases: 1
+  total_plans: 2
+  completed_plans: 2
+  percent: 50
 ---
 
 # Project State
@@ -26,24 +26,24 @@ See: .planning/PROJECT.md (updated 2026-03-04)
 ## Current Position
 
 Phase: 9 of 12 (Data Foundation)
-Plan: 1 of 1 in current phase (plan complete)
+Plan: 2 of 2 in current phase (all plans complete)
 Status: Executing
-Last activity: 2026-03-05 — Phase 9 Plan 01 complete (shuffles schema + models)
+Last activity: 2026-03-05 — Phase 9 Plan 02 complete (factories and test suite)
 
-Progress: [██░░░░░░░░] 25%
+Progress: [█████░░░░░] 50%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 1 (v1.1)
-- Average duration: 1 min
-- Total execution time: 1 min
+- Total plans completed: 2 (v1.1)
+- Average duration: 1.5 min
+- Total execution time: 3 min
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| 09-data-foundation | 1 | 1 min | 1 min |
+| 09-data-foundation | 2 | 3 min | 1.5 min |
 
 *Updated after each plan completion*
 
@@ -59,6 +59,8 @@ All v1.0 decisions archived — see `milestones/v1.0-ROADMAP.md` for full histor
 - Yield schema: `output_qty_min` / `output_qty_max` as `unsignedInteger` columns (implemented in migration)
 - Orphan cleanup: `deleting` model event (before delete) on Shuffle model, not DB-level cascade
 - Blizzard item IDs on shuffle_steps: `unsignedBigInteger` per project convention
+- [Phase 09-data-foundation]: Orphan cleanup subquery uses 'wi2.id' not bare 'id' to avoid SQLite ambiguous column error when joining multiple tables
+- [Phase 09-data-foundation]: ShuffleStepFactory uses Shuffle::factory() for shuffle_id to enable standalone step creation in tests
 
 ### Pending Todos
 
@@ -84,6 +86,6 @@ None — Phase 9 data foundation complete.
 
 ## Session Continuity
 
-Last session: 2026-03-05T03:47:36Z
-Stopped at: Completed 09-01-PLAN.md
-Resume file: .planning/phases/09-data-foundation/09-01-SUMMARY.md
+Last session: 2026-03-05T03:52:59.991Z
+Stopped at: Completed 09-02-PLAN.md
+Resume file: None
