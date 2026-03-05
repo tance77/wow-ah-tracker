@@ -19,7 +19,8 @@ class SyncCatalogCommand extends Command
                             {--dry-run : Show what would be imported without writing to the database}
                             {--tiers-only : Only run quality tier assignment (no API calls)}
                             {--rarity-only : Re-fetch item data to populate missing rarity values}
-                            {--realm : Also fetch item IDs from the connected-realm auctions endpoint (for BoE gear)}';
+                            {--realm : Also fetch item IDs from the connected-realm auctions endpoint (for BoE gear)}
+                            {--icons-only : Backfill missing icon URLs for existing catalog items}';
 
     protected $description = 'Import commodity and realm auction items from the Blizzard Auction House API into the catalog';
 
@@ -33,6 +34,10 @@ class SyncCatalogCommand extends Command
 
         if ($this->option('rarity-only')) {
             return $this->backfillRarity($tokenService);
+        }
+
+        if ($this->option('icons-only')) {
+            return $this->backfillIcons($tokenService);
         }
 
         $region = config('services.blizzard.region', 'us');
@@ -232,6 +237,86 @@ class SyncCatalogCommand extends Command
             'job_count' => count($jobs),
             'item_count' => $newIds->count(),
         ]);
+
+        return self::SUCCESS;
+    }
+
+    /**
+     * Backfill missing icon URLs for existing catalog items.
+     */
+    private function backfillIcons(BlizzardTokenService $tokenService): int
+    {
+        $region = config('services.blizzard.region', 'us');
+        $token = $tokenService->getToken();
+
+        $items = CatalogItem::whereNull('icon_url')->pluck('blizzard_item_id');
+
+        if ($items->isEmpty()) {
+            $this->info('All catalog items already have icon URLs.');
+
+            return self::SUCCESS;
+        }
+
+        $this->info(sprintf('Backfilling icons for %s items...', number_format($items->count())));
+
+        $bar = $this->output->createProgressBar($items->count());
+        $bar->setFormat(' %current%/%max% [%bar%] %percent:3s%% — %message%');
+        $bar->setMessage('Starting...');
+        $bar->start();
+
+        $updated = 0;
+        $failed = 0;
+
+        foreach ($items->chunk(20) as $chunk) {
+            $itemIds = $chunk->values()->all();
+
+            $responses = Http::pool(fn ($pool) => collect($itemIds)->map(
+                fn (int $id) => $pool->as((string) $id)
+                    ->withToken($token)
+                    ->timeout(10)
+                    ->connectTimeout(5)
+                    ->get("https://{$region}.api.blizzard.com/data/wow/media/item/{$id}", [
+                        'namespace' => "static-{$region}",
+                    ])
+            )->all());
+
+            foreach ($itemIds as $itemId) {
+                $response = $responses[(string) $itemId] ?? null;
+
+                if (! $response || $response instanceof \Throwable || ! $response->successful()) {
+                    $failed++;
+                    $bar->advance();
+
+                    continue;
+                }
+
+                $iconUrl = null;
+                $assets = $response->json('assets', []);
+                foreach ($assets as $asset) {
+                    if (($asset['key'] ?? '') === 'icon') {
+                        $iconUrl = $asset['value'] ?? null;
+                        break;
+                    }
+                }
+
+                if ($iconUrl) {
+                    CatalogItem::where('blizzard_item_id', $itemId)->update(['icon_url' => $iconUrl]);
+                    $updated++;
+                } else {
+                    $failed++;
+                }
+
+                $bar->setMessage("Item {$itemId}");
+                $bar->advance();
+            }
+
+            usleep(1_000_000);
+        }
+
+        $bar->setMessage('Done!');
+        $bar->finish();
+        $this->newLine(2);
+        $this->info("Icon backfill complete. Updated: {$updated}. Failed: {$failed}.");
 
         return self::SUCCESS;
     }

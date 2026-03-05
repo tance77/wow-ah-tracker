@@ -139,6 +139,9 @@ class SyncCatalogBatchJob implements ShouldQueue
             $itemDataMap[$itemId] = $itemResponse->json();
         }
 
+        // Brief pause before media requests to avoid rate limiting
+        usleep(500_000);
+
         // Fetch media/icons concurrently
         $mediaResponses = [];
         if (! empty($successIds)) {
