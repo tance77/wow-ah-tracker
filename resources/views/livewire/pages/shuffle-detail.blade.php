@@ -7,6 +7,7 @@ use App\Models\CatalogItem;
 use App\Models\PriceSnapshot;
 use App\Models\Shuffle;
 use App\Models\ShuffleStep;
+use App\Models\ShuffleStepByproduct;
 use App\Models\WatchedItem;
 use Illuminate\Support\Collection;
 use Livewire\Attributes\Computed;
@@ -31,6 +32,14 @@ new #[Layout('layouts.app')] class extends Component
     public int $newOutputQtyMax = 1;
     public bool $addingStep = false;
 
+    // Byproduct form state
+    public string $byproductSearch = '';
+    public ?int $selectedByproductItemId = null;
+    public ?string $selectedByproductName = null;
+    public float $newByproductChance = 100;
+    public int $newByproductQty = 1;
+    public ?int $addingByproductForStep = null;
+
     public function mount(Shuffle $shuffle): void
     {
         $this->shuffle = $shuffle;
@@ -40,16 +49,19 @@ new #[Layout('layouts.app')] class extends Component
     public function steps(): Collection
     {
         return $this->shuffle->steps()
-            ->with(['inputCatalogItem', 'outputCatalogItem'])
+            ->with(['inputCatalogItem', 'outputCatalogItem', 'byproducts'])
             ->get();
     }
 
     #[Computed]
     public function priceData(): array
     {
-        // Collect all unique blizzard_item_ids from steps
+        // Collect all unique blizzard_item_ids from steps (including byproducts)
         $itemIds = $this->steps
-            ->flatMap(fn ($step) => [$step->input_blizzard_item_id, $step->output_blizzard_item_id])
+            ->flatMap(fn ($step) => array_merge(
+                [$step->input_blizzard_item_id, $step->output_blizzard_item_id],
+                $step->byproducts->pluck('blizzard_item_id')->all()
+            ))
             ->unique()
             ->values();
 
@@ -111,6 +123,12 @@ new #[Layout('layouts.app')] class extends Component
             'output_name' => $step->outputCatalogItem?->display_name ?? "Item #{$step->output_blizzard_item_id}",
             'input_icon' => $step->inputCatalogItem?->icon_url,
             'output_icon' => $step->outputCatalogItem?->icon_url,
+            'byproducts' => $step->byproducts->map(fn ($bp) => [
+                'blizzard_item_id' => $bp->blizzard_item_id,
+                'item_name' => $bp->item_name,
+                'chance_percent' => (float) $bp->chance_percent,
+                'quantity' => $bp->quantity,
+            ])->toArray(),
         ])->toArray();
     }
 
@@ -190,6 +208,118 @@ new #[Layout('layouts.app')] class extends Component
         $this->selectedOutputName = $name;
         $this->outputSearch = '';
         unset($this->outputSuggestions);
+    }
+
+    #[Computed]
+    public function byproductSuggestions(): array
+    {
+        if (strlen($this->byproductSearch) < 2) {
+            return [];
+        }
+
+        $items = CatalogItem::where('name', 'like', "%{$this->byproductSearch}%")
+            ->orderBy('name')
+            ->orderBy('quality_tier')
+            ->get(['id', 'name', 'blizzard_item_id', 'icon_url', 'quality_tier', 'rarity']);
+
+        return $items->groupBy('name')
+            ->take(15)
+            ->flatMap(function ($group) {
+                $icon = $group->firstWhere('icon_url', '!=', null)?->icon_url;
+                $rarity = $group->firstWhere('rarity', '!=', null)?->rarity;
+
+                return $group->map(fn ($item) => [
+                    'id' => $item->id,
+                    'name' => $item->name,
+                    'blizzard_item_id' => $item->blizzard_item_id,
+                    'icon_url' => $item->icon_url ?? $icon,
+                    'quality_tier' => $item->quality_tier,
+                    'rarity' => $item->rarity ?? $rarity,
+                ]);
+            })
+            ->values()
+            ->toArray();
+    }
+
+    public function selectByproductItem(int $blizzardItemId, string $name): void
+    {
+        $this->selectedByproductItemId = $blizzardItemId;
+        $this->selectedByproductName = $name;
+        $this->byproductSearch = '';
+        unset($this->byproductSuggestions);
+    }
+
+    public function addByproduct(int $stepId): void
+    {
+        abort_unless($this->shuffle->user_id === auth()->id(), 403);
+
+        if ($this->selectedByproductItemId === null) {
+            return;
+        }
+
+        if ($this->newByproductChance < 0.01 || $this->newByproductChance > 100) {
+            return;
+        }
+
+        if ($this->newByproductQty < 1) {
+            return;
+        }
+
+        $step = $this->shuffle->steps()->findOrFail($stepId);
+
+        $catalogItem = CatalogItem::where('blizzard_item_id', $this->selectedByproductItemId)->first();
+        $itemName = $catalogItem?->name ?? $this->selectedByproductName ?? "Item #{$this->selectedByproductItemId}";
+
+        $step->byproducts()->create([
+            'blizzard_item_id' => $this->selectedByproductItemId,
+            'item_name' => $itemName,
+            'chance_percent' => $this->newByproductChance,
+            'quantity' => $this->newByproductQty,
+        ]);
+
+        $this->autoWatch($this->selectedByproductItemId);
+
+        // Reset form state
+        $this->selectedByproductItemId = null;
+        $this->selectedByproductName = null;
+        $this->byproductSearch = '';
+        $this->newByproductChance = 100;
+        $this->newByproductQty = 1;
+        $this->addingByproductForStep = null;
+
+        unset($this->steps);
+        unset($this->priceData);
+        unset($this->calculatorSteps);
+    }
+
+    public function removeByproduct(int $byproductId): void
+    {
+        abort_unless($this->shuffle->user_id === auth()->id(), 403);
+
+        $byproduct = ShuffleStepByproduct::whereHas('step', fn ($q) => $q->where('shuffle_id', $this->shuffle->id))
+            ->findOrFail($byproductId);
+
+        $blizzardItemId = $byproduct->blizzard_item_id;
+        $byproduct->delete();
+
+        // Check if this item is still referenced by any step or byproduct
+        $stillReferenced = ShuffleStep::where('input_blizzard_item_id', $blizzardItemId)
+            ->orWhere('output_blizzard_item_id', $blizzardItemId)
+            ->exists();
+
+        if (! $stillReferenced) {
+            $stillReferencedByByproduct = ShuffleStepByproduct::where('blizzard_item_id', $blizzardItemId)->exists();
+
+            if (! $stillReferencedByByproduct) {
+                WatchedItem::where('blizzard_item_id', $blizzardItemId)
+                    ->whereNotNull('created_by_shuffle_id')
+                    ->delete();
+            }
+        }
+
+        unset($this->steps);
+        unset($this->priceData);
+        unset($this->calculatorSteps);
     }
 
     public function showAddStepForm(): void
@@ -679,6 +809,155 @@ new #[Layout('layouts.app')] class extends Component
                                             <span x-show="error" x-text="error" class="text-xs text-red-400"></span>
                                         </div>
 
+                                        <!-- Byproducts Section -->
+                                        @if ($step->byproducts->isNotEmpty() || $addingByproductForStep === $step->id)
+                                            <div class="mt-3 border-t border-gray-700/30 pt-3">
+                                                <div class="mb-2 flex items-center justify-between">
+                                                    <span class="text-xs font-semibold uppercase tracking-wider text-gray-500">Byproducts</span>
+                                                </div>
+
+                                                <!-- Existing Byproducts -->
+                                                @foreach ($step->byproducts as $bp)
+                                                    <div class="mb-1.5 flex items-center gap-2 rounded border border-gray-700/30 bg-wow-dark px-3 py-1.5">
+                                                        <span class="text-sm text-gray-200">{{ $bp->item_name }}</span>
+                                                        <span class="rounded-full bg-gray-700 px-2 py-0.5 text-xs font-medium text-wow-gold">{{ rtrim(rtrim(number_format((float) $bp->chance_percent, 2), '0'), '.') }}%</span>
+                                                        <span class="rounded-full bg-gray-700 px-2 py-0.5 text-xs font-medium text-gray-300">x{{ $bp->quantity }}</span>
+                                                        @php
+                                                            $bpPrice = $this->priceData[$bp->blizzard_item_id] ?? null;
+                                                        @endphp
+                                                        @if ($bpPrice && $bpPrice['price'])
+                                                            <span class="text-xs text-gray-500">{{ $this->formatGold($bpPrice['price']) }}</span>
+                                                        @endif
+                                                        <button
+                                                            wire:click="removeByproduct({{ $bp->id }})"
+                                                            class="ml-auto text-red-600 hover:text-red-400"
+                                                            title="Remove byproduct"
+                                                        >
+                                                            <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                                                            </svg>
+                                                        </button>
+                                                    </div>
+                                                @endforeach
+
+                                                <!-- Add Byproduct Form -->
+                                                @if ($addingByproductForStep === $step->id)
+                                                    <div class="mt-2 rounded border border-gray-700/50 bg-wow-dark p-3">
+                                                        <!-- Item Search -->
+                                                        <div class="mb-2">
+                                                            <label class="mb-1 block text-xs text-gray-400">Item</label>
+                                                            @if ($selectedByproductItemId)
+                                                                <div class="flex items-center gap-2 rounded border border-wow-gold/40 bg-wow-darker px-3 py-1.5">
+                                                                    <span class="flex-1 text-sm text-gray-100">{{ $selectedByproductName }}</span>
+                                                                    <button
+                                                                        wire:click="$set('selectedByproductItemId', null); $set('selectedByproductName', null)"
+                                                                        class="text-gray-500 hover:text-gray-300"
+                                                                    >&times;</button>
+                                                                </div>
+                                                            @else
+                                                                <div
+                                                                    class="relative"
+                                                                    x-data="{ open: false }"
+                                                                    @click.outside="open = false"
+                                                                >
+                                                                    <input
+                                                                        type="text"
+                                                                        wire:model.live.debounce.300ms="byproductSearch"
+                                                                        @focus="open = true"
+                                                                        @input="open = true"
+                                                                        placeholder="Search byproduct item..."
+                                                                        class="w-full rounded border border-gray-600 bg-wow-darker px-3 py-1.5 text-sm text-gray-100 placeholder-gray-500 focus:border-wow-gold focus:outline-none focus:ring-1 focus:ring-wow-gold"
+                                                                    />
+                                                                    @if (count($this->byproductSuggestions) > 0)
+                                                                        <ul
+                                                                            x-show="open"
+                                                                            class="absolute z-50 mt-1 max-h-48 w-full overflow-y-auto rounded border border-gray-600 bg-wow-darker shadow-lg"
+                                                                            x-cloak
+                                                                        >
+                                                                            @foreach ($this->byproductSuggestions as $item)
+                                                                                <li
+                                                                                    wire:click="selectByproductItem({{ $item['blizzard_item_id'] }}, '{{ addslashes($item['name']) }}')"
+                                                                                    @click="open = false"
+                                                                                    class="flex cursor-pointer items-center gap-2 px-3 py-1.5 text-sm text-gray-200 hover:bg-wow-dark"
+                                                                                >
+                                                                                    @if ($item['icon_url'])
+                                                                                        <img src="{{ $item['icon_url'] }}" alt="" class="h-5 w-5 rounded" loading="lazy" />
+                                                                                    @else
+                                                                                        <span class="flex h-5 w-5 items-center justify-center rounded bg-gray-700 text-xs text-gray-500">?</span>
+                                                                                    @endif
+                                                                                    <span class="{{ match($item['rarity'] ?? null) {
+                                                                                        'POOR' => 'text-rarity-poor',
+                                                                                        'COMMON' => 'text-rarity-common',
+                                                                                        'UNCOMMON' => 'text-rarity-uncommon',
+                                                                                        'RARE' => 'text-rarity-rare',
+                                                                                        'EPIC' => 'text-rarity-epic',
+                                                                                        'LEGENDARY' => 'text-rarity-legendary',
+                                                                                        default => 'text-gray-200',
+                                                                                    } }}">{{ $item['name'] }}</span>
+                                                                                    <x-tier-pip :tier="$item['quality_tier'] ?? null" />
+                                                                                </li>
+                                                                            @endforeach
+                                                                        </ul>
+                                                                    @endif
+                                                                </div>
+                                                            @endif
+                                                        </div>
+
+                                                        <!-- Chance + Qty -->
+                                                        <div class="mb-2 flex items-center gap-3">
+                                                            <div class="flex items-center gap-1.5">
+                                                                <label class="text-xs text-gray-400">Chance %</label>
+                                                                <input
+                                                                    type="number"
+                                                                    min="0.01"
+                                                                    max="100"
+                                                                    step="0.01"
+                                                                    wire:model.number="newByproductChance"
+                                                                    class="w-20 rounded border border-gray-600 bg-wow-darker px-2 py-1 text-center text-sm text-gray-100 focus:border-wow-gold focus:outline-none focus:ring-1 focus:ring-wow-gold"
+                                                                />
+                                                            </div>
+                                                            <div class="flex items-center gap-1.5">
+                                                                <label class="text-xs text-gray-400">Qty</label>
+                                                                <input
+                                                                    type="number"
+                                                                    min="1"
+                                                                    wire:model.number="newByproductQty"
+                                                                    class="w-16 rounded border border-gray-600 bg-wow-darker px-2 py-1 text-center text-sm text-gray-100 focus:border-wow-gold focus:outline-none focus:ring-1 focus:ring-wow-gold"
+                                                                />
+                                                            </div>
+                                                        </div>
+
+                                                        <!-- Actions -->
+                                                        <div class="flex items-center gap-2">
+                                                            <button
+                                                                wire:click="addByproduct({{ $step->id }})"
+                                                                @disabled(!$selectedByproductItemId)
+                                                                class="rounded bg-wow-gold px-3 py-1 text-xs font-semibold text-wow-darker transition-colors hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
+                                                            >
+                                                                Add
+                                                            </button>
+                                                            <button
+                                                                wire:click="$set('addingByproductForStep', null)"
+                                                                class="rounded border border-gray-600 px-3 py-1 text-xs text-gray-400 transition-colors hover:border-gray-500 hover:text-gray-200"
+                                                            >
+                                                                Cancel
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                @endif
+                                            </div>
+                                        @endif
+
+                                        <!-- Add Byproduct Button -->
+                                        @if ($addingByproductForStep !== $step->id)
+                                            <button
+                                                wire:click="$set('addingByproductForStep', {{ $step->id }})"
+                                                class="mt-2 text-xs text-gray-500 hover:text-wow-gold"
+                                            >
+                                                + Byproduct
+                                            </button>
+                                        @endif
+
                                     </div>
 
                                     <!-- Chain Flow Arrow between cards -->
@@ -1029,6 +1308,14 @@ new #[Layout('layouts.app')] class extends Component
                                         <span class="text-center text-gray-300" x-text="formatGold(grossValueMin)"></span>
                                         <span class="text-center text-gray-300" x-text="formatGold(grossValueMax)"></span>
                                     </div>
+                                    {{-- Byproduct EV (shown only when byproducts contribute value) --}}
+                                    <template x-if="_byproductEV.min > 0 || _byproductEV.max > 0">
+                                        <div class="grid grid-cols-3 items-center text-xs">
+                                            <span class="pl-2 text-gray-500 italic">incl. byproduct EV</span>
+                                            <span class="text-center text-gray-500" x-text="formatGold(Math.round(_byproductEV.min))"></span>
+                                            <span class="text-center text-gray-500" x-text="formatGold(Math.round(_byproductEV.max))"></span>
+                                        </div>
+                                    </template>
                                     {{-- AH Cut --}}
                                     <div class="grid grid-cols-3 items-center border-b border-gray-700/40 pb-2 text-sm">
                                         <span class="text-gray-500">AH Cut (5%)</span>
@@ -1168,16 +1455,36 @@ new #[Layout('layouts.app')] class extends Component
                                 return this.totalCostMin; // cost is fixed (first input qty x price)
                             },
 
+                            get _byproductEV() {
+                                // Calculate byproduct expected value across all steps for min/max
+                                let evMin = 0;
+                                let evMax = 0;
+                                let cascadedMin = this.batchQty;
+                                let cascadedMax = this.batchQty;
+                                for (const step of this.steps) {
+                                    const batchesMin = Math.floor(cascadedMin / Math.max(1, step.input_qty));
+                                    const batchesMax = Math.floor(cascadedMax / Math.max(1, step.input_qty));
+                                    for (const bp of (step.byproducts || [])) {
+                                        const bpPrice = this.prices[bp.blizzard_item_id]?.price ?? 0;
+                                        evMin += bpPrice * (bp.chance_percent / 100) * bp.quantity * batchesMin;
+                                        evMax += bpPrice * (bp.chance_percent / 100) * bp.quantity * batchesMax;
+                                    }
+                                    cascadedMin = Math.floor(cascadedMin * step.output_qty_min / Math.max(1, step.input_qty));
+                                    cascadedMax = Math.floor(cascadedMax * step.output_qty_max / Math.max(1, step.input_qty));
+                                }
+                                return { min: evMin, max: evMax };
+                            },
+
                             get grossValueMin() {
                                 if (!this.canCalculate) return 0;
                                 const lastOutputId = this.steps[this.steps.length - 1].output_id;
-                                return this._cascadedQtyMin * (this.prices[lastOutputId]?.price ?? 0);
+                                return this._cascadedQtyMin * (this.prices[lastOutputId]?.price ?? 0) + this._byproductEV.min;
                             },
 
                             get grossValueMax() {
                                 if (!this.canCalculate) return 0;
                                 const lastOutputId = this.steps[this.steps.length - 1].output_id;
-                                return this._cascadedQtyMax * (this.prices[lastOutputId]?.price ?? 0);
+                                return this._cascadedQtyMax * (this.prices[lastOutputId]?.price ?? 0) + this._byproductEV.max;
                             },
 
                             get netProfitMin() {
