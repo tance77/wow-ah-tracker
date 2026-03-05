@@ -30,12 +30,12 @@ Requirements for Crafting Profitability milestone. Each maps to roadmap phases.
 
 ### Recipe Table
 
-- [ ] **TABLE-01**: Per-profession page shows all recipes in a sortable table (default: median profit descending)
-- [ ] **TABLE-02**: Table columns: recipe name, reagent cost, Tier 1 profit, Tier 2 profit, median profit
-- [ ] **TABLE-03**: Recipes with missing price data flagged with indicator
-- [ ] **TABLE-04**: Stale price warning shown when any snapshot is > 1 hour old
-- [ ] **TABLE-05**: Per-reagent cost breakdown available on hover/expand
-- [ ] **TABLE-06**: Non-commodity recipes (gear) displayed as "realm AH — not tracked"
+- [x] **TABLE-01**: Per-profession page shows all recipes in a sortable table (default: median profit descending)
+- [x] **TABLE-02**: Table columns: recipe name, reagent cost, Tier 1 profit, Tier 2 profit, median profit
+- [x] **TABLE-03**: Recipes with missing price data flagged with indicator
+- [x] **TABLE-04**: Stale price warning shown when any snapshot is > 1 hour old
+- [x] **TABLE-05**: Per-reagent cost breakdown available on hover/expand
+- [x] **TABLE-06**: Non-commodity recipes (gear) displayed as "realm AH — not tracked"
 
 ### Navigation
 
@@ -88,12 +88,12 @@ Which phases cover which requirements. Updated during roadmap creation.
 | OVERVIEW-01 | Phase 15 | Complete |
 | OVERVIEW-02 | Phase 15 | Complete |
 | NAV-01 | Phase 15 | Complete |
-| TABLE-01 | Phase 16 | Pending |
-| TABLE-02 | Phase 16 | Pending |
-| TABLE-03 | Phase 16 | Pending |
-| TABLE-04 | Phase 16 | Pending |
-| TABLE-05 | Phase 16 | Pending |
-| TABLE-06 | Phase 16 | Pending |
+| TABLE-01 | Phase 16 | Complete |
+| TABLE-02 | Phase 16 | Complete |
+| TABLE-03 | Phase 16 | Complete |
+| TABLE-04 | Phase 16 | Complete |
+| TABLE-05 | Phase 16 | Complete |
+| TABLE-06 | Phase 16 | Complete |
 
 **Coverage:**
 - v1.2 requirements: 19 total

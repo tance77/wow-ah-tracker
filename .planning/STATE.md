@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Crafting Profitability
 status: completed
-stopped_at: Phase 16 context gathered
-last_updated: "2026-03-05T23:36:15.486Z"
-last_activity: 2026-03-05 - Completed Phase 15 Plan 02 (crafting overview page with profession cards)
+stopped_at: Completed 16-01-PLAN.md
+last_updated: "2026-03-05T23:54:33.000Z"
+last_activity: 2026-03-05 - Completed Phase 16 Plan 01 (recipe table data pipeline)
 progress:
   total_phases: 8
   completed_phases: 7
   total_plans: 13
-  completed_plans: 13
-  percent: 70
+  completed_plans: 14
+  percent: 80
 ---
 
 # Project State
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-05)
 
 **Core value:** See at a glance when crafting material prices dip or spike so I can act on buy/sell opportunities before the market corrects.
-**Current focus:** Phase 15 — Profession Overview Page and Navigation
+**Current focus:** Phase 16 — Per-Profession Recipe Table
 
 ## Current Position
 
-Phase: 15 of 16 (Profession Overview Page and Navigation)
-Plan: 2 of 2
-Status: Phase 15 complete
-Last activity: 2026-03-05 - Completed Phase 15 Plan 02 (crafting overview page with profession cards)
+Phase: 16 of 16 (Per-Profession Recipe Table)
+Plan: 1 of 2
+Status: Plan 01 complete
+Last activity: 2026-03-05 - Completed Phase 16 Plan 01 (recipe table data pipeline)
 
-Progress: [#######░░░] 70%
+Progress: [########░░] 80%
 
 ## Performance Metrics
 
@@ -51,6 +51,7 @@ Progress: [#######░░░] 70%
 | Phase 14-profit-calculation-action P01 | 2 min | 1 tasks | 2 files |
 | Phase 15-profession-overview-page-and-navigation P01 | 3 min | 2 tasks | 8 files |
 | Phase 15-profession-overview-page-and-navigation P02 | 6 min | 2 tasks | 1 files |
+| Phase 16-per-profession-recipe-table P01 | 3 min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -74,6 +75,7 @@ v1.0 and v1.1 decisions archived — see milestones/ for full history.
 - [Phase 15-profession-overview-page-and-navigation]: Model booted() events for auto-slug generation on create/update
 - [Phase 15-profession-overview-page-and-navigation]: Dynamic underscore-prefixed properties on Profession model for computed display data
 - [Phase 15-profession-overview-page-and-navigation]: onerror img handler for graceful broken icon URL fallback
+- [Phase 16-per-profession-recipe-table]: Server-side #[Computed] recipeData builds full dataset passed to Alpine via @js(); staleness threshold at 60 minutes
 
 ### Pending Todos
 
@@ -114,6 +116,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-05T23:53:03Z
-Stopped at: Completed quick-23 (rename shuffle button labels)
-Resume file: .planning/phases/16-per-profession-recipe-table/16-CONTEXT.md
+Last session: 2026-03-05T23:54:33Z
+Stopped at: Completed 16-01-PLAN.md (recipe table data pipeline)
+Resume file: .planning/phases/16-per-profession-recipe-table/16-02-PLAN.md
