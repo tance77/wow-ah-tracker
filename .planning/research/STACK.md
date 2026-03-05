@@ -1,149 +1,202 @@
 # Stack Research
 
 **Domain:** WoW Auction House commodity price tracker (single-user Laravel web app)
-**Researched:** 2026-03-01
-**Confidence:** HIGH (core framework, Tailwind, Livewire verified via official docs and Packagist; charting via multiple web sources)
+**Researched:** 2026-03-04 (v1.1 Shuffles milestone update)
+**Confidence:** HIGH for all recommendations below
 
-## Recommended Stack
+---
+
+## v1.1 Shuffles: Stack Delta
+
+This document preserves the v1.0 stack baseline and appends a focused delta for the Shuffles milestone. The existing stack (Laravel 12, Livewire 4, Volt, Tailwind CSS v4, ApexCharts, Pest 3, SQLite, database queues) is unchanged and fully validated. Do not re-research those decisions.
+
+### What Shuffles Adds
+
+Shuffles introduces three new concerns not present in v1.0:
+
+1. **Data model for conversion chains** — ordered sequences of steps, each with item references and ratio/yield data
+2. **Ratio/yield arithmetic** — multiply input quantities through steps, surface profit at each step
+3. **Dynamic multi-step forms** — Livewire form that grows/shrinks as the user adds/removes chain steps
+
+All three are solved entirely within the existing stack. No new packages are required.
+
+---
+
+## No New Dependencies Needed
+
+The Shuffles feature can be built entirely with what is already installed. Each concern below is handled natively.
+
+### Conversion Chain Data Model
+
+**Use standard Eloquent with two new tables.** A `shuffles` table holds the named chain and a `shuffle_steps` table holds ordered steps with `position`, input item reference, yield ratio, and min/max yield. No package needed.
+
+```php
+// shuffle_steps columns:
+// id, shuffle_id, position (unsigned tinyint), catalog_item_id,
+// ratio_numerator (unsigned int), ratio_denominator (unsigned int),
+// min_yield (unsigned int nullable), max_yield (unsigned int nullable)
+```
+
+Ordering by `position` in a `hasMany` relationship with `->orderBy('position')` is straightforward. No adjacency-list or recursive CTE package is needed — chains are linear sequences, not trees.
+
+**Why not JSON columns for steps?** Storing steps as a JSON column on `shuffles` would make individual step validation, indexing, and future extension harder. Separate rows are the correct choice when each step is a first-class entity with its own foreign key (`catalog_item_id`).
+
+### Ratio and Profit Arithmetic
+
+**Use PHP integer arithmetic throughout.** All prices are already stored as BIGINT UNSIGNED copper values (v1.0 decision). Ratios are stored as integer numerator/denominator pairs (e.g., 5 herbs → 1 pigment is stored as `ratio_numerator=1, ratio_denominator=5`).
+
+**PHP 8.4 BCMath\Number is available but not needed.** For yield multiplication and profit summation on integer copper values, standard PHP integer arithmetic is exact. BCMath is warranted only when you have non-integer intermediate values (e.g., price-per-unit in decimal gold). Since all math stays in copper integers, standard PHP is correct and simpler.
+
+```php
+// Example: step yield from integer input
+$stepOutput = (int) floor($inputQty * $step->ratio_numerator / $step->ratio_denominator);
+$stepCost   = $inputQty * $latestPrice; // copper, integer
+$stepValue  = $stepOutput * $outputPrice; // copper, integer
+$profit     = $stepValue - $stepCost;
+```
+
+No new library needed.
+
+### Dynamic Multi-Step Form in Livewire
+
+**Use Livewire 4's built-in array property binding.** The chain builder form manages a PHP array property (e.g., `$steps = []`) where each element holds step data. Methods like `addStep()` and `removeStep($index)` mutate the array; `wire:model="steps.{$i}.ratio_numerator"` binds individual fields.
+
+**Validation uses wildcard rules.** Livewire 4 supports `'steps.*.catalog_item_id' => 'required|integer'` patterns in the `rules()` method or `#[Validate]` attributes. This is the documented approach for array field validation.
+
+**Known limitation:** Real-time (`.live`) validation on nested array fields has known rough edges in Livewire — error assignment can mismatch when rows are reordered. Mitigate by validating on explicit save, not on every keystroke.
+
+No third-party form builder package needed.
+
+---
+
+## Recommended Stack (Complete — v1.0 + v1.1)
 
 ### Core Technologies
 
 | Technology | Version | Purpose | Why Recommended |
 |------------|---------|---------|-----------------|
-| Laravel | ^12.0 | PHP web framework | Current LTS-adjacent release (Feb 2025), security fixes through Feb 2027, minimal breaking changes from v11. PHP 8.2+ required — already a project constraint. Scheduler + queue system built in, which this app depends on heavily. |
-| PHP | 8.2–8.4 | Runtime | Project constraint. Laravel 12 supports 8.2–8.4. PHP 8.3 is recommended for best performance on current hosting. |
-| Livewire | ^4.2 | Reactive UI without SPA overhead | Released Jan 2026, v4.2.1 is current stable (2026-02-28). Server-rendered, stays in Blade ecosystem, no separate API layer needed. 60% faster DOM diffing than v3. Islands feature enables isolated chart refresh. Perfect for a dashboard with a few reactive components (filter controls, live data reload). No JavaScript build complexity for interactivity. |
-| Tailwind CSS | ^4.2 | Utility-first CSS | Project constraint. v4 is the current release, ships as a Vite plugin (`@tailwindcss/vite`), CSS-first configuration replaces `tailwind.config.js`. Included by default in Laravel 12 starter kits. Oxide engine is significantly faster than v3. |
-| Vite | Latest (bundled with Laravel) | Frontend asset bundling | Laravel 12's default bundler. Pre-configured for Tailwind v4 + Livewire. No Webpack or Mix needed. |
-| ApexCharts | ^5.6 (latest via npm) | Interactive time-series line charts | Framework-agnostic vanilla JS (SVG-based), works directly in Blade/Livewire without React/Vue. Rich built-in time-series options (datetime x-axis, zoom/pan, tooltip formatting). Active development (v5.6.0 released Feb 2026). The `livewire-charts` package (`asantibanez/livewire-charts`) wraps ApexCharts in Livewire components, eliminating custom JS glue for chart data updates. |
+| Laravel | ^12.0 | PHP web framework | Validated in v1.0. Scheduler, queues, Eloquent. No change. |
+| PHP | ^8.4 | Runtime | Project constraint. PHP 8.4 is now the pinned version. BCMath\Number available natively if ever needed. |
+| Livewire + Volt | ^4.0 / ^1.7 | Reactive UI, SFC pages | Validated in v1.0. Volt SFC pattern used for all pages including new Shuffles pages. |
+| Tailwind CSS | ^4.2 | Utility-first CSS | Validated in v1.0. WoW dark theme + gold/amber accents. No change. |
+| ApexCharts | ^5.7 | Time-series charts on dashboard | Validated in v1.0. Not used in Shuffles UI, but retained for dashboard. |
+| SQLite | 3.x | Primary data store | Validated in v1.0. Two new tables (shuffles, shuffle_steps) fit trivially. |
 
-### Database
+### New Tables for Shuffles (no package — pure Eloquent)
 
-| Technology | Version | Purpose | Why Recommended |
-|------------|---------|---------|-----------------|
-| SQLite | 3.x (system) | Primary data store | Zero-configuration for a single-user personal app. Single-file database — trivial to back up. Laravel 12 defaults to SQLite for new projects. Read-heavy workload (dashboard reads vastly outnumber API poll writes) where SQLite benchmarks well. No concurrent write contention risk: one queue worker writes price data every 15 minutes. |
+| Table | Purpose | Key Columns |
+|-------|---------|-------------|
+| `shuffles` | Named conversion chain | `id`, `user_id`, `name`, `description`, `timestamps` |
+| `shuffle_steps` | Ordered steps within a chain | `id`, `shuffle_id`, `position` (tinyint), `catalog_item_id`, `ratio_numerator`, `ratio_denominator`, `min_yield`, `max_yield` |
 
-### Queue & Scheduler
+### Supporting Libraries (unchanged from v1.0)
 
-| Technology | Version | Purpose | Why Recommended |
-|------------|---------|---------|-----------------|
-| Laravel Scheduler | Built into Laravel 12 | Trigger 15-minute API poll | One crontab entry (`* * * * * php artisan schedule:run`) drives all scheduled work. No external scheduler needed. |
-| Laravel Queues (database driver) | Built into Laravel 12 | Process API fetch jobs asynchronously | Database driver requires no extra services (no Redis, no Beanstalk). For a single job every 15 minutes with trivial volume, the database driver is the correct choice — Redis adds infrastructure complexity with zero benefit at this scale. A dedicated `php artisan queue:worker` process handles job execution. |
-| Laravel Horizon | N/A — do not install | Queue monitoring UI | Overkill. Horizon requires Redis. Use `php artisan queue:failed` and the `failed_jobs` table for debugging at this scale. |
+| Library | Version | Purpose | Status |
+|---------|---------|---------|--------|
+| Laravel HTTP Client | Built-in | Blizzard API calls | Unchanged |
+| Laravel Breeze | ^2.3 (dev) | Auth scaffolding | Unchanged |
+| Laravel Pint | ^1.24 (dev) | Code style | Unchanged |
+| Pest PHP | ^3.8 (dev) | Test framework | Unchanged |
+| Faker | ^1.23 (dev) | Test factories | Unchanged |
 
-### Authentication
-
-| Technology | Version | Purpose | Why Recommended |
-|------------|---------|---------|-----------------|
-| Laravel Breeze (Blade stack) | ^2.x | Single-user login | Minimal scaffolding: login, logout, password reset published as plain Blade + Tailwind views. No unnecessary registration flow (can be removed post-install). Matches the Livewire/Blade stack. Laravel Sanctum is overkill without a separate API; Fortify without Breeze requires more manual wiring. |
-
-### Supporting Libraries
-
-| Library | Version | Purpose | When to Use |
-|---------|---------|---------|-------------|
-| `asantibanez/livewire-charts` | ^4.x | ApexCharts wrapped in Livewire components | Use this to render line charts driven by PHP data with automatic Livewire reactivity. Eliminates writing custom JavaScript event bridges between Livewire and ApexCharts. Verify v4 Livewire compatibility before installing — last confirmed for Livewire 3. If not yet updated for Livewire 4, use ApexCharts directly with a thin `@script` block instead. |
-| Laravel HTTP Client | Built into Laravel 12 | Blizzard API OAuth2 + data requests | Use Laravel's first-party HTTP client (Guzzle wrapper) for all Blizzard API calls. Handles token fetch (POST to `https://oauth.battle.net/token`) and commodity data fetch (GET `/data/wow/auctions/commodities`). Built-in retry, timeout, and response assertion support. No third-party Blizzard PHP SDK needed — all are unmaintained (last updated 2017–2023). |
-| `spatie/laravel-data` | ^4.x | Typed data objects for API responses | Optional but recommended. Maps raw Blizzard API JSON to typed PHP objects for price snapshot storage. Reduces null-safety bugs when the commodity response structure changes. |
-
-### Development Tools
-
-| Tool | Purpose | Notes |
-|------|---------|-------|
-| Laravel Sail | Local Docker environment | Optional. Provides MySQL, Redis, Mailpit if needed later. For a SQLite app with database queues, Sail is convenient but not required — `php artisan serve` + `php artisan queue:work` + `php artisan schedule:work` covers local dev. |
-| Laravel Pint | PHP code style fixer | Included in Laravel 12 dev dependencies. Run `./vendor/bin/pint` before commits. |
-| Pest PHP | Testing framework | Laravel 12 ships Pest as default. Use Feature tests for the API polling job (mock Blizzard HTTP calls) and for dashboard routes. |
+---
 
 ## Installation
 
+No new packages to install. The Shuffles feature is built with migrations + Eloquent + Livewire Volt pages already in the project.
+
 ```bash
-# New Laravel 12 project (SQLite default)
-composer create-project laravel/laravel wow-ah-tracker
-cd wow-ah-tracker
+# Generate migrations for new tables
+php artisan make:migration create_shuffles_table
+php artisan make:migration create_shuffle_steps_table
 
-# Authentication scaffolding (Blade stack, Livewire option)
-composer require laravel/breeze --dev
-php artisan breeze:install blade
+# Generate models
+php artisan make:model Shuffle
+php artisan make:model ShuffleStep
 
-# Livewire 4
-composer require livewire/livewire
+# Generate factories for tests
+php artisan make:factory ShuffleFactory
+php artisan make:factory ShuffleStepFactory
 
-# Charts (verify Livewire 4 support first; use as fallback if not available)
-composer require asantibanez/livewire-charts
-
-# Frontend: Tailwind v4 + ApexCharts
-npm install @tailwindcss/vite apexcharts
-
-# Run migrations (creates users, jobs, failed_jobs, cache tables)
+# Run migrations
 php artisan migrate
-
-# Local dev servers
-php artisan serve &
-php artisan queue:work &
-php artisan schedule:work
 ```
+
+---
 
 ## Alternatives Considered
 
-| Recommended | Alternative | When to Use Alternative |
-|-------------|-------------|-------------------------|
-| Livewire 4 | Inertia.js + React/Vue | If the team is stronger in frontend JS frameworks, or if the dashboard needs complex client-side state management beyond what Livewire handles. Not warranted here — Livewire's server-rendered reactivity is sufficient for a time-series dashboard. |
-| SQLite | MySQL / PostgreSQL | When you need concurrent multi-process writes, multiple servers, or the dataset exceeds a few hundred MB. Not applicable at this scale (storing ~6-7 items x 96 snapshots/day). |
-| Database queue driver | Redis + Laravel Horizon | When job volume is high (hundreds/minute), you need visual job monitoring dashboards, or you have existing Redis infrastructure. At 1 job per 15 minutes, database queues are the correct default. |
-| Laravel HTTP Client | Third-party Blizzard PHP SDKs | No maintained SDK for the current Battle.net Game Data API exists as of 2026. All packages on Packagist are unmaintained (2017–2023). Laravel's HTTP client is more capable and actively maintained. |
-| Laravel Breeze | Laravel Jetstream | Jetstream adds Teams, 2FA, API tokens — all unnecessary for a single-user personal tool. Breeze is minimal and fast to customize. |
+| Recommended | Alternative | Why Not |
+|-------------|-------------|---------|
+| Integer numerator/denominator pairs for ratios | Decimal/float column for ratio | Float storage risks rounding errors in copper arithmetic. Int pairs are exact and self-documenting (e.g., 1/5 = "1 output per 5 inputs"). |
+| Separate `shuffle_steps` table with `position` column | JSON column on `shuffles` for steps | JSON steps can't have their own `catalog_item_id` FK constraint, can't be queried individually, and complicate validation. Separate rows are correct for entities. |
+| Plain Eloquent with `orderBy('position')` | `staudenmeir/laravel-adjacency-list` (recursive CTE package) | Chains are linear sequences, not trees. Recursive CTEs add no value. The adjacency-list package targets nested/recursive hierarchies. |
+| BCMath only if intermediate floats appear | BCMath for all arithmetic | Overkill. All values are copper integers. Standard PHP integer division with `floor()` is exact for this use case. |
+| Livewire native array binding + save-time validation | Third-party repeater form package | No package adds enough value to justify a dependency. Real-time nested validation is a Livewire limitation, not something a package reliably fixes. |
 
-## What NOT to Use
+---
+
+## What NOT to Add
 
 | Avoid | Why | Use Instead |
 |-------|-----|-------------|
-| Redis (as queue driver) | No benefit at 1 job/15 minutes; adds infrastructure dependency (separate process, memory management, config) | Laravel database queue driver |
-| Laravel Horizon | Requires Redis; dashboard monitoring is overkill for a single scheduled job | `failed_jobs` table + `php artisan queue:failed` |
-| Any third-party Blizzard PHP SDK | All packages on Packagist are unmaintained (latest: 2017–2023). Will not have OAuth2 token caching or commodities endpoint support. | Laravel HTTP Client with manual token management |
-| Chart.js | Less feature-rich than ApexCharts for time-series (no built-in zoom/pan, weaker datetime axis handling, canvas-based so no SVG export) | ApexCharts |
-| Inertia.js | Brings an entire SPA build pipeline (TypeScript, React/Vue component tree) for a dashboard that is mostly server-rendered. Over-engineered for this scope. | Livewire 4 |
-| Tailwind v3 | Superseded by v4 which ships with Laravel 12 by default. v3 uses a deprecated `tailwind.config.js` approach incompatible with the new CSS-first v4 plugin. | Tailwind CSS v4 |
+| `staudenmeir/laravel-adjacency-list` | Designed for recursive trees. Shuffles chains are linear — parent/child recursion adds unnecessary complexity. | Eloquent `hasMany` with `orderBy('position')` |
+| `spatie/laravel-data` for shuffle chain DTOs | Shuffle chain data is simple enough that Eloquent models + array access is sufficient. Adding typed DTOs for a 4-field step model is over-engineering. | Plain Eloquent models |
+| Any "drag to reorder" JS library (Sortable.js, etc.) | Chain steps don't need drag reorder UX — numeric position input or up/down buttons are sufficient for a personal tool with short chains. | Simple `addStep()` / `removeStep()` / `moveUp()` Livewire methods |
+| Redis | Still no benefit. Shuffles adds zero new queue jobs. | Database queue driver (unchanged) |
+| Nova or Filament admin panel | Shuffles management is a user-facing page, not an admin feature. | Livewire Volt page with inline CRUD |
 
-## Stack Patterns by Variant
+---
 
-**For Blizzard API token management:**
-- Fetch client credentials token via `Http::withBasicAuth($clientId, $clientSecret)->asForm()->post('https://oauth.battle.net/token', ['grant_type' => 'client_credentials'])`
-- Cache the token in Laravel's cache (`Cache::put('blizzard_token', $token, $expiresIn - 60)`) to avoid re-fetching on every 15-minute job
-- Store `BLIZZARD_CLIENT_ID` and `BLIZZARD_CLIENT_SECRET` in `.env`
+## Stack Patterns for Shuffles
 
-**For charts in Livewire 4 (if `livewire-charts` is not yet v4-compatible):**
-- Render ApexCharts with a `@script` block inside the Livewire component
-- Use `$wire.on('pricesUpdated', (data) => chart.updateSeries(...))` to push new data to the chart
-- This is the official Livewire 4 pattern for JavaScript interop
+**Profit calculation in a PHP service class:**
+- Extract `ShuffleCalculator::calculate(Shuffle $shuffle, int $inputQty): array` as a plain PHP class
+- Returns per-step breakdown and totals as arrays of copper integers
+- Keeps Volt component thin; makes the calculator independently testable with Pest
+- Prices come from `CatalogItem->priceSnapshots()->latest('polled_at')->first()` — already established in v1.0
 
-**For queue worker in production:**
-- Run `php artisan queue:work --sleep=3 --tries=3` as a supervised process (Supervisor on Linux, or a simple `Procfile` if using Laravel Cloud/Forge)
-- The scheduler requires one cron entry: `* * * * * cd /path && php artisan schedule:run >> /dev/null 2>&1`
+**Auto-watch integration:**
+- When a shuffle step is saved with a `catalog_item_id`, check if a `WatchedItem` exists for that `blizzard_item_id` and the current user
+- If not, create it via `auth()->user()->watchedItems()->firstOrCreate([...])` — same pattern used by the watchlist page
+- Run this in a model observer on `ShuffleStep::created` and `ShuffleStep::updated`, or inline in the Livewire save method
+
+**Batch calculator as a Livewire `$wire` interaction:**
+- Input quantity is a Livewire property (`public int $inputQty = 1`)
+- Profit breakdown is a `#[Computed]` property that runs `ShuffleCalculator::calculate()` on each request
+- No JavaScript needed — Livewire re-renders the breakdown table on every quantity change (`wire:model.live="inputQty"`)
+
+**Ordering steps in the chain:**
+- `shuffle_steps.position` is a 0-based or 1-based `tinyint unsigned`
+- `Shuffle::steps()` relationship: `return $this->hasMany(ShuffleStep::class)->orderBy('position');`
+- Reorder via swap: `moveStepUp($index)` swaps `position` values between adjacent steps
+- No complex sorting algorithm needed — chains will rarely exceed 4–5 steps
+
+---
 
 ## Version Compatibility
 
 | Package | Compatible With | Notes |
 |---------|-----------------|-------|
-| Laravel ^12.0 | PHP 8.2–8.4 | PHP 8.1 not supported in Laravel 12 |
-| Livewire ^4.2 | Laravel 10+ | v4.2.1 released 2026-02-28. Confirm Breeze stack compatibility. |
-| Tailwind CSS ^4.2 | Vite + `@tailwindcss/vite` | Do NOT use PostCSS plugin approach with v4 — use Vite plugin only |
-| ApexCharts ^5.6 | Vanilla JS / Livewire `@script` | No framework adapter needed for Blade; use `npm install apexcharts` |
-| `asantibanez/livewire-charts` | Livewire 3 (confirmed) | Verify Livewire 4 support before installing. Check GitHub issues. |
-| Laravel Breeze ^2.x | Laravel 12 | Blade stack publishes Tailwind v4 compatible views |
+| Laravel ^12.0 | PHP ^8.4 | PHP 8.4 confirmed for this project |
+| Livewire ^4.0 + Volt ^1.7 | Laravel 12 | Validated in production (v1.0 shipped) |
+| Tailwind CSS ^4.2 | Vite + `@tailwindcss/vite` | CSS-first config, no `tailwind.config.js` |
+| ApexCharts ^5.7 | Vanilla JS via `window.ApexCharts` | Direct global — no ES module import in Volt SFCs |
+| SQLite 3.x | All new tables | WAL mode recommended if write contention ever appears (not a current concern) |
+
+---
 
 ## Sources
 
-- [Laravel 12 Release Notes](https://laravel.com/docs/12.x/releases) — Version, PHP requirements, support timeline (HIGH confidence)
-- [Livewire v4.2.1 on Packagist](https://packagist.org/packages/livewire/livewire) — Latest version, release date 2026-02-28 (HIGH confidence)
-- [Livewire 4 Official Blog Post](https://laravel.com/blog/livewire-4-is-here-the-artisan-of-the-day-is-caleb-porzio) — Feature confirmation (HIGH confidence)
-- [Tailwind CSS v4 Installation with Vite](https://tailwindcss.com/docs/installation/using-vite) — Version ^4.2, Vite plugin approach (HIGH confidence)
-- [ApexCharts npm](https://www.npmjs.com/package/apexcharts) — v5.6.0 current (MEDIUM confidence — npm page verified)
-- [Laravel 12 Queue Docs](https://laravel.com/docs/12.x/queues) — Database driver recommendation (HIGH confidence)
-- [Laravel 12 Scheduling Docs](https://laravel.com/docs/12.x/scheduling) — Scheduler architecture (HIGH confidence)
-- [janostlund.com — Choosing Laravel Queue Drivers](https://janostlund.com/2025-10-29/choosing-laravel-drivers-queues-sessions-cache) — Database driver for small apps (MEDIUM confidence — single article, consistent with official docs)
-- [Logansua Blizzard API Client on Packagist](https://packagist.org/packages/logansua/blizzard-api-client) — Unmaintained (last v2.0.2, 2017) (HIGH confidence)
-- [Francis Schiavo Blizzard API on Packagist](https://packagist.org/packages/francis-schiavo/blizzard_api) — Last release 2023-04-16, no commodities support confirmed (MEDIUM confidence)
-- [livewire-charts package](https://github.com/asantibanez/livewire-charts) — ApexCharts Livewire wrapper (MEDIUM confidence — Livewire 4 compatibility unconfirmed as of research date)
+- Project v1.0 codebase (`composer.json`, `package.json`, existing models) — Version baseline (HIGH confidence, directly inspected)
+- [PHP 8.4 BCMath\Number](https://www.php.net/manual/en/book.bc.php) — Available natively in PHP 8.4; not needed for integer arithmetic (HIGH confidence)
+- [Livewire 4 Validation Docs](https://livewire.laravel.com/docs/4.x/validation) — Wildcard array validation rules supported (HIGH confidence)
+- [Livewire 4 wire:model Docs](https://livewire.laravel.com/docs/4.x/wire-model) — Array property binding pattern (HIGH confidence)
+- [Laravel Eloquent orderByPivot / orderBy on hasMany](https://laravel.com/docs/12.x/eloquent-relationships) — `orderBy('position')` on hasMany is built-in (HIGH confidence)
+- [staudenmeir/laravel-adjacency-list on GitHub](https://github.com/staudenmeir/laravel-adjacency-list) — Confirmed it targets recursive tree structures, not linear ordered lists; not appropriate here (HIGH confidence)
+- WebSearch: "Livewire 4 dynamic repeatable form fields array inputs 2025" — Confirms native array binding + save-time validation is the documented pattern; no third-party package is the consensus recommendation (MEDIUM confidence)
+- WebSearch: "PHP 8.4 BCMath decimal class new API 2024" — Confirms BCMath\Number is available in PHP 8.4 with operator overloading; confirmed as overkill for integer-only copper arithmetic (HIGH confidence)
 
 ---
-*Stack research for: WoW AH Commodity Price Tracker*
-*Researched: 2026-03-01*
+*Stack research for: WoW AH Tracker — v1.1 Shuffles milestone*
+*Researched: 2026-03-04*

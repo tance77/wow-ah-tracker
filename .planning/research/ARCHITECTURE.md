@@ -1,353 +1,525 @@
 # Architecture Research
 
-**Domain:** WoW Auction House Price Tracker (Laravel)
-**Researched:** 2026-03-01
-**Confidence:** HIGH
+**Domain:** WoW AH Tracker — Shuffles / Conversion Chain Milestone
+**Researched:** 2026-03-04
+**Confidence:** HIGH (based on direct codebase inspection)
 
-## Standard Architecture
+## Context: What Already Exists
 
-### System Overview
+This is a subsequent-milestone document. v1.0 is shipped. The existing architecture is:
+
+- **Models:** `User`, `WatchedItem`, `CatalogItem`, `PriceSnapshot`, `IngestionMetadata`
+- **Key relationships:** `User hasMany WatchedItem`, `WatchedItem belongsTo CatalogItem` (via `blizzard_item_id`), `CatalogItem hasMany PriceSnapshot`
+- **Livewire pages (Volt SFCs):** `pages.dashboard`, `pages.watchlist`, `pages.item-detail`
+- **Routes:** `/dashboard`, `/watchlist`, `/item/{watchedItem}`
+- **Background jobs:** `FetchCommodityDataJob` → `DispatchPriceBatchesJob` → `AggregatePriceBatchJob`
+- **Price storage:** BIGINT copper (not float), composite index `(catalog_item_id, polled_at)`
+- **Navigation:** `livewire/layout/navigation.blade.php` — currently only Dashboard and Watchlist links
+
+The research below covers **only what is new or changed** for the Shuffles feature.
+
+---
+
+## System Overview: Shuffles Integration
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                        Web Layer                                 │
-│  ┌──────────────────────────────────────────────────────────┐   │
-│  │  Browser → Auth Middleware → Dashboard / Admin Routes     │   │
-│  │            (single user, simple login)                    │   │
-│  └──────────────────────────────────────────────────────────┘   │
+│                     Existing (unchanged)                         │
+│  Dashboard       Watchlist       Item Detail     Auth/Profile    │
 ├─────────────────────────────────────────────────────────────────┤
-│                     Application Layer                            │
-│  ┌──────────────┐  ┌─────────────────┐  ┌──────────────────┐   │
-│  │  Livewire    │  │  Controllers    │  │  Artisan         │   │
-│  │  Components  │  │  (Admin CRUD)   │  │  (manual trigger)│   │
-│  └──────┬───────┘  └────────┬────────┘  └────────┬─────────┘   │
-│         │                   │                     │             │
-│  ┌──────▼───────────────────▼─────────────────────▼──────────┐  │
-│  │               Actions / Services                           │  │
-│  │  BlizzardTokenService  |  PriceFetchAction                 │  │
-│  │  PriceAggregateAction  |  WatchedItemService               │  │
-│  └──────────────────────────────────┬──────────────────────┘  │
-├────────────────────────────────────┼────────────────────────────┤
-│                 Queue Layer         │                            │
-│  ┌──────────────────────────────────▼──────────────────────┐   │
-│  │              Laravel Scheduler (every 15 min)            │   │
-│  │              → dispatches FetchCommodityPricesJob        │   │
-│  └──────────────────────────────────────────────────────────┘   │
-│  ┌──────────────────────────────────────────────────────────┐   │
-│  │              Queue Worker (database / redis)              │   │
-│  │              processes FetchCommodityPricesJob            │   │
-│  └──────────────────────────────────────────────────────────┘   │
+│                     NEW: Shuffles Section                        │
+│  ┌──────────────────────┐   ┌─────────────────────────────────┐  │
+│  │  pages.shuffles      │   │  pages.shuffle-detail (or       │  │
+│  │  (index/list)        │   │   embedded in shuffles index)   │  │
+│  │  - List all shuffles │   │  - Edit chain steps             │  │
+│  │  - Create new        │   │  - Batch calculator             │  │
+│  │  - Delete            │   │  - Profit summary               │  │
+│  └──────────┬───────────┘   └────────────┬────────────────────┘  │
+│             │                             │                       │
+│  ┌──────────▼─────────────────────────────▼────────────────────┐  │
+│  │              NEW Eloquent Models                             │  │
+│  │  Shuffle         ShuffleStep        (existing) WatchedItem  │  │
+│  │  (has many)  ->  (belongs to)       auto-created on step add│  │
+│  └──────────────────────────────────────────────────────────────┘  │
 ├─────────────────────────────────────────────────────────────────┤
-│                     External Layer                               │
-│  ┌──────────────────────────────────────────────────────────┐   │
-│  │              Blizzard Game Data API                       │   │
-│  │              OAuth2 token endpoint + commodities endpoint │   │
-│  └──────────────────────────────────────────────────────────┘   │
-├─────────────────────────────────────────────────────────────────┤
-│                     Data Layer                                   │
-│  ┌────────────────┐  ┌───────────────┐  ┌──────────────────┐   │
-│  │  watched_items │  │  price_snaps  │  │  Laravel Cache   │   │
-│  │  (config)      │  │  (time series)│  │  (OAuth2 token)  │   │
-│  └────────────────┘  └───────────────┘  └──────────────────┘   │
+│                     Data Layer (new tables)                      │
+│  ┌──────────────────┐   ┌──────────────────────────────────┐    │
+│  │  shuffles        │   │  shuffle_steps                   │    │
+│  │  id, user_id     │   │  id, shuffle_id, sort_order      │    │
+│  │  name            │   │  input_item_id (catalog)         │    │
+│  │  timestamps      │   │  output_item_id (catalog)        │    │
+│  └──────────────────┘   │  input_qty, output_qty_min       │    │
+│                          │  output_qty_max (nullable)       │    │
+│                          │  timestamps                      │    │
+│                          └──────────────────────────────────┘    │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-### Component Responsibilities
+---
 
-| Component | Responsibility | Typical Implementation |
-|-----------|----------------|------------------------|
-| Laravel Scheduler | Fires poll trigger every 15 minutes | `routes/console.php` Schedule::job() |
-| FetchCommodityPricesJob | Single unit of polling work, retryable | `app/Jobs/FetchCommodityPricesJob.php` |
-| BlizzardTokenService | Obtain + cache access token (24h TTL) | `app/Services/BlizzardTokenService.php` |
-| PriceFetchAction | Call Blizzard API, filter to watched items | `app/Actions/PriceFetchAction.php` |
-| PriceAggregateAction | Derive min/avg/median/volume from raw listings | `app/Actions/PriceAggregateAction.php` |
-| WatchedItemService | CRUD for managed item list | `app/Services/WatchedItemService.php` |
-| Dashboard (Livewire) | Render charts, date range, signals | `app/Livewire/Dashboard.php` |
-| Admin Controller | Add/remove watched items | `app/Http/Controllers/AdminController.php` |
+## New Models Required
 
-## Recommended Project Structure
+### Shuffle
 
-```
-app/
-├── Actions/
-│   ├── PriceFetchAction.php        # calls API, returns raw commodity data
-│   └── PriceAggregateAction.php    # derives metrics from raw listings
-├── Jobs/
-│   └── FetchCommodityPricesJob.php # queued job dispatched by scheduler
-├── Services/
-│   ├── BlizzardTokenService.php    # OAuth2 client credentials + caching
-│   └── WatchedItemService.php      # item management business logic
-├── Models/
-│   ├── WatchedItem.php             # items to track (id, name, blizzard_item_id)
-│   └── PriceSnapshot.php           # one row per item per poll
-├── Livewire/
-│   ├── Dashboard.php               # main chart view (date range, item select)
-│   └── AdminItems.php              # watched item management UI
-├── Http/
-│   └── Controllers/
-│       └── Auth/LoginController.php
-database/
-├── migrations/
-│   ├── create_watched_items_table.php
-│   └── create_price_snapshots_table.php
-routes/
-├── web.php                         # dashboard, admin, auth routes
-└── console.php                     # Schedule::job(FetchCommodityPricesJob::class)->everyFifteenMinutes()
-```
+Represents one named conversion chain (e.g., "Algari Sendoff Shuffle").
 
-### Structure Rationale
-
-- **Actions/:** Single-responsibility classes for discrete operations (fetch, aggregate). Reusable from jobs, artisan commands, and tests without going through the HTTP layer.
-- **Services/:** Classes with multiple related methods or stateful concerns (token caching, item management).
-- **Jobs/:** Thin orchestrator — calls actions, handles retry/failure logic. Keeps action classes testable in isolation.
-- **Livewire/:** Self-contained components; each owns its own data query and chart config. Avoids over-fetching in controllers.
-
-## Architectural Patterns
-
-### Pattern 1: Scheduler → Job → Actions (Thin Job, Fat Action)
-
-**What:** The scheduler fires a queued job every 15 minutes. The job is a thin orchestrator that calls discrete action classes. Actions contain the actual logic.
-
-**When to use:** Always for this project — ensures actions are independently testable and reusable from artisan commands.
-
-**Trade-offs:** Slightly more files than putting logic directly in the job. Worth it: jobs can be retried without retesting action logic.
-
-**Example:**
 ```php
-// app/Jobs/FetchCommodityPricesJob.php
-class FetchCommodityPricesJob implements ShouldQueue, ShouldBeUnique
+// app/Models/Shuffle.php
+class Shuffle extends Model
 {
-    use Queueable;
+    protected $fillable = ['user_id', 'name'];
 
-    public $uniqueFor = 840; // 14 minutes — prevents overlap at 15-min boundary
-
-    public function handle(
-        PriceFetchAction $fetch,
-        PriceAggregateAction $aggregate,
-        WatchedItemService $items
-    ): void {
-        $watchedItems = $items->getActive();
-        $rawListings  = $fetch->execute($watchedItems);
-
-        foreach ($rawListings as $itemId => $listings) {
-            $snapshot = $aggregate->execute($itemId, $listings);
-            PriceSnapshot::create($snapshot);
-        }
-    }
-}
-
-// routes/console.php
-Schedule::job(new FetchCommodityPricesJob)->everyFifteenMinutes();
-```
-
-### Pattern 2: Token-Cached OAuth2 Service (Cache::remember with TTL)
-
-**What:** BlizzardTokenService requests a token on cache miss, stores it in Laravel cache with a TTL slightly shorter than the 24-hour Blizzard token lifetime. All API calls obtain the token through this service.
-
-**When to use:** Any time a third-party API uses short-lived tokens with client credentials flow.
-
-**Trade-offs:** Requires a cache backend (file is fine for single-server; Redis preferred). Token expiry mismatch is the main failure mode — mitigated by using 23-hour TTL.
-
-**Example:**
-```php
-// app/Services/BlizzardTokenService.php
-class BlizzardTokenService
-{
-    public function getToken(): string
+    public function user(): BelongsTo
     {
-        return Cache::remember('blizzard_access_token', now()->addHours(23), function () {
-            $response = Http::withBasicAuth(
-                config('services.blizzard.client_id'),
-                config('services.blizzard.client_secret')
-            )->asForm()->post('https://oauth.battle.net/token', [
-                'grant_type' => 'client_credentials',
-            ]);
+        return $this->belongsTo(User::class);
+    }
 
-            return $response->json('access_token');
-        });
+    public function steps(): HasMany
+    {
+        return $this->hasMany(ShuffleStep::class)->orderBy('sort_order');
     }
 }
 ```
 
-### Pattern 3: Price Snapshot Table (Append-Only Time Series)
-
-**What:** Each poll writes one row per watched item to `price_snapshots`. The table is append-only — no updates. Dashboard queries aggregate from this table over a time window.
-
-**When to use:** Any price/metric tracking that needs historical trend lines.
-
-**Trade-offs:** Row count grows with time (96 rows/day per item at 15-min intervals = ~700 rows/week for 7 items). Manageable at this scale without partitioning; prune old data via scheduled job if needed.
-
-**Schema:**
+**Migration:**
 ```php
-// price_snapshots migration
-Schema::create('price_snapshots', function (Blueprint $table) {
+Schema::create('shuffles', function (Blueprint $table) {
     $table->id();
-    $table->foreignId('watched_item_id')->constrained()->cascadeOnDelete();
-    $table->unsignedBigInteger('min_price');   // copper, integer avoids float rounding
-    $table->unsignedBigInteger('avg_price');
-    $table->unsignedBigInteger('median_price');
-    $table->unsignedInteger('total_volume');   // quantity available
-    $table->timestamp('polled_at');            // when Blizzard API was called
-    $table->index(['watched_item_id', 'polled_at']); // composite for range queries
+    $table->foreignId('user_id')->constrained()->cascadeOnDelete();
+    $table->string('name');
+    $table->timestamps();
 });
 ```
 
-## Data Flow
+### ShuffleStep
 
-### Poll Flow (Background, Every 15 Minutes)
+Represents one step in a chain (e.g., "Mill 5x Luredrop → 1-3 Pigment").
 
-```
-Laravel Scheduler (cron every minute checks schedule)
-    ↓ (everyFifteenMinutes match)
-FetchCommodityPricesJob dispatched to queue
-    ↓
-Queue Worker picks up job
-    ↓
-BlizzardTokenService::getToken()
-    ↓ (cache hit: return cached token / miss: POST to oauth.battle.net)
-PriceFetchAction::execute($watchedItems)
-    ↓ (GET /data/wow/auctions/commodities with Bearer token)
-Raw listings array (all commodity listings in region)
-    ↓ (filter: keep only watched item IDs)
-PriceAggregateAction::execute($itemId, $listings)
-    ↓ (compute min, avg, median, volume from listing quantities + unit prices)
-PriceSnapshot::create([...])
-    ↓
-price_snapshots table row written
-```
+```php
+// app/Models/ShuffleStep.php
+class ShuffleStep extends Model
+{
+    protected $fillable = [
+        'shuffle_id',
+        'sort_order',
+        'input_catalog_item_id',
+        'output_catalog_item_id',
+        'input_qty',
+        'output_qty_min',
+        'output_qty_max',   // nullable: null means fixed yield = output_qty_min
+    ];
 
-### Dashboard Flow (User Request)
+    protected $casts = [
+        'sort_order'       => 'integer',
+        'input_qty'        => 'integer',
+        'output_qty_min'   => 'integer',
+        'output_qty_max'   => 'integer',
+    ];
 
-```
-Browser GET /dashboard
-    ↓
-Auth middleware (session check)
-    ↓
-Livewire Dashboard component renders
-    ↓
-Component queries: SELECT * FROM price_snapshots
-                   WHERE watched_item_id IN (...)
-                   AND polled_at >= NOW() - INTERVAL 7 DAY
-                   ORDER BY polled_at ASC
-    ↓
-PHP formats into Chart.js dataset (labels + data arrays)
-    ↓
-Blade template renders chart canvas
-    ↓
-Chart.js draws line chart in browser
+    public function shuffle(): BelongsTo
+    {
+        return $this->belongsTo(Shuffle::class);
+    }
+
+    public function inputItem(): BelongsTo
+    {
+        return $this->belongsTo(CatalogItem::class, 'input_catalog_item_id');
+    }
+
+    public function outputItem(): BelongsTo
+    {
+        return $this->belongsTo(CatalogItem::class, 'output_catalog_item_id');
+    }
+}
 ```
 
-### Key Data Flows
+**Migration:**
+```php
+Schema::create('shuffle_steps', function (Blueprint $table) {
+    $table->id();
+    $table->foreignId('shuffle_id')->constrained()->cascadeOnDelete();
+    $table->unsignedTinyInteger('sort_order')->default(0);
+    $table->foreignId('input_catalog_item_id')->constrained('catalog_items');
+    $table->foreignId('output_catalog_item_id')->constrained('catalog_items');
+    $table->unsignedInteger('input_qty')->default(1);
+    $table->unsignedInteger('output_qty_min');
+    $table->unsignedInteger('output_qty_max')->nullable();
+    $table->timestamps();
 
-1. **Token refresh:** BlizzardTokenService → Laravel Cache (file/redis) → TTL 23h → auto-refreshed on next request after expiry
-2. **Price ingestion:** Blizzard API (all ~10k commodity listings) → filter to 6-7 watched items → aggregate metrics → single row per item written to DB
-3. **Chart rendering:** price_snapshots (time-windowed query) → PHP arrays → Livewire → Blade → Chart.js (client-side render)
-4. **Admin item changes:** Livewire AdminItems form → WatchedItemService::create/delete → watched_items table → next poll picks up new item list
-
-## Integration Points
-
-### External Services
-
-| Service | Integration Pattern | Notes |
-|---------|---------------------|-------|
-| Blizzard OAuth (`oauth.battle.net/token`) | HTTP POST with Basic Auth (client_id:secret), cache result 23h | Token is 24h, use 23h TTL to avoid expiry during a poll. Authorization: Bearer header only — query string no longer accepted. |
-| Blizzard Game Data API (`us.api.blizzard.com`) | HTTP GET with Bearer token header | Single commodities endpoint returns all region listings. Filter client-side to watched items. Rate limit is ~36k/hr — 15-min polling is negligible. |
-
-### Internal Boundaries
-
-| Boundary | Communication | Notes |
-|----------|---------------|-------|
-| Scheduler → Job | `Schedule::job()` dispatch | Job implements `ShouldBeUnique` to prevent 15-min overlap |
-| Job → Actions | Constructor injection via Laravel container | Actions are stateless; inject BlizzardTokenService via handle() |
-| Actions → Database | Eloquent models | Direct model usage acceptable at this scale — no repository layer needed |
-| Livewire → Database | Direct Eloquent queries in component | Keep queries in `mount()` and reactive computed properties |
-| Config → Services | `.env` + `config/services.php` | `BLIZZARD_CLIENT_ID`, `BLIZZARD_CLIENT_SECRET`, `BLIZZARD_REGION` |
-
-## Anti-Patterns
-
-### Anti-Pattern 1: Calling Blizzard API Directly from Scheduler Closure
-
-**What people do:** Put HTTP calls inside `Schedule::call(function() { Http::get(...); })` in `routes/console.php`.
-
-**Why it's wrong:** Scheduler runs on the main process. Long API calls block subsequent scheduled tasks. No retry on failure. No monitoring visibility.
-
-**Do this instead:** Scheduler dispatches a queued job. Job handles the HTTP call with retry logic and timeout settings.
-
-### Anti-Pattern 2: Storing Raw Listings Instead of Aggregated Snapshots
-
-**What people do:** Write all commodity listing rows to the database (thousands of rows per poll).
-
-**Why it's wrong:** Blizzard's commodities endpoint returns listings for all region commodities — potentially 10,000+ rows per call. Storing raw listings for even 7 items still multiplies row count by listing depth (hundreds per item). Dashboard queries become slow. No business value in individual listing rows after the poll.
-
-**Do this instead:** Aggregate in PHP immediately after fetch (min price, avg, median, volume). Write one summary row per item per poll to `price_snapshots`.
-
-### Anti-Pattern 3: Fetching Blizzard Token on Every API Call
-
-**What people do:** POST to `oauth.battle.net/token` before every commodities API request.
-
-**Why it's wrong:** Doubles API calls. Adds latency to every poll. Blizzard tokens last 24 hours — refreshing every 15 minutes is wasteful and may trigger rate limits on the auth endpoint.
-
-**Do this instead:** Cache token with `Cache::remember()` using a 23-hour TTL. Re-request only on cache miss or 401 response.
-
-### Anti-Pattern 4: Over-Engineering with Repository Layer
-
-**What people do:** Add Repository interfaces between Eloquent and service/action classes for "flexibility."
-
-**Why it's wrong:** This project has two models (WatchedItem, PriceSnapshot) and will never swap databases. Repository layer adds indirection with zero practical benefit for a single-user app this size.
-
-**Do this instead:** Use Eloquent models directly in actions and Livewire components. Introduce repositories only when a concrete need (swap DB, complex query isolation) arises.
-
-## Scaling Considerations
-
-| Scale | Architecture Adjustments |
-|-------|--------------------------|
-| Single user (current) | SQLite or MySQL, file cache, database queue driver — all fine |
-| 10-50 users (if ever public) | Switch queue to Redis, add Horizon for monitoring, add database indexes |
-| 100+ users | TimescaleDB or PostgreSQL for price_snapshots hypertables, Redis cache, separate queue worker process |
-
-### Scaling Priorities
-
-1. **First bottleneck:** Dashboard chart queries slow down as price_snapshots grows. Fix: add composite index on `(watched_item_id, polled_at)` (already in schema above), then add data pruning job to delete rows older than 90 days.
-2. **Second bottleneck:** Queue worker contention if multiple jobs run. Fix: Redis queue driver + Laravel Horizon. Not relevant at current scope.
-
-## Build Order Implications
-
-The component dependency graph drives phase order:
-
-```
-BlizzardTokenService          (no dependencies)
-    ↓
-PriceFetchAction              (requires token service)
-    ↓
-PriceAggregateAction          (requires raw data shape from fetch)
-    ↓
-FetchCommodityPricesJob       (requires fetch + aggregate actions)
-    ↓
-Scheduler wiring              (requires job exists)
-    ↓
-PriceSnapshot model/migration (required before job can persist data)
-    ↓
-WatchedItem model + Admin UI  (required for job to know what to fetch)
-    ↓
-Dashboard + Charts            (requires data in price_snapshots)
+    $table->index(['shuffle_id', 'sort_order']);
+});
 ```
 
-**Recommended build phases:**
-1. Foundation: auth, database migrations, watched_items CRUD, config
-2. Data ingestion: token service, fetch action, aggregate action, job, scheduler
-3. Dashboard: Livewire chart component, date range, buy/sell signal indicators
+---
+
+## Existing Model Changes
+
+### User (modified)
+
+Add `shuffles()` relationship:
+
+```php
+public function shuffles(): HasMany
+{
+    return $this->hasMany(Shuffle::class);
+}
+```
+
+### CatalogItem (unchanged schema, extended usage)
+
+No schema changes. `CatalogItem` is already the source-of-truth for item identity. `ShuffleStep` references it directly via `input_catalog_item_id` / `output_catalog_item_id`. This is cleaner than going through `WatchedItem` because steps reference catalog items, not user-specific watched items.
+
+---
+
+## Relationship Map
+
+```
+User
+ ├── hasMany WatchedItem          (existing — for watchlist + signals)
+ └── hasMany Shuffle              (NEW)
+          └── hasMany ShuffleStep
+                   ├── belongsTo CatalogItem (as inputItem)
+                   └── belongsTo CatalogItem (as outputItem)
+
+CatalogItem
+ ├── hasMany PriceSnapshot        (existing)
+ ├── used as inputItem in ShuffleStep  (NEW, via FK)
+ └── used as outputItem in ShuffleStep (NEW, via FK)
+```
+
+Key design decision: **ShuffleStep links to `CatalogItem`, not `WatchedItem`.**
+
+Rationale: A step defines "what item is used/produced" — this is catalog identity. `WatchedItem` is a user preference record (thresholds, profession tag). The auto-watch side effect (creating `WatchedItem` when a step is added) is handled in the Livewire component, not baked into the data model.
+
+---
+
+## New Livewire Components
+
+### `pages.shuffles` (index + create)
+
+Single Volt SFC at `resources/views/livewire/pages/shuffles.blade.php`.
+
+**Responsibilities:**
+- List all shuffles for the authenticated user
+- Create a new shuffle (name input → persist → redirect or inline expand)
+- Delete a shuffle (with confirmation)
+- Link to shuffle detail / calculator
+
+**PHP class sketch:**
+```php
+new #[Layout('layouts.app')] class extends Component
+{
+    public string $name = '';
+
+    #[Computed]
+    public function shuffles(): Collection
+    {
+        return auth()->user()->shuffles()->withCount('steps')->orderBy('name')->get();
+    }
+
+    public function create(): void
+    {
+        $this->validate(['name' => 'required|string|max:100']);
+        auth()->user()->shuffles()->create(['name' => $this->name]);
+        $this->name = '';
+    }
+
+    public function delete(int $id): void
+    {
+        auth()->user()->shuffles()->findOrFail($id)->delete();
+    }
+};
+```
+
+### `pages.shuffle-detail` (step editor + calculator)
+
+Volt SFC at `resources/views/livewire/pages/shuffle-detail.blade.php`.
+
+Route: `GET /shuffles/{shuffle}` with model binding scoped to `auth()->user()->shuffles()`.
+
+**Responsibilities:**
+- Display/edit all steps for a shuffle (reorder, add, remove steps)
+- Each step: pick input item (CatalogItem search combobox, same pattern as Watchlist), pick output item, set qty/ratio
+- When a step is saved: ensure both input and output `CatalogItem` IDs exist as `WatchedItem` for the user (auto-watch)
+- Batch calculator: user enters input quantity → component computes per-step yields and profit using latest `median_price` from `PriceSnapshot`
+- Profit summary: total cost in (copper), total value out (copper), net margin
+
+**PHP class sketch:**
+```php
+new #[Layout('layouts.app')] class extends Component
+{
+    public Shuffle $shuffle;
+
+    // Calculator state
+    public int $batchQuantity = 1;
+
+    public function mount(Shuffle $shuffle): void
+    {
+        abort_unless($shuffle->user_id === auth()->id(), 403);
+        $this->shuffle = $shuffle;
+    }
+
+    #[Computed]
+    public function steps(): Collection
+    {
+        return $this->shuffle->steps()->with(['inputItem.priceSnapshots' => fn ($q) => $q->latest('polled_at')->limit(1), 'outputItem.priceSnapshots' => fn ($q) => $q->latest('polled_at')->limit(1)])->get();
+    }
+
+    #[Computed]
+    public function profitBreakdown(): array
+    {
+        // Returns per-step cost/yield/margin arrays for the calculator display
+        // Calculation logic lives here or in a dedicated Action class
+    }
+
+    public function addStep(...): void { /* validate, persist, auto-watch */ }
+    public function removeStep(int $id): void { /* delete step */ }
+    public function reorderSteps(array $orderedIds): void { /* update sort_order */ }
+};
+```
+
+---
+
+## Auto-Watch Integration
+
+When a step is saved (added or updated), the component must ensure both items are watched by the user. This prevents the calculator from showing no price data for items in a shuffle.
+
+**Implementation location:** Inside the `addStep()` / `updateStep()` methods in the Volt component, NOT in the model observer or event listener.
+
+**Why not observers:** Adding a `WatchedItem` silently in a model observer makes the behavior invisible and harder to test. Keeping it explicit in the component method is obvious and controllable.
+
+```php
+private function ensureWatched(int $catalogItemId): void
+{
+    $catalog = CatalogItem::findOrFail($catalogItemId);
+
+    auth()->user()->watchedItems()->firstOrCreate(
+        ['blizzard_item_id' => $catalog->blizzard_item_id],
+        ['name' => $catalog->name, 'buy_threshold' => 10, 'sell_threshold' => 10]
+    );
+}
+```
+
+This mirrors the existing `addFromCatalog()` pattern in `pages.watchlist` exactly.
+
+---
+
+## Profit Calculation Data Flow
+
+```
+User sets $batchQuantity = 100
+    ↓
+$this->profitBreakdown (Computed property recalculates)
+    ↓
+For each ShuffleStep (ordered by sort_order):
+    latestInputPrice  = step->inputItem->priceSnapshots->first()->median_price  (copper)
+    latestOutputPrice = step->outputItem->priceSnapshots->first()->median_price (copper)
+
+    inputCostCopper  = latestInputPrice * inputQty * batchQuantity
+    outputYieldMin   = outputQtyMin * batchQuantity
+    outputYieldMax   = (outputQtyMax ?? outputQtyMin) * batchQuantity
+    outputValueMin   = latestOutputPrice * outputYieldMin
+    outputValueMax   = latestOutputPrice * outputYieldMax
+    netProfitMin     = outputValueMin - inputCostCopper
+    netProfitMax     = outputValueMax - inputCostCopper
+    ↓
+Totals: sum all steps' inputCost, outputValueMin, outputValueMax
+    ↓
+Display using existing formatGold() from FormatsAuctionData trait
+```
+
+**Key constraint:** All arithmetic stays in integer copper. Never convert to float mid-calculation. Only convert to gold/silver/copper display at render time via `formatGold()`.
+
+**Where this lives:** The `profitBreakdown()` computed property in the Volt component is sufficient for v1.1. If it grows complex, extract to `app/Actions/ShuffleProfitAction.php` — same pattern as `PriceAggregateAction`.
+
+---
+
+## Navigation Changes
+
+File to modify: `resources/views/livewire/layout/navigation.blade.php`
+
+Add "Shuffles" nav link in both the desktop links section and the responsive mobile menu section — same pattern as the existing Watchlist link.
+
+```blade
+<x-nav-link :href="route('shuffles')" :active="request()->routeIs('shuffles*')" wire:navigate>
+    {{ __('Shuffles') }}
+</x-nav-link>
+```
+
+Note: `routeIs('shuffles*')` (wildcard) keeps the link active on both `/shuffles` and `/shuffles/{id}`.
+
+---
+
+## Route Changes
+
+File to modify: `routes/web.php`
+
+```php
+Volt::route('/shuffles', 'pages.shuffles')
+    ->middleware(['auth'])
+    ->name('shuffles');
+
+Volt::route('/shuffles/{shuffle}', 'pages.shuffle-detail')
+    ->middleware(['auth'])
+    ->name('shuffles.detail');
+```
+
+Route model binding on `{shuffle}` will resolve to a `Shuffle` model automatically. Authorization check (owner = auth user) happens in `mount()`.
+
+---
+
+## New File Inventory
+
+### New Files
+
+| Path | Type | Purpose |
+|------|------|---------|
+| `app/Models/Shuffle.php` | Model | Named conversion chain |
+| `app/Models/ShuffleStep.php` | Model | One step in a chain |
+| `database/migrations/YYYY_MM_DD_create_shuffles_table.php` | Migration | `shuffles` table |
+| `database/migrations/YYYY_MM_DD_create_shuffle_steps_table.php` | Migration | `shuffle_steps` table |
+| `database/factories/ShuffleFactory.php` | Factory | Test seeding |
+| `database/factories/ShuffleStepFactory.php` | Factory | Test seeding |
+| `resources/views/livewire/pages/shuffles.blade.php` | Volt SFC | Shuffle list + create |
+| `resources/views/livewire/pages/shuffle-detail.blade.php` | Volt SFC | Step editor + calculator |
+
+### Modified Files
+
+| Path | Change |
+|------|--------|
+| `app/Models/User.php` | Add `shuffles(): HasMany` relationship |
+| `resources/views/livewire/layout/navigation.blade.php` | Add Shuffles nav link (desktop + mobile) |
+| `routes/web.php` | Add two new Volt routes |
+
+### Optionally New (if calculation complexity warrants)
+
+| Path | Type | Purpose |
+|------|------|---------|
+| `app/Actions/ShuffleProfitAction.php` | Action | Encapsulate profit calculation for testability |
+
+---
+
+## Build Order
+
+Dependencies determine this order. Each step unblocks the next.
+
+```
+1. Migrations + Models
+   shuffles table → shuffle_steps table
+   Shuffle model → ShuffleStep model → User::shuffles() relationship
+
+2. Factories
+   ShuffleFactory → ShuffleStepFactory
+   (Needed before feature tests can run)
+
+3. Shuffles Index Page (pages.shuffles)
+   List / create / delete — no calculator yet
+   Validates: route, auth scoping, basic CRUD
+
+4. Navigation Link
+   Add to navigation.blade.php
+   Validates: link appears, active state works
+
+5. Shuffle Detail Page skeleton (pages.shuffle-detail)
+   Mount + authorization check + step list display
+   No calculator yet — just renders steps
+
+6. Step Add/Remove with Item Search
+   Reuse CatalogItem combobox pattern from Watchlist
+   Auto-watch implementation here
+
+7. Batch Calculator
+   batchQuantity input → profitBreakdown computed property
+   formatGold() for display
+
+8. Profit Summary
+   Sum totals across steps, render summary row
+```
+
+**Critical path:** Steps 1 → 2 → 3 must complete before any feature tests can be written. Step 6 (item search + auto-watch) is the highest-complexity step and should be built before the calculator — bad data in steps makes calculator results meaningless.
+
+---
+
+## Reuse Points from v1.0
+
+These v1.0 patterns apply directly to the Shuffles feature without modification:
+
+| Pattern | Where Reused |
+|---------|-------------|
+| CatalogItem name search combobox | Step add: pick input/output items by name |
+| `firstOrCreate` for WatchedItem | Auto-watch in `addStep()` |
+| `FormatsAuctionData::formatGold()` | Calculator display |
+| `#[Computed]` property pattern | `steps()` and `profitBreakdown()` |
+| `#[Layout('layouts.app')]` | Both new Volt SFCs |
+| `abort_unless(owner check, 403)` | `mount()` in shuffle-detail |
+| BIGINT copper arithmetic (no float) | All profit calculations |
+| `wire:key` on list items | Step list rendering |
+
+---
+
+## Anti-Patterns to Avoid
+
+### Anti-Pattern 1: Storing Prices on ShuffleStep
+
+**What people do:** Add `input_price_copper` / `output_price_copper` columns to `shuffle_steps` and update them periodically.
+
+**Why it's wrong:** Prices are already live in `price_snapshots`. Duplicating them creates staleness — the "cached" price on the step drifts from the snapshot price. The calculator would show wrong profit until the cache is updated.
+
+**Do this instead:** Always pull the latest `median_price` from `PriceSnapshot` at calculator render time. The `priceSnapshots` eager load with `latest('polled_at')->limit(1)` keeps this efficient.
+
+### Anti-Pattern 2: Float Arithmetic for Profit
+
+**What people do:** Convert copper to gold (`$price / 10000`) to make the math "easier," then multiply by quantity.
+
+**Why it's wrong:** Floating-point rounding accumulates across multi-step chains. `58.33g * 500 units` in float can diverge from the integer result by several copper per step, magnified across the batch.
+
+**Do this instead:** All multiplication/addition in integer copper throughout. Convert to `g/s/c` display only in `formatGold()` at the final render step.
+
+### Anti-Pattern 3: Modeling Steps as a Linked List
+
+**What people do:** Add a `previous_step_id` / `next_step_id` to each step to represent ordering.
+
+**Why it's wrong:** Linked-list reordering requires multi-row updates and is hard to query in order. SQLite does not support deferred constraint checking the same way PostgreSQL does, making linked-list reorder awkward.
+
+**Do this instead:** Use an integer `sort_order` column. Reordering updates the `sort_order` of affected rows in a single transaction. Gaps in sort_order are fine — query with `ORDER BY sort_order ASC`.
+
+### Anti-Pattern 4: One Livewire Component Per Step
+
+**What people do:** Create a separate Livewire/Volt component for each step row to handle its own edit state.
+
+**Why it's wrong:** Livewire components have network round-trip overhead per interaction. For a 5-step chain, that's 5 separate component trees to maintain. The step data is small and belongs in one component.
+
+**Do this instead:** Manage all step edit state in the parent `shuffle-detail` Volt component using public arrays or inline Alpine.js for transient UI state (e.g., showing/hiding an edit form for a specific step row).
+
+---
+
+## Integration Points Summary
+
+| Touch Point | New or Modified | Notes |
+|-------------|-----------------|-------|
+| `shuffles` table | NEW | Owned by user, cascades on delete |
+| `shuffle_steps` table | NEW | Cascades from shuffle delete |
+| `Shuffle` model | NEW | Simple — no complex logic |
+| `ShuffleStep` model | NEW | Holds ratio/yield config |
+| `User::shuffles()` | MODIFIED | Add `HasMany` relationship |
+| `pages.shuffles` Volt SFC | NEW | List + create |
+| `pages.shuffle-detail` Volt SFC | NEW | Steps + calculator |
+| Navigation blade | MODIFIED | Add Shuffles link |
+| `routes/web.php` | MODIFIED | Add 2 routes |
+| `WatchedItem` (auto-create) | MODIFIED behavior | Called from addStep(), not schema change |
+| `CatalogItem` | UNCHANGED | Used as FK target for step items |
+| `PriceSnapshot` | UNCHANGED | Queried by calculator for live prices |
+| Background jobs | UNCHANGED | Items auto-watched → automatically polled |
+
+---
 
 ## Sources
 
-- Laravel Scheduling (official docs, v12): https://laravel.com/docs/12.x/scheduling
-- Laravel Queues (official docs, v12): https://laravel.com/docs/12.x/queues
-- Blizzard OAuth2 client credentials: https://us.forums.blizzard.com/en/blizzard/t/oauth2-client-credentials-implementations/131
-- Blizzard token expiry (24h): https://github.com/nextauthjs/next-auth/issues/6853 (MEDIUM confidence — community source, aligns with documented expires_in: 86399)
-- Blizzard token must be in Authorization header (not query string): https://us.forums.blizzard.com/en/blizzard/t/upcoming-changes-to-battlenet%E2%80%99s-api-gateway/51561
-- Laravel Action pattern community consensus: https://dev.to/tegos/laravel-actions-and-services-360d
-- Laravel Livewire + Chart.js integration: https://www.georgebuckingham.com/laravel-livewire-chart-js-realtime/
-- Time series aggregation in Laravel: https://timothepearce.github.io/laravel-time-series-docs/
+- Existing codebase inspection (direct — HIGH confidence): `/app/Models/`, `/resources/views/livewire/`, `/routes/web.php`, `/database/migrations/`
+- Livewire Volt SFC pattern (matches existing pages): `resources/views/livewire/pages/watchlist.blade.php` — used as implementation reference
+- Laravel route model binding scoping: https://laravel.com/docs/12.x/routing#implicit-model-binding-scoping
+- FormatsAuctionData trait (existing): `app/Concerns/FormatsAuctionData.php`
 
 ---
-*Architecture research for: WoW AH Tracker (Laravel commodity price dashboard)*
-*Researched: 2026-03-01*
+*Architecture research for: WoW AH Tracker v1.1 Shuffles integration*
+*Researched: 2026-03-04*

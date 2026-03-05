@@ -1,175 +1,201 @@
 # Project Research Summary
 
-**Project:** WoW Auction House Commodity Price Tracker
-**Domain:** Game economy dashboard — time-series price tracking via external API
-**Researched:** 2026-03-01
-**Confidence:** HIGH (stack, architecture); MEDIUM (features, pitfalls)
+**Project:** WoW Auction House Tracker — v1.1 Shuffles Milestone
+**Domain:** WoW AH commodity price tracker with conversion chain (shuffle) profit calculator
+**Researched:** 2026-03-04
+**Confidence:** HIGH overall (codebase-grounded; v1.0 already shipped)
 
 ## Executive Summary
 
-This is a read-heavy personal web dashboard that polls the Blizzard Game Data API every 15 minutes, stores aggregated price snapshots, and visualizes commodity price history over time to surface buy/sell opportunities. The established approach for this class of tool is: a scheduled background job handles all data ingestion, an append-only time-series table stores aggregated snapshots (never raw listings), and a server-rendered reactive dashboard delivers the visualization. All major competitors (TSM, Booty Bay Broker, Saddlebag Exchange) follow this pattern, confirming the design is well-understood and achievable with the Laravel stack.
+This is a subsequent-milestone research document for an existing, shipped application (v1.0). The core WoW AH price-tracking infrastructure — Laravel 12, Livewire 4 Volt SFCs, SQLite, scheduled Blizzard API polling, and BIGINT copper price storage — is validated and unchanged. The v1.1 Shuffles milestone adds a dedicated section for defining and evaluating multi-step material conversion chains (e.g., "buy ore -> prospect -> sell gems"), a feature category with no competing web-based tool that combines saved chains, live prices, and a batch profit calculator. The gap is real and the stack is fully capable of filling it without new dependencies.
 
-The recommended approach is Laravel 12 + Livewire 4 + SQLite + database-backed queues. This stack avoids unnecessary infrastructure (no Redis, no separate API layer) while delivering all required reactivity for a single-user dashboard. The architecture cleanly separates concerns: `BlizzardTokenService` handles OAuth2 with caching, `PriceFetchAction` and `PriceAggregateAction` handle data ingestion, `FetchCommodityPricesJob` orchestrates the pipeline, and Livewire components drive the dashboard. This is a thin, maintainable codebase with a clear build order driven by data dependencies.
+The recommended approach is entirely additive: two new Eloquent models (`Shuffle`, `ShuffleStep`), two new Volt SFC pages (index + detail/calculator), two new database tables, and minimal changes to three existing files (User model, navigation blade, routes). The profit calculator reuses existing infrastructure — `PriceSnapshot.median_price` for live prices, `FormatsAuctionData::formatGold()` for display, and the `firstOrCreate` pattern for auto-watching items in a chain. No new packages are needed.
 
-The most significant risks are all in data integrity and API integration — not architecture. Three pitfalls are retroactively unfixable if skipped: storing prices as floats instead of integers, storing only min price instead of min/median/avg/volume, and missing the `Last-Modified` deduplication gate. These must be addressed in schema design and the first job implementation, before any data is written to the database. The Blizzard API also has one breaking change (token via Authorization header only, since Sept 2024) that must be implemented correctly from the first HTTP request.
+The highest risks are all data model decisions that are irrecoverable after launch: storing yield as a single float (instead of integer min/max pairs), omitting the 5% AH cut from the profit formula, and implementing auto-watch without provenance tracking. All three must be designed correctly before any code is written. The Livewire-specific risk — N+1 price queries triggered on every reactive update — must be addressed with bulk `whereIn` fetches and computed property caching from day one.
+
+---
 
 ## Key Findings
 
 ### Recommended Stack
 
-Laravel 12 with Livewire 4, Tailwind CSS v4, SQLite, and database-backed queues is the correct stack for this project. It is minimal, matches the single-user personal tool scope, and avoids infrastructure that would add complexity without benefit at this scale. Livewire 4's Islands feature allows isolated chart refresh without a separate SPA build pipeline. ApexCharts is the right charting library — SVG-based, built-in datetime axis and zoom/pan, actively maintained. The `livewire-charts` wrapper is a candidate but requires Livewire 4 compatibility verification before use; a thin `@script` block with `$wire.on()` is the documented fallback.
+The v1.0 stack is fully sufficient. No new packages or services are required for Shuffles. The only stack additions are two new database tables and two new Volt SFC files. PHP 8.4's BCMath\Number is available but not needed — all profit math stays in integer copper, which standard PHP integer arithmetic handles exactly. Livewire 4's native array property binding handles the dynamic multi-step form; the documented pattern is wildcard validation rules on save (not real-time per-keystroke), avoiding a known rough edge with nested array error assignment.
 
-**Core technologies:**
-- Laravel 12: PHP web framework — current release, built-in scheduler and queue system, PHP 8.2–8.4
-- Livewire 4.2: Reactive UI — server-rendered, no SPA overhead, Islands feature for chart isolation
-- Tailwind CSS 4.2: Utility CSS — ships with Laravel 12, CSS-first config, Vite plugin only
-- SQLite: Primary store — zero-configuration, trivially backed up, correct for single-writer read-heavy workload
-- Laravel database queue driver: Async job processing — no Redis required at 1 job per 15 minutes
-- ApexCharts 5.6: Charting — interactive time-series, SVG, framework-agnostic
-- Laravel HTTP Client: Blizzard API — all third-party Blizzard PHP SDKs are unmaintained (last updated 2017–2023)
-- Laravel Breeze (Blade stack): Auth scaffolding — minimal, removes unneeded registration flow
+**Core technologies (unchanged from v1.0):**
+- Laravel 12 / PHP 8.4: framework and runtime — validated in production
+- Livewire 4 + Volt: reactive SFC pages — handles multi-step forms via array property binding
+- Tailwind CSS v4: styling — existing WoW dark theme with gold/amber accents applies directly
+- SQLite: primary data store — two new tables fit trivially; WAL mode not yet needed
+- ApexCharts v5: charts — dashboard only; not used in Shuffles UI
+
+**New data model (no package, pure Eloquent):**
+- `shuffles` table: named chain owned by user (`id`, `user_id`, `name`, `timestamps`)
+- `shuffle_steps` table: ordered steps with `sort_order` (tinyint), `input_catalog_item_id`, `output_catalog_item_id`, `input_qty`, `output_qty_min`, `output_qty_max` (nullable)
 
 ### Expected Features
 
-Competitor analysis across TSM, Booty Bay Broker, WoW Price Hub, Saddlebag Exchange, and Undermine Exchange produced a clear MVP definition. The dependency graph is strict: polling infrastructure must exist before any data can be stored, and data must accumulate before signals (buy/sell indicators, averages) are meaningful.
+The WoW shuffle community runs conversions via Google Sheets with TSM data exports. No dedicated web app with saved chains, live prices, and a batch calculator exists publicly. This is the gap — and the full v1.1 feature set fits within two new Volt pages.
 
-**Must have (table stakes):**
-- Blizzard API poller (15-min schedule) — without this, nothing works
-- Price history storage (min, avg, median, volume per snapshot) — store volume from day one; cannot backfill
-- Watched item admin CRUD — avoid hard-coding item IDs; enables threshold configuration
-- Single-user auth — protects admin UI and personal data
-- Price history line chart with configurable timeframe (24h / 7d / 30d) — core value delivery
-- Buy/sell signal indicators (% from rolling average) — the "spot the opportunity" feature
-- Dashboard summary card per item (price + trend direction) — at-a-glance overview
+**Must have (v1.1 launch — table stakes):**
+- Named conversion chain CRUD (save, edit, delete shuffles) — required for reuse; one-time entry is the whole point
+- Multi-step chain definition (A input -> B output, chained) — real shuffles have 2-4 steps
+- Batch profit calculator with input quantity field — "I have 200 stacks; is it worth it?" is the core question
+- Profit summary: total cost in, total value out (minus 5% AH cut), net profit — the go/no-go number
+- Per-step cost and value breakdown — shows where margin is created or destroyed
+- Auto-watch: create `WatchedItem` records for all chain items on shuffle save — prices will not exist otherwise
+- Profitability status badge (green/red) — instant visual signal consistent with dashboard buy/sell indicators
+- Price staleness warning — flags snapshots older than 1 hour so the user knows calculation confidence
+- Shuffles index/list page — users maintain multiple shuffles; they need a landing page
 
-**Should have (competitive differentiators):**
-- Volume / supply chart overlay — low volume + low price signals scarcity spike
-- Per-item threshold configuration in UI — different commodities have different volatility baselines
-- Percent-from-average label on chart — more actionable than raw gold amount
-- Discord webhook alerts for threshold breach — add when dashboard-checking becomes the bottleneck
+**Should have (v1.x — add after validation):**
+- Break-even input price — "what is the max I can pay for ore?" — inverse of the profit formula; cheap to add
+- Yield range (min/max per step) — shows best/worst-case profit band; defer until average ratios are in active use
+- Per-output vendor vs AH toggle — relevant when low-quality outputs (e.g., uncommon gems) vendor for more than AH price
 
 **Defer (v2+):**
-- Crafting profit calculator — requires tracking crafted item sell prices separately; doubles data model complexity
-- Multi-user support — requires auth overhaul and data isolation
-- Additional item categories (gear, pets, mounts) — different data shape, different API endpoints
-- Email / push notifications — external service integration, notification deduplication; out of scope for v1
+- Historical profitability trend chart — requires storing calculated profit results over time; new data type
+- Full recipe-based crafting calculator — CraftSim territory; explicitly deferred in PROJECT.md as ADVN-01
+- Automated profit alerts — additive to Discord webhook infrastructure if/when built
 
 ### Architecture Approach
 
-The architecture has three distinct layers with a clear data flow: the scheduler fires `FetchCommodityPricesJob` every 15 minutes, the job calls `PriceFetchAction` (Blizzard API) and `PriceAggregateAction` (compute metrics from raw listings), then writes one aggregated row per watched item to `price_snapshots`. The dashboard Livewire component queries this table with a date-range filter and renders charts. Token management is isolated in `BlizzardTokenService` with `Cache::remember()` at 23-hour TTL. No repository layer is needed — Eloquent models directly in actions and components is the correct approach at this scale.
+The Shuffles feature integrates as a self-contained section within the existing app. Two Volt SFC pages handle all UI: `pages.shuffles` (index + create/delete) and `pages.shuffle-detail` (step editor + batch calculator). The profit calculation runs as a `#[Computed]` property in the detail component — extractable to `app/Actions/ShuffleProfitAction.php` if it grows complex, following the existing `PriceAggregateAction` precedent. All price data flows from `PriceSnapshot.median_price`; no new data sources are introduced. The build order is strictly dependency-driven: migrations and models must complete before factories, which must complete before feature tests can run.
 
 **Major components:**
-1. `BlizzardTokenService` — OAuth2 client credentials flow with cache (23h TTL); single source of truth for API access
-2. `FetchCommodityPricesJob` + `PriceFetchAction` + `PriceAggregateAction` — thin job orchestrates stateless actions; actions independently testable
-3. `price_snapshots` table — append-only time series; composite index on `(watched_item_id, polled_at)` mandatory from day one
-4. `watched_items` table + admin UI — drives which item IDs the poller looks for; supports configurable thresholds
-5. Livewire Dashboard component — queries price history with date bounds, renders ApexCharts, computes buy/sell signals
+1. `Shuffle` + `ShuffleStep` Eloquent models — named chains and their ordered steps; `Shuffle::steps()` orders by `sort_order`
+2. `pages.shuffles` Volt SFC — list all shuffles with profitability badge; create and delete
+3. `pages.shuffle-detail` Volt SFC — step editor (add/remove/reorder), batch calculator, profit summary
+4. Auto-watch integration — `ensureWatched()` called in `addStep()` / `updateStep()` using `firstOrCreate` only
+5. `ShuffleProfitAction` (optional extraction) — encapsulates profit calculation for independent Pest testing
 
 ### Critical Pitfalls
 
-1. **OAuth token as URL query string** — Blizzard permanently removed this Sept 2024. Always use `Authorization: Bearer TOKEN` header. Must be correct from the first HTTP request; cannot be a retrofit.
-2. **Float/decimal columns for copper prices** — WoW prices are integers in copper units. Storing as float introduces rounding errors that compound in aggregations and cannot be fixed retroactively. Use `BIGINT UNSIGNED`, convert to gold only at display time.
-3. **Missing `Last-Modified` deduplication gate** — Blizzard updates the commodity snapshot hourly at most. Polling every 15 minutes without this check writes 3x duplicate rows. The gate must be part of the initial job design. Blizzard-side outages (documented: 24-hour gaps with HTTP 200 responses) require storing `Last-Modified` to show a staleness warning on the dashboard.
-4. **Storing only min_price per snapshot** — Min price is manipulable by single-listing market manipulation. Schema must store `price_min`, `price_median`, `price_avg`, and `total_volume` from day one. Historical median cannot be reconstructed from stored min.
-5. **No overlap protection on scheduled job** — If a poll takes longer than 15 minutes, two job instances overlap and write duplicate data. `ShouldBeUnique` (14-minute `$uniqueFor`) on the job class prevents this with one declaration.
+1. **Float yield arithmetic on copper prices** — Store yields as integer `output_qty_min` / `output_qty_max`; never multiply `$copper_price * $float_ratio`. All profit math stays in integer copper; convert to gold only at display via `formatGold()`. This is the most important schema decision — irrecoverable after data entry begins.
+
+2. **Auto-watch without provenance tracking** — Use `firstOrCreate` only (never `updateOrCreate`). If a `WatchedItem` already exists, leave it completely unchanged. When a shuffle is deleted, only remove auto-created `WatchedItem` records that no other shuffle references. Track provenance with a `created_by_shuffle_id` nullable FK or a join table.
+
+3. **N+1 price queries in the batch calculator** — Collect all item IDs for the entire chain, then execute one bulk `whereIn` query for latest snapshots. Cache in a Livewire `#[Computed]` property. Separate price-fetch (on mount or manual refresh) from profit calculation (pure PHP math on cached data). Bind quantity input with `wire:model.lazy` or `wire:model.blur` to prevent per-keystroke server round-trips.
+
+4. **AH cut omitted from profit formula** — Apply a named constant `AH_CUT = 0.05` as a deduction from all output sell values before computing net profit. Show "Revenue (after 5% AH cut)" and "Cost" as explicit line items. A calculator without this systematically overstates profit and will cause real gold loss.
+
+5. **Circular chain references** — Before saving, traverse step graph and assert no `output_catalog_item_id` appears as an `input_catalog_item_id` in any earlier step. Block save with a user-facing validation error. Without this, a user-created cycle causes an infinite loop or 500 error in the calculator.
+
+---
 
 ## Implications for Roadmap
 
-Based on research, the component dependency graph dictates a 3-phase build order. Data must exist before charts, charts must exist before signals, and auth must exist before admin functionality is accessible.
+The Shuffles feature has a clear dependency chain that dictates build order. Data model decisions identified in PITFALLS.md must be locked in Phase 1 — they cannot be corrected without migrations and data re-entry.
 
-### Phase 1: Foundation — Auth, Config, and Data Model
+### Phase 1: Data Model and Migrations
 
-**Rationale:** Everything downstream depends on the schema and the watched item list. Auth protects admin functionality from day one. This phase establishes the data contract that all subsequent phases write to and read from. Building schema first prevents the retroactively-unfixable pitfalls (float columns, missing metrics columns).
+**Rationale:** Everything else depends on correct schema. Float yield storage and missing min/max columns are identified as irrecoverable errors if discovered post-launch. This phase de-risks all downstream work before any application code is written.
 
-**Delivers:** Working login, watched item CRUD admin UI, fully specified database schema (`watched_items` + `price_snapshots` with all required columns and indexes), project configuration (`BLIZZARD_CLIENT_ID`, `BLIZZARD_CLIENT_SECRET` in `.env` and `config/services.php`).
+**Delivers:** Migrations for `shuffles` and `shuffle_steps` tables (with integer `output_qty_min` / `output_qty_max`, `sort_order` tinyint, FK constraints with cascade delete); `Shuffle` and `ShuffleStep` Eloquent models; `User::shuffles()` relationship; `ShuffleFactory` and `ShuffleStepFactory` for test seeding.
 
-**Addresses (from FEATURES.md):** Watched item management (admin CRUD), single-user auth.
+**Addresses:** Shuffle CRUD prerequisites; auto-watch data requirements; batch calculator data requirements.
 
-**Avoids (from PITFALLS.md):** Float price columns, missing metrics columns — schema is defined before any data is inserted. Admin routes behind auth middleware prevents unauthenticated access.
+**Avoids:** Float yield storage (Pitfall 1); missing yield variance columns (Pitfall 4); linked-list step ordering anti-pattern (use `sort_order` integer column, not `previous_step_id`).
 
-### Phase 2: Data Ingestion — API Integration and Scheduled Polling
+**Research flag:** Standard patterns — no additional research needed. Laravel migrations with integer columns and Eloquent models are fully documented and match existing codebase patterns.
 
-**Rationale:** The dashboard has nothing to show without data. The polling pipeline is the system's core dependency. This phase must be correct from the start on API integration (token header, namespace param, `Last-Modified` gate, overlap protection) because errors here create irrecoverable data gaps.
+### Phase 2: Shuffle Index Page and Navigation
 
-**Delivers:** `BlizzardTokenService` with token caching, `PriceFetchAction` and `PriceAggregateAction`, `FetchCommodityPricesJob` with `ShouldBeUnique` and `Last-Modified` deduplication, scheduler wiring in `routes/console.php`, Pest feature tests with mocked Blizzard HTTP calls.
+**Rationale:** CRUD validation (list, create, delete) can be tested without any calculator logic. Establishing auth scoping and route patterns before adding calculator complexity is the correct order.
 
-**Uses (from STACK.md):** Laravel HTTP Client, Laravel Scheduler, Laravel database queue driver, `spatie/laravel-data` (optional, for typed API response mapping).
+**Delivers:** `pages.shuffles` Volt SFC (list all shuffles, create with name, delete with confirmation); two new routes (`/shuffles`, `/shuffles/{shuffle}`); navigation link in both desktop and mobile sections of `navigation.blade.php`; Pest feature tests for CRUD and auth scoping.
 
-**Implements (from ARCHITECTURE.md):** Scheduler → Job → Actions pattern; Token-Cached OAuth2 pattern; Append-Only Snapshot pattern.
+**Addresses:** Shuffles navigation section / index page (table stakes); shuffle create/edit/delete (table stakes).
 
-**Avoids (from PITFALLS.md):** Token as query string, token not cached, missing namespace param, no `Last-Modified` gate, no overlap protection, no failed-job alerting.
+**Avoids:** Authorization bypass — scope all queries to `auth()->user()->shuffles()` from day one.
 
-### Phase 3: Dashboard — Visualization and Buy/Sell Signals
+**Research flag:** Standard patterns — Volt SFC CRUD is identical to existing `pages.watchlist` pattern; no research needed.
 
-**Rationale:** This phase delivers the user-facing value. It requires data in `price_snapshots` from Phase 2. Livewire components query with date-range bounds (never unbounded), compute signals from rolling averages, and render ApexCharts. Buy/sell signal indicators are v1 features, not v1.x — they are the primary "spot the opportunity" value this tool promises.
+### Phase 3: Step Editor and Auto-Watch
 
-**Delivers:** Livewire Dashboard component with per-item summary cards, ApexCharts line chart with 24h/7d/30d toggle, buy/sell signal badges (% from rolling N-day average, configurable threshold), `Last-Modified` staleness indicator, price displayed in gold (never copper).
+**Rationale:** The step editor is the highest-complexity UI piece and the prerequisite for the calculator — bad step data makes calculator results meaningless. Auto-watch must be implemented in this phase because items added to a chain need at least one polling cycle before prices are available for the calculator.
 
-**Uses (from STACK.md):** Livewire 4, ApexCharts 5.6 (via `livewire-charts` if Livewire 4 compatible, or direct `@script` block), Tailwind CSS v4.
+**Delivers:** `pages.shuffle-detail` Volt SFC with step add/remove/reorder; `CatalogItem` combobox reuse for item selection (same pattern as Watchlist); `ensureWatched()` auto-watch using `firstOrCreate` only; cycle detection on step save; Pest integration test verifying existing `WatchedItem` thresholds are not overwritten on auto-watch.
 
-**Implements (from ARCHITECTURE.md):** Livewire Dashboard component with date-range filtering, composite index query pattern.
+**Addresses:** Multi-step chain definition; auto-watch items in a shuffle; price staleness warning groundwork.
 
-**Avoids (from PITFALLS.md):** Min price displayed as "current price" (use median), no staleness indicator, unbounded chart history query, copper displayed on dashboard, no "last updated" timestamp.
+**Avoids:** Auto-watch threshold collision (Pitfall 7); auto-watch orphaning on shuffle delete (Pitfall 2); circular chain references (Pitfall 5); `updateOrCreate` misuse on auto-watch.
+
+**Research flag:** The auto-watch provenance implementation choice — nullable `created_by_shuffle_id` FK on `watched_items` vs. a separate pivot table — should be decided before coding starts. PITFALLS.md documents the problem clearly but leaves the schema choice open. Recommend a quick architecture decision record before Phase 3 planning.
+
+### Phase 4: Batch Calculator and Profit Summary
+
+**Rationale:** The calculator is the core value delivery but depends on Steps (Phase 3) and prices existing in the database. Building it last avoids debugging calculator output against missing or incorrectly modeled step data.
+
+**Delivers:** `$batchQuantity` Livewire property with `wire:model.lazy` binding; `profitBreakdown()` computed property with bulk `whereIn` price fetch; per-step cost/value/margin display; profit summary row (total cost in, total value out after 5% AH cut, net profit); profitability status badge (green/red); price staleness warning (flag if snapshot > 1 hour old); `formatGold()` display throughout; optional extraction to `ShuffleProfitAction` if complexity warrants.
+
+**Addresses:** Batch calculator; profit summary with AH cut; profitability status badge; price staleness warning; per-step breakdown (all P1 table stakes).
+
+**Avoids:** N+1 price queries (Pitfall 3); float arithmetic in profit calculation (Pitfall 1); AH cut omission (Pitfall 6); per-keystroke server round-trips (debounce with `.lazy`); raw copper display (always `formatGold()`); `min_price` used instead of `median_price` for cost basis.
+
+**Research flag:** Standard patterns — Livewire computed properties and `whereIn` bulk fetching are well-documented and already used in this codebase. No research phase needed.
 
 ### Phase Ordering Rationale
 
-- Schema first because float columns and missing metrics are irrecoverable after data is written.
-- Polling pipeline before dashboard because the dashboard needs data to render.
-- Auth alongside foundation because admin routes must be protected before watched item CRUD is functional.
-- Signals in Phase 3 (not deferred to v1.x) because they require only rolling average computation from already-stored data — implementation cost is LOW and user value is HIGH.
-- Volume tracking is part of the Phase 2 schema and job, not Phase 3 — it costs nothing to store at insert time but is impossible to backfill.
+- **Migrations before models before factories before tests:** Build order from ARCHITECTURE.md is explicit. Feature tests cannot run until factories exist, and factories require correct model definitions.
+- **CRUD before calculator:** The step editor produces the data the calculator consumes. Building the calculator against empty or wrongly modeled step data wastes debugging cycles.
+- **Auto-watch in Phase 3, not Phase 4:** Items added to a chain need prices before the calculator is useful. If auto-watch ships with the calculator, users face a "no price data" state on first use.
+- **Pitfall prevention tied to the phase where the decision is made:** Float yield storage is a migration decision (Phase 1). AH cut omission is a calculator decision (Phase 4). Tying each pitfall to the correct phase prevents "add it later" deferral that becomes irrecoverable technical debt.
+- **Schema includes `output_qty_min` / `output_qty_max` in Phase 1** even if the UI only displays average profit in Phase 4. This allows yield range display to be added in v1.x without a schema migration.
 
 ### Research Flags
 
-Phases likely needing deeper research during planning:
-- **Phase 2:** `Last-Modified` header behavior on the Blizzard commodities endpoint needs verification against live API. Community sources (MEDIUM confidence) confirm it exists but behavior during Blizzard-side outages is documented only from forum posts. Validate against a live API call before finalizing the deduplication implementation.
-- **Phase 3:** `asantibanez/livewire-charts` Livewire 4 compatibility is unconfirmed as of research date. Before planning Phase 3, check the GitHub repo for v4 support. If unsupported, the fallback (`@script` block with `$wire.on()`) is well-documented and standard — no research needed for the fallback.
+Phases needing deeper research during planning:
+- **Phase 3 (Auto-Watch Provenance):** Nullable `created_by_shuffle_id` FK on `watched_items` vs. a separate `shuffle_watched_items` pivot table. The FK approach is simpler and sufficient for a single-user app; the pivot table is more normalized. Decide before writing the migration.
 
 Phases with standard patterns (skip research-phase):
-- **Phase 1:** Laravel Breeze installation, Eloquent migrations, simple CRUD — fully documented, standard patterns. No research needed.
-- **Phase 2:** Laravel Scheduler, queue jobs, HTTP client — all first-party Laravel, fully documented, HIGH confidence sources.
-- **Phase 3:** Livewire component structure, date-range filtering, Tailwind utility layout — standard patterns. Only uncertainty is the charting library compatibility (flagged above).
+- **Phase 1:** Laravel migrations with integer columns and Eloquent model relationships — fully documented, matches existing patterns in the codebase.
+- **Phase 2:** Volt SFC CRUD — identical pattern to existing `pages.watchlist`; no research needed.
+- **Phase 4:** Livewire computed properties, bulk `whereIn` Eloquent queries, `formatGold()` display — all established in-project patterns; no research needed.
+
+---
 
 ## Confidence Assessment
 
 | Area | Confidence | Notes |
 |------|------------|-------|
-| Stack | HIGH | Core: Laravel 12, Livewire 4.2.1, Tailwind v4, SQLite all verified via official docs and Packagist. Only uncertainty: `livewire-charts` Livewire 4 compatibility unconfirmed. |
-| Features | MEDIUM | Competitor analysis across 6+ tools; feature judgments are inferred from live pages and descriptions, not user surveys. MVP definition is well-reasoned but not externally validated. |
-| Architecture | HIGH | Component boundaries, data flow, and patterns all grounded in official Laravel docs. Blizzard API token behavior confirmed via official Blizzard developer forums. |
-| Pitfalls | MEDIUM | Critical API pitfalls (token header, namespace param) confirmed via official Blizzard forums with specific dated announcements. Data integrity pitfalls (float columns, min-only storage) from community sources consistent with documented API behavior. |
+| Stack | HIGH | Direct codebase inspection of `composer.json`, existing models, and shipped v1.0 pages. No new packages needed — all confirmed in the project already. |
+| Features | HIGH (core) / MEDIUM (differentiators) | Core shuffle mechanics (yield ratios, AH cut, batch calculator) are well-documented in community sources and Wowpedia. Differentiator gap analysis (no competing web tool) is inference from absence, not direct confirmation. |
+| Architecture | HIGH | Direct codebase inspection. All patterns (Volt SFC, `#[Computed]`, `firstOrCreate`, `formatGold()`) are present and working in the shipped v1.0 codebase. |
+| Pitfalls | HIGH (integration) / MEDIUM (Livewire edge cases) | Integration pitfalls derived from actual codebase analysis and known Blizzard/WoW domain constraints. Livewire 4 nested array real-time validation rough edge is confirmed as a known limitation but the exact failure mode may vary by version. |
 
-**Overall confidence:** HIGH — sufficient to proceed to roadmap and requirements without additional research.
+**Overall confidence:** HIGH
 
 ### Gaps to Address
 
-- **`livewire-charts` Livewire 4 support:** Verify before Phase 3 planning. If unsupported, use ApexCharts directly with `@script` block — the fallback is well-documented and adds minimal complexity.
-- **`Last-Modified` header on commodities endpoint:** Validate in a live API test during Phase 2. If the header is absent or unreliable, switch to response-hash deduplication (hash the raw JSON body; only store if hash differs from the previous snapshot). The detection mechanism differs but the gate remains.
-- **Blizzard API rate limits at scale:** At 96 requests/day the app is well within limits. If items grow beyond ~50 watched items, re-evaluate. Not a concern for current scope.
-- **Median calculation from raw listings:** The Blizzard commodities response returns all listings as `[{quantity, unitPrice}]` pairs, not individual unit rows. Median must be computed from the frequency distribution (expand quantity into virtual rows, find midpoint), not a simple sort-and-pick. Verify the `PriceAggregateAction` implementation handles this correctly during Phase 2.
+- **Auto-watch provenance schema choice:** Nullable `created_by_shuffle_id` FK on `watched_items` vs. a separate pivot table. Choose before Phase 3 starts. The FK approach is recommended for a single-user app — lower complexity, one less migration, same cleanup semantics.
+- **Yield range display in Phase 4:** FEATURES.md defers min/max yield UI to v1.x, but PITFALLS.md recommends storing `output_qty_min` / `output_qty_max` in Phase 1 schema. The schema must include both columns in Phase 1 even if the calculator only shows average profit at launch. Confirm this is understood before writing the migration.
+- **`wire:model.lazy` vs `wire:model.blur` for quantity input:** Both prevent per-keystroke queries but differ in UX (`.lazy` fires on change; `.blur` fires on focus loss). Validate the preferred behavior for a numeric input field during Phase 4 implementation.
+
+---
 
 ## Sources
 
 ### Primary (HIGH confidence)
-- [Laravel 12 Release Notes](https://laravel.com/docs/12.x/releases) — version, PHP requirements, support timeline
-- [Laravel 12 Queue Docs](https://laravel.com/docs/12.x/queues) — database driver recommendation, `ShouldBeUnique` behavior
-- [Laravel 12 Scheduling Docs](https://laravel.com/docs/12.x/scheduling) — `withoutOverlapping()`, `everyFifteenMinutes()`
-- [Livewire v4.2.1 on Packagist](https://packagist.org/packages/livewire/livewire) — latest version, release date 2026-02-28
-- [Tailwind CSS v4 Vite Installation](https://tailwindcss.com/docs/installation/using-vite) — v4 Vite plugin approach
-- [Blizzard API Gateway Changes — Blizzard Forums](https://us.forums.blizzard.com/en/blizzard/t/upcoming-changes-to-battlenet%E2%80%99s-api-gateway/51561) — OAuth query string deprecation, Sept 2024 deadline
-- [Commodities API Change — Blizzard Forums](https://us.forums.blizzard.com/en/blizzard/t/immediate-change-to-auction-apis-for-commodities-with-927/31522) — commodities endpoint costs 25 API points; hourly update frequency; `Last-Modified` behavior
+- Project v1.0 codebase (`composer.json`, `app/Models/`, `resources/views/livewire/`, `routes/web.php`, `database/migrations/`) — stack baseline, architecture patterns, existing relationships
+- `.planning/PROJECT.md` — auto-watch requirement, batch calculator requirement, deferred features (ADVN-01)
+- [Wowpedia — Prospecting](https://wowpedia.fandom.com/wiki/Prospecting) — probabilistic yield mechanics, 5-ore input confirmed
+- [WoW Forums (Blizzard) — AH cut](https://us.forums.blizzard.com/en/wow/t/what-does-the-ah-take/346603) — 5% commodity AH cut confirmed
+- [Livewire 4 Validation Docs](https://livewire.laravel.com/docs/4.x/validation) — wildcard array validation rules supported
+- [Livewire 4 wire:model Docs](https://livewire.laravel.com/docs/4.x/wire-model) — array property binding pattern confirmed
+- [Laravel Eloquent Relationships Docs](https://laravel.com/docs/12.x/eloquent-relationships) — `orderBy()` on `hasMany`, route model binding scoping
 
 ### Secondary (MEDIUM confidence)
-- [Livewire 4 Official Blog Post](https://laravel.com/blog/livewire-4-is-here-the-artisan-of-the-day-is-caleb-porzio) — Islands feature confirmation
-- [ApexCharts npm](https://www.npmjs.com/package/apexcharts) — v5.6.0 current
-- [livewire-charts GitHub](https://github.com/asantibanez/livewire-charts) — ApexCharts Livewire wrapper; Livewire 4 compat unconfirmed
-- [Blizzard 24-hour AH Outage Thread](https://us.forums.blizzard.com/en/wow/t/resolved-wow-ah-commodities-api-has-not-reported-a-result-in-24-hours/1961522) — staleness outage with HTTP 200 confirmed
-- [TradeSkillMaster](https://tradeskillmaster.com/), [Booty Bay Broker](https://bootybaybroker.com/), [Saddlebag Exchange](https://saddlebagexchange.com/wow), [WoW Price Hub](https://wowpricehub.com/) — competitor feature analysis
+- [The Lazy Goldmaker — Mathematics of Prospecting](https://thelazygoldmaker.com/the-mathematics-of-goldmaking-prospecting) — fractional yield mechanics, variance in shuffle outputs
+- [The Lazy Goldmaker — Enchanting Shuffle](https://thelazygoldmaker.com/the-enchanting-shuffle-is-goldmaking-that-anyone-can-get-into) — multi-step shuffle patterns
+- [Mozzletoff — BFA Inscription Milling Shuffle](https://gunnydelight.github.io/mozzletoff-wow-goldfarm-site/bfa-inscription-milling-shuffle.html) — milling yield ratios
+- [Livewire Best Practices](https://github.com/michael-rubel/livewire-best-practices) — large model passing pitfall, non-deferred model binding as query killer
+- Competitor analysis: TSM, Booty Bay Broker, Saddlebag Exchange, WoW Price Hub, Oribos Exchange — feature presence/absence; no dedicated web-based shuffle tracker found
 
 ### Tertiary (LOW confidence)
-- [Undermine Exchange](https://undermine.exchange/) — in maintenance at research time; features inferred from search results
-- Community sources on hourly snapshot frequency, copper-as-integer storage pattern, min-price manipulation patterns
+- [Undermine Exchange](https://undermine.exchange/) — in maintenance mode at research time; features inferred from search results
+- [Blizzard AH Cut — Warmane Forum](https://forum.warmane.com/showthread.php?t=318786) — community confirmation of 5% cut; consistent with official behavior but community source
+- [WoWAuctions.net](https://www.wowauctions.net/) — features inferred from search result snippet, not directly fetched
 
 ---
-*Research completed: 2026-03-01*
+*Research completed: 2026-03-04*
 *Ready for roadmap: yes*
