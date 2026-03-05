@@ -23,6 +23,14 @@ Volt::route('/item/{watchedItem}', 'pages.item-detail')
     ->middleware(['auth'])
     ->name('item.detail');
 
+Volt::route('/shuffles', 'pages.shuffles')
+    ->middleware(['auth'])
+    ->name('shuffles');
+
+Volt::route('/shuffles/{shuffle}', 'pages.shuffle-detail')
+    ->middleware(['auth'])
+    ->name('shuffles.show');
+
 Route::view('profile', 'profile')
     ->middleware(['auth'])
     ->name('profile');

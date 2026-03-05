@@ -28,6 +28,36 @@ class Shuffle extends Model
         return $this->hasMany(ShuffleStep::class)->orderBy('sort_order');
     }
 
+    public function profitPerUnit(): ?int
+    {
+        $steps = $this->steps()->with([
+            'inputCatalogItem.priceSnapshots' => fn ($q) => $q->latest('polled_at')->limit(1),
+            'outputCatalogItem.priceSnapshots' => fn ($q) => $q->latest('polled_at')->limit(1),
+        ])->get();
+
+        if ($steps->isEmpty()) {
+            return null;
+        }
+
+        $firstInputPrice = $steps->first()->inputCatalogItem?->priceSnapshots->first()?->median_price;
+        if ($firstInputPrice === null) {
+            return null;
+        }
+
+        $lastStep = $steps->last();
+        $outputPrice = $lastStep->outputCatalogItem?->priceSnapshots->first()?->median_price;
+        if ($outputPrice === null) {
+            return null;
+        }
+
+        // Apply yield from last step (use min qty for conservative estimate)
+        $outputQty = $lastStep->output_qty_min ?? 1;
+        $grossOutput = $outputPrice * $outputQty;
+        $netOutput = (int) round($grossOutput * 0.95); // 5% AH cut
+
+        return $netOutput - $firstInputPrice;
+    }
+
     protected static function boot(): void
     {
         parent::boot();
