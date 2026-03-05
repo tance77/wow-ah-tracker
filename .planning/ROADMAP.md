@@ -47,7 +47,7 @@ Full details: `milestones/v1.0-ROADMAP.md`
 
 Plans:
 - [x] 09-01-PLAN.md — Migrations and Eloquent models (shuffles, shuffle_steps, provenance FK)
-- [ ] 09-02-PLAN.md — Factories and comprehensive test suite
+- [x] 09-02-PLAN.md — Factories and comprehensive test suite
 
 ### Phase 10: Shuffle CRUD and Navigation
 **Goal**: Users can access a dedicated Shuffles section, view all their saved shuffles with profitability badges, and create or delete shuffles
@@ -59,7 +59,11 @@ Plans:
   3. User can rename an existing shuffle and see the updated name reflected in the list
   4. User can delete a shuffle and it is removed from the list
   5. Shuffles list shows a profitability badge (green/red or neutral) next to each shuffle name
-**Plans**: TBD
+**Plans:** 2 plans
+
+Plans:
+- [ ] 10-01-PLAN.md — Routes, navigation, profitPerUnit model method, shuffles list page, and feature tests
+- [ ] 10-02-PLAN.md — Shuffle detail shell page and visual verification
 
 ### Phase 11: Step Editor, Yield Config, and Auto-Watch
 **Goal**: Users can build multi-step conversion chains on a shuffle detail page, configure fixed or variable yield ratios per step, reorder steps, and have all items auto-watched for price polling
@@ -99,7 +103,7 @@ Plans:
 | 6. Data Integrity Safeguards | v1.0 | 2/2 | Complete | 2026-03-01 |
 | 7. Dashboard and Price Charts | v1.0 | 2/2 | Complete | 2026-03-01 |
 | 8. Buy/Sell Signal Indicators | v1.0 | 2/2 | Complete | 2026-03-02 |
-| 9. Data Foundation | 2/2 | Complete   | 2026-03-05 | - |
-| 10. Shuffle CRUD and Navigation | v1.1 | 0/? | Not started | - |
+| 9. Data Foundation | v1.1 | 2/2 | Complete | 2026-03-05 |
+| 10. Shuffle CRUD and Navigation | v1.1 | 0/2 | Not started | - |
 | 11. Step Editor, Yield Config, and Auto-Watch | v1.1 | 0/? | Not started | - |
 | 12. Batch Calculator and Profit Summary | v1.1 | 0/? | Not started | - |
