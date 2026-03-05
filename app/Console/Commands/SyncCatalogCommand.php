@@ -267,42 +267,44 @@ class SyncCatalogCommand extends Command
         $updated = 0;
         $failed = 0;
 
-        foreach ($items->chunk(20) as $chunk) {
+        foreach ($items->chunk(10) as $chunk) {
             $itemIds = $chunk->values()->all();
 
-            $responses = Http::pool(fn ($pool) => collect($itemIds)->map(
-                fn (int $id) => $pool->as((string) $id)
-                    ->withToken($token)
-                    ->timeout(10)
-                    ->connectTimeout(5)
-                    ->get("https://{$region}.api.blizzard.com/data/wow/media/item/{$id}", [
-                        'namespace' => "static-{$region}",
-                    ])
-            )->all());
-
             foreach ($itemIds as $itemId) {
-                $response = $responses[(string) $itemId] ?? null;
+                try {
+                    $response = Http::withToken($token)
+                        ->timeout(10)
+                        ->connectTimeout(5)
+                        ->get("https://{$region}.api.blizzard.com/data/wow/media/item/{$itemId}", [
+                            'namespace' => "static-{$region}",
+                        ]);
 
-                if (! $response || $response instanceof \Throwable || ! $response->successful()) {
-                    $failed++;
-                    $bar->advance();
+                    if (! $response->successful()) {
+                        $failed++;
+                        $bar->advance();
 
-                    continue;
-                }
-
-                $iconUrl = null;
-                $assets = $response->json('assets', []);
-                foreach ($assets as $asset) {
-                    if (($asset['key'] ?? '') === 'icon') {
-                        $iconUrl = $asset['value'] ?? null;
-                        break;
+                        continue;
                     }
-                }
 
-                if ($iconUrl) {
-                    CatalogItem::where('blizzard_item_id', $itemId)->update(['icon_url' => $iconUrl]);
-                    $updated++;
-                } else {
+                    $iconUrl = null;
+                    $assets = $response->json('assets', []);
+                    foreach ($assets as $asset) {
+                        if (($asset['key'] ?? '') === 'icon') {
+                            $iconUrl = $asset['value'] ?? null;
+                            break;
+                        }
+                    }
+
+                    if ($iconUrl) {
+                        CatalogItem::where('blizzard_item_id', $itemId)->update(['icon_url' => $iconUrl]);
+                        $updated++;
+                    } else {
+                        $failed++;
+                    }
+                } catch (\Throwable $e) {
+                    Log::warning("SyncCatalog: icon fetch failed for item {$itemId}", [
+                        'error' => $e->getMessage(),
+                    ]);
                     $failed++;
                 }
 
@@ -310,7 +312,7 @@ class SyncCatalogCommand extends Command
                 $bar->advance();
             }
 
-            usleep(1_000_000);
+            usleep(500_000);
         }
 
         $bar->setMessage('Done!');
