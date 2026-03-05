@@ -22,10 +22,12 @@ See at a glance when crafting material prices dip or spike so I can act on buy/s
 
 ### Active
 
-- [ ] Discord webhook alerts when thresholds are breached (NOTF-01)
-- [ ] User-configurable notification preferences (NOTF-02)
-- [ ] Volume/supply trend chart overlay (ANLX-01)
-- [ ] Percent-from-average labels on chart data points (ANLX-02)
+- [ ] Shuffles navigation section with saved conversion chains
+- [ ] Multi-step conversion chains (A → B → C) with per-step ratios
+- [ ] Fixed or min/max yield ranges per conversion step
+- [ ] Auto-watch items added to shuffles
+- [ ] Batch calculator — enter input quantity, see yields and profit at each step
+- [ ] Profit summary — total cost in, total value out, net profit
 
 ### Out of Scope
 
@@ -34,8 +36,18 @@ See at a glance when crafting material prices dip or spike so I can act on buy/s
 - Multi-user / public access — personal tool
 - Mobile native app — web only, responsive Tailwind
 - Gear/equipment tracking — commodities only
-- Crafting profit calculator — requires tracking crafted item sell prices (ADVN-01, deferred)
+- Crafting profit calculator (full recipe-based) — shuffles covers conversion chains only (ADVN-01, deferred)
 - Additional item categories (gear, pets, mounts) — commodities only (ADVN-02, deferred)
+
+## Current Milestone: v1.1 Shuffles
+
+**Goal:** Add a Shuffles section where users can define item conversion chains and calculate batch profit using live AH prices.
+
+**Target features:**
+- Shuffles navigation section with saved conversion chains
+- Multi-step chains with fixed or variable yield ratios
+- Batch profit calculator with per-step breakdown
+- Auto-watch for items used in shuffles
 
 ## Context
 
@@ -69,4 +81,4 @@ Frequency-distribution median correctly weights high-quantity listings.
 | One snapshot per WatchedItem row (not per blizzard_item_id) | Multiple users watching same item get independent history | ✓ Good |
 
 ---
-*Last updated: 2026-03-02 after v1.0 milestone*
+*Last updated: 2026-03-04 after v1.1 milestone started*
