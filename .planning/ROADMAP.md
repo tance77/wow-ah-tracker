@@ -186,5 +186,5 @@ Plans:
 | 12. Batch Calculator and Profit Summary | v1.1 | 2/2 | Complete | 2026-03-05 |
 | 13. Recipe Data Model and Seed Command | v1.2 | 2/2 | Complete | 2026-03-05 |
 | 14. Profit Calculation Action | 1/1 | Complete    | 2026-03-05 | - |
-| 15. Profession Overview Page and Navigation | 2/2 | Complete   | 2026-03-05 | - |
+| 15. Profession Overview Page and Navigation | 2/2 | Complete    | 2026-03-05 | - |
 | 16. Per-Profession Recipe Table | v1.2 | 0/TBD | Not started | - |
