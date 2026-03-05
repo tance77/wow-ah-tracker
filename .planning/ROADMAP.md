@@ -189,7 +189,7 @@ Plans:
 | 10. Shuffle CRUD and Navigation | v1.1 | 2/2 | Complete | 2026-03-05 |
 | 11. Step Editor, Yield Config, and Auto-Watch | v1.1 | 2/2 | Complete | 2026-03-05 |
 | 12. Batch Calculator and Profit Summary | v1.1 | 2/2 | Complete | 2026-03-05 |
-| 13. Recipe Data Model and Seed Command | 2/2 | Complete   | 2026-03-05 | - |
+| 13. Recipe Data Model and Seed Command | 2/2 | Complete    | 2026-03-05 | - |
 | 14. Profit Calculation Action | v1.2 | 0/TBD | Not started | - |
 | 15. Profession Overview Page and Navigation | v1.2 | 0/TBD | Not started | - |
 | 16. Per-Profession Recipe Table | v1.2 | 0/TBD | Not started | - |
