@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace App\Console\Commands;
 
+use App\Jobs\SyncCatalogBatchJob;
 use App\Models\CatalogItem;
 use App\Services\BlizzardTokenService;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -17,35 +19,9 @@ class SyncCatalogCommand extends Command
                             {--dry-run : Show what would be imported without writing to the database}
                             {--tiers-only : Only run quality tier assignment (no API calls)}
                             {--rarity-only : Re-fetch item data to populate missing rarity values}
-                            {--realm : Also fetch item IDs from the connected-realm auctions endpoint (for BoE gear)}
-                            {--limit=0 : Max new items to process per run (0 = unlimited, use to avoid server timeouts)}';
+                            {--realm : Also fetch item IDs from the connected-realm auctions endpoint (for BoE gear)}';
 
     protected $description = 'Import commodity and realm auction items from the Blizzard Auction House API into the catalog';
-
-    /**
-     * Map Blizzard item_class.name → category slug.
-     * Subclass name is used for finer-grained mapping within Tradeskill.
-     */
-    private const CLASS_MAP = [
-        'Gem'            => 'gem',
-        'Consumable'     => 'consumable',
-        'Item Enhancement'=> 'enhancement',
-        'Reagent'        => 'reagent',
-        'Recipe'         => 'recipe',
-    ];
-
-    private const TRADESKILL_SUBCLASS_MAP = [
-        'Herb'           => 'herb',
-        'Metal & Stone'  => 'ore',
-        'Cloth'          => 'cloth',
-        'Leather'        => 'leather',
-        'Enchanting'     => 'enchanting',
-        'Parts'          => 'parts',
-        'Elemental'      => 'elemental',
-        'Jewelcrafting'  => 'jewelcrafting',
-        'Inscription'    => 'inscription',
-        'Cooking'        => 'cooking',
-    ];
 
     public function handle(BlizzardTokenService $tokenService): int
     {
@@ -197,242 +173,67 @@ class SyncCatalogCommand extends Command
         $existingIds = CatalogItem::pluck('blizzard_item_id')->toArray();
         $newIds = ($fresh ? $uniqueIds : $uniqueIds->diff($existingIds)->values())->sortDesc()->values();
 
-        $limit = (int) $this->option('limit');
-        $totalNew = $newIds->count();
-
-        if ($limit > 0 && $totalNew > $limit) {
-            $newIds = $newIds->take($limit);
-            $this->info(sprintf(
-                'Skipping %s existing items. %s remaining — limited to %s this run (%s deferred).',
-                number_format(count($existingIds)),
-                number_format($totalNew),
-                number_format($limit),
-                number_format($totalNew - $limit),
-            ));
-        } else {
-            $this->info(sprintf(
-                'Skipping %s existing items. %s remaining to look up.',
-                number_format(count($existingIds)),
-                number_format($newIds->count()),
-            ));
-        }
+        $this->info(sprintf(
+            'Skipping %s existing items. %s remaining to look up.',
+            number_format(count($existingIds)),
+            number_format($newIds->count()),
+        ));
 
         if ($newIds->isEmpty()) {
             $this->info('Nothing to import — catalog is up to date.');
+            @unlink($cacheFile);
 
             return self::SUCCESS;
         }
 
         if ($dryRun) {
-            $this->warn('DRY RUN — no database writes will be made.');
+            $jobCount = (int) ceil($newIds->count() / 200);
+            $this->warn("DRY RUN — would dispatch {$jobCount} batch jobs for {$newIds->count()} items.");
+
+            return self::SUCCESS;
         }
 
-        // Step 4: Look up each item and upsert using concurrent requests.
-        // Each item requires 2 requests (item data + media icon).
-        // Blizzard allows 100 req/s — send 20 items (40 requests) per batch
-        // with a 1s pause between batches to stay safely under the limit.
-        $bar = $this->output->createProgressBar($newIds->count());
-        $bar->setFormat(' %current%/%max% [%bar%] %percent:3s%% — %message%');
-        $bar->setMessage('Starting...');
-        $bar->start();
+        // Step 3: Dispatch batched jobs (200 items per job ≈ under 1 minute each)
+        $jobs = [];
+        foreach ($newIds->chunk(200) as $chunk) {
+            $jobs[] = new SyncCatalogBatchJob(
+                $chunk->values()->all(),
+                $region,
+                $fresh,
+            );
+        }
 
-        $imported = 0;
-        $failed = 0;
-        $retryQueue = [];
+        $cacheFilePath = $cacheFile;
 
-        foreach ($newIds->chunk(20) as $chunk) {
-            $itemIds = $chunk->values()->all();
-            $batchResult = $this->processBatch($itemIds, $token, $region, $dryRun, $bar);
+        Bus::batch($jobs)
+            ->name('sync-catalog')
+            ->then(function () use ($cacheFilePath) {
+                @unlink($cacheFilePath);
 
-            $imported += $batchResult['imported'];
-            $failed += $batchResult['failed'];
+                // Assign quality tiers after all items are imported
+                self::runQualityTierAssignment();
 
-            // Collect rate-limited items for retry
-            if (! empty($batchResult['rateLimited'])) {
-                $retryQueue = array_merge($retryQueue, $batchResult['rateLimited']);
-                $bar->setMessage('Rate limited — pausing...');
-                Log::warning('SyncCatalog: rate limited, pausing 10s', [
-                    'queued_for_retry' => count($batchResult['rateLimited']),
+                Log::info('SyncCatalog: all batch jobs completed, tiers assigned, cache cleaned.');
+            })
+            ->catch(function (\Illuminate\Bus\Batch $batch, \Throwable $e) {
+                Log::error('SyncCatalog: batch job failed', [
+                    'error' => $e->getMessage(),
                 ]);
-                sleep(10);
-            }
+            })
+            ->dispatch();
 
-            // Pause between batches to stay under rate limit
-            usleep(1_000_000); // 1s
-        }
+        $this->info(sprintf(
+            'Dispatched %s batch jobs for %s items. Jobs will process in the background.',
+            number_format(count($jobs)),
+            number_format($newIds->count()),
+        ));
 
-        // Retry rate-limited items in smaller batches
-        if (! empty($retryQueue)) {
-            $bar->setMessage('Retrying rate-limited items...');
-            $this->newLine();
-            $this->warn(sprintf('Retrying %s rate-limited items...', number_format(count($retryQueue))));
-
-            foreach (collect($retryQueue)->chunk(10) as $chunk) {
-                $itemIds = $chunk->values()->all();
-                $batchResult = $this->processBatch($itemIds, $token, $region, $dryRun, $bar);
-
-                $imported += $batchResult['imported'];
-                $failed += $batchResult['failed'];
-
-                // If still rate-limited, just count as failed
-                $failed += count($batchResult['rateLimited']);
-
-                sleep(2);
-            }
-        }
-
-        $bar->setMessage('Done!');
-        $bar->finish();
-        $this->newLine(2);
-
-        // Summary
-        $action = $dryRun ? 'Would import' : 'Imported';
-        $this->info("{$action} {$imported} items. Failed: {$failed}.");
-
-        Log::info('SyncCatalog: finished', [
-            'imported' => $imported,
-            'failed' => $failed,
-            'dry_run' => $dryRun,
+        Log::info('SyncCatalog: dispatched batch jobs', [
+            'job_count' => count($jobs),
+            'item_count' => $newIds->count(),
         ]);
 
-        // Clean up cached ID list on successful completion
-        $hasMoreItems = $limit > 0 && $totalNew > $limit;
-        if ($failed === 0 && ! $hasMoreItems) {
-            @unlink($cacheFile);
-        } else {
-            if ($hasMoreItems) {
-                $remaining = $totalNew - $limit;
-                $this->warn(sprintf('%s items remaining — re-run to continue.', number_format($remaining)));
-            }
-            if ($failed > 0) {
-                $this->warn('Some items could not be fetched — re-run to resume where you left off.');
-            }
-        }
-
-        $this->assignQualityTiers();
-
         return self::SUCCESS;
-    }
-
-    /**
-     * Process a batch of item IDs concurrently and return results.
-     *
-     * @return array{imported: int, failed: int, rateLimited: int[]}
-     */
-    private function processBatch(
-        array $itemIds,
-        string $token,
-        string $region,
-        bool $dryRun,
-        $bar,
-    ): array {
-        // Fetch item data concurrently
-        $itemResponses = Http::pool(fn ($pool) => collect($itemIds)->map(
-            fn (int $id) => $pool->as((string) $id)
-                ->withToken($token)
-                ->timeout(30)
-                ->connectTimeout(10)
-                ->get("https://{$region}.api.blizzard.com/data/wow/item/{$id}", [
-                    'namespace' => "static-{$region}",
-                ])
-        )->all());
-
-        // Collect IDs that succeeded so we only fetch media for those
-        $successIds = [];
-        $imported = 0;
-        $failed = 0;
-        $rateLimited = [];
-        $itemDataMap = [];
-
-        foreach ($itemIds as $itemId) {
-            $itemResponse = $itemResponses[(string) $itemId] ?? null;
-
-            if (! $itemResponse || $itemResponse instanceof \Throwable) {
-                Log::warning("SyncCatalog: failed to fetch item {$itemId}", [
-                    'error' => $itemResponse instanceof \Throwable ? $itemResponse->getMessage() : 'no response',
-                ]);
-                $failed++;
-                $bar->advance();
-
-                continue;
-            }
-
-            if ($itemResponse->status() === 429) {
-                $rateLimited[] = $itemId;
-                $bar->advance();
-
-                continue;
-            }
-
-            if (! $itemResponse->successful()) {
-                Log::warning("SyncCatalog: failed to fetch item {$itemId}", [
-                    'status' => $itemResponse->status(),
-                ]);
-                $failed++;
-                $bar->advance();
-
-                continue;
-            }
-
-            $successIds[] = $itemId;
-            $itemDataMap[$itemId] = $itemResponse->json();
-        }
-
-        // Fetch media/icons concurrently for all successful items
-        $mediaResponses = [];
-        if (! empty($successIds)) {
-            try {
-                $mediaResponses = Http::pool(fn ($pool) => collect($successIds)->map(
-                    fn (int $id) => $pool->as((string) $id)
-                        ->withToken($token)
-                        ->timeout(10)
-                        ->connectTimeout(5)
-                        ->get("https://{$region}.api.blizzard.com/data/wow/media/item/{$id}", [
-                            'namespace' => "static-{$region}",
-                        ])
-                )->all());
-            } catch (\Throwable) {
-                // Icons are optional — continue without them
-            }
-        }
-
-        foreach ($successIds as $itemId) {
-            $data = $itemDataMap[$itemId];
-            $name = $this->resolveLocalizedName($data['name'] ?? null) ?? "Unknown Item {$itemId}";
-            $category = $this->resolveCategory($data);
-
-            $iconUrl = null;
-            $mediaResponse = $mediaResponses[(string) $itemId] ?? null;
-            if ($mediaResponse && ! ($mediaResponse instanceof \Throwable) && $mediaResponse->successful()) {
-                $assets = $mediaResponse->json('assets', []);
-                foreach ($assets as $asset) {
-                    if (($asset['key'] ?? '') === 'icon') {
-                        $iconUrl = $asset['value'] ?? null;
-                        break;
-                    }
-                }
-            }
-
-            $rarity = $data['quality']['type'] ?? null;
-
-            $bar->setMessage($name);
-
-            $bar->clear();
-            $this->line("  [{$itemId}] {$name} <fg=gray>({$category})</>");
-            $bar->display();
-
-            if (! $dryRun) {
-                CatalogItem::updateOrCreate(
-                    ['blizzard_item_id' => $itemId],
-                    ['name' => $name, 'category' => $category, 'rarity' => $rarity, 'icon_url' => $iconUrl],
-                );
-            }
-
-            $imported++;
-            $bar->advance();
-        }
-
-        return compact('imported', 'failed', 'rateLimited');
     }
 
     /**
@@ -566,26 +367,21 @@ class SyncCatalogCommand extends Command
     }
 
     /**
-     * Assign quality tiers to items that share the same name.
-     * Items with unique names get null (no tier).
+     * Run quality tier assignment (callable from batch callback without console context).
      */
-    private function assignQualityTiers(): void
+    public static function runQualityTierAssignment(): void
     {
-        $this->info('Assigning quality tiers...');
-
-        // Find names that appear more than once
         $duplicateNames = CatalogItem::selectRaw('name')
             ->groupBy('name')
             ->havingRaw('count(*) > 1')
             ->pluck('name');
 
         if ($duplicateNames->isEmpty()) {
-            $this->info('No duplicate item names found — skipping tier assignment.');
+            Log::info('SyncCatalog: no duplicate item names — skipping tier assignment.');
 
             return;
         }
 
-        // Clear tiers for unique items that may have had a tier from a previous run
         CatalogItem::whereNotIn('name', $duplicateNames)
             ->whereNotNull('quality_tier')
             ->update(['quality_tier' => null]);
@@ -606,39 +402,19 @@ class SyncCatalogCommand extends Command
             $assigned += $items->count();
         }
 
-        $this->info("Assigned quality tiers to {$assigned} items across {$duplicateNames->count()} groups.");
+        Log::info('SyncCatalog: assigned quality tiers', [
+            'items' => $assigned,
+            'groups' => $duplicateNames->count(),
+        ]);
     }
 
     /**
-     * Resolve a category string from the Blizzard item response.
+     * Assign quality tiers (console-friendly wrapper).
      */
-    private function resolveCategory(array $data): string
+    private function assignQualityTiers(): void
     {
-        $className = $this->resolveLocalizedName($data['item_class']['name'] ?? null);
-        $subclassName = $this->resolveLocalizedName($data['item_subclass']['name'] ?? null);
-
-        // Tradeskill items get subclass-based categories
-        if ($className === 'Tradeskill') {
-            return self::TRADESKILL_SUBCLASS_MAP[$subclassName] ?? 'tradeskill';
-        }
-
-        return self::CLASS_MAP[$className] ?? 'other';
-    }
-
-    /**
-     * Blizzard API returns name as either a plain string or a localized
-     * object like {"en_US": "Gem", "es_MX": "Gema", ...}.
-     */
-    private function resolveLocalizedName(mixed $name): ?string
-    {
-        if (is_string($name)) {
-            return $name;
-        }
-
-        if (is_array($name)) {
-            return $name['en_US'] ?? reset($name) ?: null;
-        }
-
-        return null;
+        $this->info('Assigning quality tiers...');
+        self::runQualityTierAssignment();
+        $this->info('Quality tier assignment complete.');
     }
 }
