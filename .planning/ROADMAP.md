@@ -75,7 +75,7 @@ Plans:
   3. User can set a min/max yield range per step for probabilistic conversions (e.g., 5 ore -> 1-3 gems)
   4. User can drag or click to reorder steps within a chain and the new order is saved
   5. When a step is added or saved, all input and output items in the chain are automatically added to the watchlist (using `firstOrCreate` — existing watched items and thresholds are not modified)
-**Plans:** 2 plans
+**Plans:** 1/2 plans executed
 
 Plans:
 - [ ] 11-01-PLAN.md — Schema migrations (input_qty, nullable thresholds), ShuffleStep model updates, and feature tests
@@ -109,5 +109,5 @@ Plans:
 | 8. Buy/Sell Signal Indicators | v1.0 | 2/2 | Complete | 2026-03-02 |
 | 9. Data Foundation | v1.1 | 2/2 | Complete | 2026-03-05 |
 | 10. Shuffle CRUD and Navigation | v1.1 | 2/2 | Complete | 2026-03-05 |
-| 11. Step Editor, Yield Config, and Auto-Watch | v1.1 | 0/2 | Planned | - |
+| 11. Step Editor, Yield Config, and Auto-Watch | 1/2 | In Progress|  | - |
 | 12. Batch Calculator and Profit Summary | v1.1 | 0/? | Not started | - |

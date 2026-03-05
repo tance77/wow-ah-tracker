@@ -10,20 +10,20 @@ Requirements for Shuffles milestone. Each maps to roadmap phases.
 ### Shuffle Management
 
 - [x] **SHUF-01**: User can create a named shuffle with a descriptive name
-- [ ] **SHUF-02**: User can define multi-step conversion chains (A → B → C)
+- [x] **SHUF-02**: User can define multi-step conversion chains (A → B → C)
 - [x] **SHUF-03**: User can edit an existing shuffle's name and steps
 - [x] **SHUF-04**: User can delete a shuffle
 - [x] **SHUF-05**: User can view a list of all saved shuffles with profitability badge
 
 ### Yield Configuration
 
-- [ ] **YILD-01**: User can set a fixed yield ratio per conversion step
-- [ ] **YILD-02**: User can set min/max yield range per step for probabilistic conversions
-- [ ] **YILD-03**: User can reorder steps within a chain
+- [x] **YILD-01**: User can set a fixed yield ratio per conversion step
+- [x] **YILD-02**: User can set min/max yield range per step for probabilistic conversions
+- [x] **YILD-03**: User can reorder steps within a chain
 
 ### Item Integration
 
-- [ ] **INTG-01**: Items added to a shuffle are auto-watched for price polling
+- [x] **INTG-01**: Items added to a shuffle are auto-watched for price polling
 - [ ] **INTG-02**: Shuffle calculator uses live median prices from latest price snapshots
 - [ ] **INTG-03**: Price staleness warning shown when snapshot is older than 1 hour
 
@@ -72,14 +72,14 @@ Which phases cover which requirements. Updated during roadmap creation.
 | Requirement | Phase | Status |
 |-------------|-------|--------|
 | SHUF-01 | Phase 10 | Complete |
-| SHUF-02 | Phase 11 | Pending |
+| SHUF-02 | Phase 11 | Complete |
 | SHUF-03 | Phase 10 | Complete |
 | SHUF-04 | Phase 10 | Complete |
 | SHUF-05 | Phase 10 | Complete |
-| YILD-01 | Phase 11 | Pending |
-| YILD-02 | Phase 11 | Pending |
-| YILD-03 | Phase 11 | Pending |
-| INTG-01 | Phase 11 | Pending |
+| YILD-01 | Phase 11 | Complete |
+| YILD-02 | Phase 11 | Complete |
+| YILD-03 | Phase 11 | Complete |
+| INTG-01 | Phase 11 | Complete |
 | INTG-02 | Phase 12 | Pending |
 | INTG-03 | Phase 12 | Pending |
 | CALC-01 | Phase 12 | Pending |
