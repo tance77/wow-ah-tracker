@@ -10,6 +10,7 @@ use App\Models\ShuffleStep;
 use App\Models\ShuffleStepByproduct;
 use App\Models\WatchedItem;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Str;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
 use Livewire\Volt\Component;
@@ -521,16 +522,58 @@ new #[Layout('layouts.app')] class extends Component
         $this->shuffle->delete();
         $this->redirect(route('shuffles'), navigate: true);
     }
+
+    public function exportShuffle()
+    {
+        $this->shuffle->load(['steps.inputCatalogItem', 'steps.outputCatalogItem', 'steps.byproducts']);
+
+        $data = [
+            'name' => $this->shuffle->name,
+            'version' => 1,
+            'steps' => $this->shuffle->steps->map(fn ($step) => [
+                'input_blizzard_item_id' => $step->input_blizzard_item_id,
+                'input_item_name' => $step->inputCatalogItem?->name ?? "Item #{$step->input_blizzard_item_id}",
+                'output_blizzard_item_id' => $step->output_blizzard_item_id,
+                'output_item_name' => $step->outputCatalogItem?->name ?? "Item #{$step->output_blizzard_item_id}",
+                'input_qty' => $step->input_qty,
+                'output_qty_min' => $step->output_qty_min,
+                'output_qty_max' => $step->output_qty_max,
+                'sort_order' => $step->sort_order,
+                'byproducts' => $step->byproducts->map(fn ($bp) => [
+                    'blizzard_item_id' => $bp->blizzard_item_id,
+                    'item_name' => $bp->item_name,
+                    'chance_percent' => $bp->chance_percent,
+                    'quantity' => $bp->quantity,
+                ])->values()->all(),
+            ])->values()->all(),
+        ];
+
+        $filename = Str::slug($this->shuffle->name) . '.json';
+
+        return response()->streamDownload(function () use ($data) {
+            echo json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+        }, $filename, [
+            'Content-Type' => 'application/json',
+        ]);
+    }
 }; ?>
 
 <x-slot name="header">
-    <div class="flex items-center gap-4">
-        <a href="{{ route('shuffles') }}" wire:navigate class="text-sm text-gray-400 transition-colors hover:text-wow-gold">
-            &larr; Back to Shuffles
-        </a>
-        <h2 class="text-xl font-semibold leading-tight text-wow-gold">
-            {{ $shuffle->name }}
-        </h2>
+    <div class="flex items-center justify-between">
+        <div class="flex items-center gap-4">
+            <a href="{{ route('shuffles') }}" wire:navigate class="text-sm text-gray-400 transition-colors hover:text-wow-gold">
+                &larr; Back to Shuffles
+            </a>
+            <h2 class="text-xl font-semibold leading-tight text-wow-gold">
+                {{ $shuffle->name }}
+            </h2>
+        </div>
+        <button
+            wire:click="exportShuffle"
+            class="text-sm text-gray-400 transition-colors hover:text-wow-gold"
+        >
+            Export JSON
+        </button>
     </div>
 </x-slot>
 
