@@ -94,9 +94,10 @@ None.
 | 13 | Fix realm sync stopping after fetching auctions — stream response to disk instead of loading into memory | 2026-03-05 | 18e1cc5 | [13-fix-realm-sync-stopping-after-fetching-a](./quick/13-fix-realm-sync-stopping-after-fetching-a/) |
 | 14 | Fix realm auction regex to handle item objects with extra fields (context, bonus_list, modifiers) | 2026-03-05 | ea8d09d | [14-fix-realm-auction-regex-to-handle-item-o](./quick/14-fix-realm-auction-regex-to-handle-item-o/) |
 | 15 | Add hourly realm auction price polling for BoE items — parallel pipeline with brace-depth parsing | 2026-03-05 | 267682f | [15-add-hourly-realm-auction-price-polling-f](./quick/15-add-hourly-realm-auction-price-polling-f/) |
+| 16 | Add secondary byproducts with drop chance to shuffle steps — model, UI, calculator EV | 2026-03-05 | 1df5c82 | [16-add-secondary-byproducts-with-drop-chanc](./quick/16-add-secondary-byproducts-with-drop-chanc/) |
 
 ## Session Continuity
 
-Last session: 2026-03-05T19:33:06.324Z
-Stopped at: Completed 13-02-PLAN.md
+Last session: 2026-03-05T21:36:42Z
+Stopped at: Completed quick-16
 Resume file: None
