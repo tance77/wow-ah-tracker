@@ -7,6 +7,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class ShuffleStep extends Model
 {
@@ -42,15 +43,27 @@ class ShuffleStep extends Model
         // Only auto-watched items (created_by_shuffle_id IS NOT NULL) are eligible for removal;
         // manually-added watched items are preserved.
         static::deleted(function (ShuffleStep $step): void {
-            foreach ([$step->input_blizzard_item_id, $step->output_blizzard_item_id] as $blizzardItemId) {
+            // Collect all item IDs from this step: input, output, and byproducts
+            $byproductItemIds = $step->byproducts->pluck('blizzard_item_id')->all();
+            $allItemIds = array_unique(array_merge(
+                [$step->input_blizzard_item_id, $step->output_blizzard_item_id],
+                $byproductItemIds,
+            ));
+
+            foreach ($allItemIds as $blizzardItemId) {
                 $stillReferenced = ShuffleStep::where('input_blizzard_item_id', $blizzardItemId)
                     ->orWhere('output_blizzard_item_id', $blizzardItemId)
                     ->exists();
 
                 if (! $stillReferenced) {
-                    WatchedItem::where('blizzard_item_id', $blizzardItemId)
-                        ->whereNotNull('created_by_shuffle_id')
-                        ->delete();
+                    // Also check if any other byproduct still references this item
+                    $stillReferencedByByproduct = ShuffleStepByproduct::where('blizzard_item_id', $blizzardItemId)->exists();
+
+                    if (! $stillReferencedByByproduct) {
+                        WatchedItem::where('blizzard_item_id', $blizzardItemId)
+                            ->whereNotNull('created_by_shuffle_id')
+                            ->delete();
+                    }
                 }
             }
         });
@@ -69,5 +82,10 @@ class ShuffleStep extends Model
     public function outputCatalogItem(): BelongsTo
     {
         return $this->belongsTo(CatalogItem::class, 'output_blizzard_item_id', 'blizzard_item_id');
+    }
+
+    public function byproducts(): HasMany
+    {
+        return $this->hasMany(ShuffleStepByproduct::class);
     }
 }

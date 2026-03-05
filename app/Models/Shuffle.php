@@ -33,6 +33,7 @@ class Shuffle extends Model
         $steps = $this->steps()->with([
             'inputCatalogItem.priceSnapshots' => fn ($q) => $q->latest('polled_at')->limit(1),
             'outputCatalogItem.priceSnapshots' => fn ($q) => $q->latest('polled_at')->limit(1),
+            'byproducts.catalogItem.priceSnapshots' => fn ($q) => $q->latest('polled_at')->limit(1),
         ])->get();
 
         if ($steps->isEmpty()) {
@@ -51,13 +52,25 @@ class Shuffle extends Model
         }
 
         // Cascade yield ratios through all steps using conservative min yield
-        // Start with 1 unit input and cascade through each step
-        $outputQty = 1;
+        // Start with 1 unit input and cascade through each step.
+        // Track cascaded qty at each step for byproduct EV calculation.
+        $cascadedQty = 1;
+        $byproductEV = 0;
+
         foreach ($steps as $step) {
-            $outputQty = (int) floor($outputQty * $step->output_qty_min / max(1, $step->input_qty));
+            // Calculate byproduct EV for this step based on input batches
+            $batches = (int) floor($cascadedQty / max(1, $step->input_qty));
+            foreach ($step->byproducts as $bp) {
+                $bpPrice = $bp->catalogItem?->priceSnapshots->first()?->median_price;
+                if ($bpPrice !== null) {
+                    $byproductEV += $bpPrice * ((float) $bp->chance_percent / 100) * $bp->quantity * $batches;
+                }
+            }
+
+            $cascadedQty = (int) floor($cascadedQty * $step->output_qty_min / max(1, $step->input_qty));
         }
 
-        $grossOutput = $outputPrice * $outputQty;
+        $grossOutput = ($outputPrice * $cascadedQty) + $byproductEV;
         $netOutput = (int) round($grossOutput * 0.95); // 5% AH cut
 
         return $netOutput - $firstInputPrice;
@@ -73,6 +86,7 @@ class Shuffle extends Model
             // Uses 'deleting' (before delete) so steps still exist in DB for the check.
             $orphanIds = WatchedItem::where('created_by_shuffle_id', $shuffle->id)
                 ->whereNotIn('id', function ($query) use ($shuffle) {
+                    // Still referenced by another shuffle's step input/output
                     $query->select('watched_items.id')
                         ->from('watched_items')
                         ->join('shuffle_steps as ss', function ($join) {
@@ -81,6 +95,15 @@ class Shuffle extends Model
                         })
                         ->join('shuffles', 'ss.shuffle_id', '=', 'shuffles.id')
                         ->where('shuffles.id', '!=', $shuffle->id);
+                })
+                ->whereNotIn('id', function ($query) use ($shuffle) {
+                    // Still referenced by another shuffle's step byproduct
+                    $query->select('watched_items.id')
+                        ->from('watched_items')
+                        ->join('shuffle_step_byproducts as ssb', 'watched_items.blizzard_item_id', '=', 'ssb.blizzard_item_id')
+                        ->join('shuffle_steps as ss2', 'ssb.shuffle_step_id', '=', 'ss2.id')
+                        ->join('shuffles as s2', 'ss2.shuffle_id', '=', 's2.id')
+                        ->where('s2.id', '!=', $shuffle->id);
                 })
                 ->pluck('id');
 
