@@ -56,7 +56,13 @@ new #[Layout('layouts.guest')] class extends Component
             </label>
         </div>
 
-        <div class="flex items-center justify-end mt-4">
+        <div class="mt-6">
+            <x-primary-button class="w-full justify-center">
+                {{ __('Log in') }}
+            </x-primary-button>
+        </div>
+
+        <div class="flex items-center justify-center gap-4 mt-4">
             @if (Route::has('password.request'))
                 <a class="underline text-sm text-gray-400 hover:text-wow-gold rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-wow-gold focus:ring-offset-wow-darker transition-colors" href="{{ route('password.request') }}" wire:navigate>
                     {{ __('Forgot your password?') }}
@@ -64,14 +70,10 @@ new #[Layout('layouts.guest')] class extends Component
             @endif
 
             @if (Route::has('register'))
-                <a class="underline text-sm text-gray-400 hover:text-wow-gold rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-wow-gold focus:ring-offset-wow-darker transition-colors ms-4" href="{{ route('register') }}" wire:navigate>
+                <a class="underline text-sm text-gray-400 hover:text-wow-gold rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-wow-gold focus:ring-offset-wow-darker transition-colors" href="{{ route('register') }}" wire:navigate>
                     {{ __('Create an account') }}
                 </a>
             @endif
-
-            <x-primary-button class="ms-3">
-                {{ __('Log in') }}
-            </x-primary-button>
         </div>
     </form>
 </div>
