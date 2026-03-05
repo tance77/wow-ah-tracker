@@ -71,27 +71,27 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| SHUF-01 | — | Pending |
-| SHUF-02 | — | Pending |
-| SHUF-03 | — | Pending |
-| SHUF-04 | — | Pending |
-| SHUF-05 | — | Pending |
-| YILD-01 | — | Pending |
-| YILD-02 | — | Pending |
-| YILD-03 | — | Pending |
-| INTG-01 | — | Pending |
-| INTG-02 | — | Pending |
-| INTG-03 | — | Pending |
-| CALC-01 | — | Pending |
-| CALC-02 | — | Pending |
-| CALC-03 | — | Pending |
-| CALC-04 | — | Pending |
+| SHUF-01 | Phase 10 | Pending |
+| SHUF-02 | Phase 11 | Pending |
+| SHUF-03 | Phase 10 | Pending |
+| SHUF-04 | Phase 10 | Pending |
+| SHUF-05 | Phase 10 | Pending |
+| YILD-01 | Phase 11 | Pending |
+| YILD-02 | Phase 11 | Pending |
+| YILD-03 | Phase 11 | Pending |
+| INTG-01 | Phase 11 | Pending |
+| INTG-02 | Phase 12 | Pending |
+| INTG-03 | Phase 12 | Pending |
+| CALC-01 | Phase 12 | Pending |
+| CALC-02 | Phase 12 | Pending |
+| CALC-03 | Phase 12 | Pending |
+| CALC-04 | Phase 12 | Pending |
 
 **Coverage:**
 - v1.1 requirements: 15 total
-- Mapped to phases: 0
-- Unmapped: 15 ⚠️
+- Mapped to phases: 15
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-03-04*
-*Last updated: 2026-03-04 after initial definition*
+*Last updated: 2026-03-04 after roadmap creation*

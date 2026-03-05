@@ -5,7 +5,7 @@ milestone_name: Shuffles
 status: active
 last_updated: "2026-03-04"
 progress:
-  total_phases: 0
+  total_phases: 4
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -15,17 +15,34 @@ progress:
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-03-02)
+See: .planning/PROJECT.md (updated 2026-03-04)
 
 **Core value:** See at a glance when crafting material prices dip or spike so users can act on buy/sell opportunities before the market corrects.
-**Current focus:** Planning next milestone
+**Current focus:** Phase 9 — Data Foundation
 
 ## Current Position
 
-Phase: Not started (defining requirements)
-Plan: —
-Status: Defining requirements
-Last activity: 2026-03-04 — Milestone v1.1 started
+Phase: 9 of 12 (Data Foundation)
+Plan: — of — in current phase
+Status: Ready to plan
+Last activity: 2026-03-04 — Roadmap created for v1.1 Shuffles milestone
+
+Progress: [░░░░░░░░░░] 0%
+
+## Performance Metrics
+
+**Velocity:**
+- Total plans completed: 0 (v1.1)
+- Average duration: — min
+- Total execution time: —
+
+**By Phase:**
+
+| Phase | Plans | Total | Avg/Plan |
+|-------|-------|-------|----------|
+| - | - | - | - |
+
+*Updated after each plan completion*
 
 ## Accumulated Context
 
@@ -34,13 +51,17 @@ Last activity: 2026-03-04 — Milestone v1.1 started
 Decisions are logged in PROJECT.md Key Decisions table.
 All v1.0 decisions archived — see `milestones/v1.0-ROADMAP.md` for full history.
 
+**v1.1 pending decisions (resolve before Phase 9 migration):**
+- Auto-watch provenance: nullable `created_by_shuffle_id` FK on `watched_items` vs. separate pivot table. FK approach recommended for single-user app.
+- Yield schema: `output_qty_min` / `output_qty_max` integer columns must be in Phase 9 migration even if min/max UI ships later.
+
 ### Pending Todos
 
 None.
 
 ### Blockers/Concerns
 
-None — all v1.0 blockers resolved.
+- Phase 9 migration decisions must be made before coding starts (yield column types, auto-watch provenance schema). Both are irrecoverable after data entry begins.
 
 ### Quick Tasks Completed
 
@@ -58,6 +79,6 @@ None — all v1.0 blockers resolved.
 
 ## Session Continuity
 
-Last session: 2026-03-05
-Stopped at: Completed quick task 9: Change name field to username on register/profile/navigation.
+Last session: 2026-03-04
+Stopped at: Roadmap created for v1.1 Shuffles (Phases 9-12). Ready to plan Phase 9.
 Resume file: None
