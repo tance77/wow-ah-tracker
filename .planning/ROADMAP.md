@@ -78,8 +78,8 @@ Plans:
 **Plans:** 2/2 plans complete
 
 Plans:
-- [ ] 11-01-PLAN.md — Schema migrations (input_qty, nullable thresholds), ShuffleStep model updates, and feature tests
-- [ ] 11-02-PLAN.md — Full step editor UI with item search, yield config, reorder, and auto-watch
+- [x] 11-01-PLAN.md — Schema migrations (input_qty, nullable thresholds), ShuffleStep model updates, and feature tests
+- [x] 11-02-PLAN.md — Full step editor UI with item search, yield config, reorder, and auto-watch
 
 ### Phase 12: Batch Calculator and Profit Summary
 **Goal**: Users can enter an input quantity and immediately see cascading yields, per-step cost and value breakdowns, total profit after the 5% AH cut, and the break-even input price — all calculated from live AH median prices
@@ -91,7 +91,11 @@ Plans:
   3. User can see a profit summary row showing total cost in, total value out after 5% AH cut, and net profit — all displayed in gold/silver/copper format
   4. User can see the break-even input price (maximum they can pay per input unit and still profit)
   5. A staleness warning is shown when the latest price snapshot for any item in the chain is older than 1 hour
-**Plans**: TBD
+**Plans:** 2 plans
+
+Plans:
+- [ ] 12-01-PLAN.md — Refactor profitPerUnit() cascade, add priceData/calculatorSteps computed properties, and tests
+- [ ] 12-02-PLAN.md — Alpine.js batch calculator UI with step breakdown, profit summary, and visual verification
 
 ## Progress
 
@@ -109,5 +113,5 @@ Plans:
 | 8. Buy/Sell Signal Indicators | v1.0 | 2/2 | Complete | 2026-03-02 |
 | 9. Data Foundation | v1.1 | 2/2 | Complete | 2026-03-05 |
 | 10. Shuffle CRUD and Navigation | v1.1 | 2/2 | Complete | 2026-03-05 |
-| 11. Step Editor, Yield Config, and Auto-Watch | 2/2 | Complete    | 2026-03-05 | - |
-| 12. Batch Calculator and Profit Summary | v1.1 | 0/? | Not started | - |
+| 11. Step Editor, Yield Config, and Auto-Watch | v1.1 | 2/2 | Complete | 2026-03-05 |
+| 12. Batch Calculator and Profit Summary | v1.1 | 0/2 | Not started | - |
