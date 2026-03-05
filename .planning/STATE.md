@@ -101,9 +101,10 @@ None — Phase 9 data foundation complete.
 | 7 | Add register link to login page | 2026-03-04 | 8e24758 | [7-add-register-button-to-login-page](./quick/7-add-register-button-to-login-page/) |
 | 8 | Spruce up login page layout — button full-width on own row, links centered below | 2026-03-04 | d14db15 | [8-spruce-up-login-page-layout](./quick/8-spruce-up-login-page-layout/) |
 | 9 | Change name field to username on register/profile/navigation — DB migration + all views + tests | 2026-03-05 | 3eaa4fb | [9-change-name-field-to-username-on-registe](./quick/9-change-name-field-to-username-on-registe/) |
+| 10 | Fix New Shuffle button outside Livewire boundary — move from header slot into Livewire-tracked DOM | 2026-03-04 | fc2a062 | [10-the-new-shuffle-button-after-there-is-al](./quick/10-the-new-shuffle-button-after-there-is-al/) |
 
 ## Session Continuity
 
-Last session: 2026-03-05T05:56:05.429Z
-Stopped at: Completed 12-batch-calculator-and-profit-summary/12-02-PLAN.md
+Last session: 2026-03-04T00:00:00.000Z
+Stopped at: Completed quick-10 (Fix New Shuffle button)
 Resume file: None
