@@ -28,7 +28,7 @@ Volt::route('/shuffles', 'pages.shuffles')
     ->name('shuffles');
 
 Volt::route('/shuffles/{shuffle}', 'pages.shuffle-detail')
-    ->middleware(['auth'])
+    ->middleware(['auth', 'shuffle.owner'])
     ->name('shuffles.show');
 
 Route::view('profile', 'profile')
