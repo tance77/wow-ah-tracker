@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Crafting Profitability
 status: completed
-stopped_at: Completed 15-02-PLAN.md
-last_updated: "2026-03-05T23:20:12.729Z"
+stopped_at: Phase 16 context gathered
+last_updated: "2026-03-05T23:36:15.486Z"
 last_activity: 2026-03-05 - Completed Phase 15 Plan 02 (crafting overview page with profession cards)
 progress:
   total_phases: 8
@@ -111,6 +111,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-05T23:10:09Z
-Stopped at: Completed 15-02-PLAN.md
-Resume file: Phase 15 complete
+Last session: 2026-03-05T23:36:15.484Z
+Stopped at: Phase 16 context gathered
+Resume file: .planning/phases/16-per-profession-recipe-table/16-CONTEXT.md
