@@ -59,7 +59,7 @@ Plans:
   3. User can rename an existing shuffle and see the updated name reflected in the list
   4. User can delete a shuffle and it is removed from the list
   5. Shuffles list shows a profitability badge (green/red or neutral) next to each shuffle name
-**Plans:** 2 plans
+**Plans:** 1/2 plans executed
 
 Plans:
 - [ ] 10-01-PLAN.md — Routes, navigation, profitPerUnit model method, shuffles list page, and feature tests
@@ -104,6 +104,6 @@ Plans:
 | 7. Dashboard and Price Charts | v1.0 | 2/2 | Complete | 2026-03-01 |
 | 8. Buy/Sell Signal Indicators | v1.0 | 2/2 | Complete | 2026-03-02 |
 | 9. Data Foundation | v1.1 | 2/2 | Complete | 2026-03-05 |
-| 10. Shuffle CRUD and Navigation | v1.1 | 0/2 | Not started | - |
+| 10. Shuffle CRUD and Navigation | 1/2 | In Progress|  | - |
 | 11. Step Editor, Yield Config, and Auto-Watch | v1.1 | 0/? | Not started | - |
 | 12. Batch Calculator and Profit Summary | v1.1 | 0/? | Not started | - |

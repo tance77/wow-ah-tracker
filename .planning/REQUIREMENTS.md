@@ -9,11 +9,11 @@ Requirements for Shuffles milestone. Each maps to roadmap phases.
 
 ### Shuffle Management
 
-- [ ] **SHUF-01**: User can create a named shuffle with a descriptive name
+- [x] **SHUF-01**: User can create a named shuffle with a descriptive name
 - [ ] **SHUF-02**: User can define multi-step conversion chains (A → B → C)
-- [ ] **SHUF-03**: User can edit an existing shuffle's name and steps
-- [ ] **SHUF-04**: User can delete a shuffle
-- [ ] **SHUF-05**: User can view a list of all saved shuffles with profitability badge
+- [x] **SHUF-03**: User can edit an existing shuffle's name and steps
+- [x] **SHUF-04**: User can delete a shuffle
+- [x] **SHUF-05**: User can view a list of all saved shuffles with profitability badge
 
 ### Yield Configuration
 
@@ -71,11 +71,11 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| SHUF-01 | Phase 10 | Pending |
+| SHUF-01 | Phase 10 | Complete |
 | SHUF-02 | Phase 11 | Pending |
-| SHUF-03 | Phase 10 | Pending |
-| SHUF-04 | Phase 10 | Pending |
-| SHUF-05 | Phase 10 | Pending |
+| SHUF-03 | Phase 10 | Complete |
+| SHUF-04 | Phase 10 | Complete |
+| SHUF-05 | Phase 10 | Complete |
 | YILD-01 | Phase 11 | Pending |
 | YILD-02 | Phase 11 | Pending |
 | YILD-03 | Phase 11 | Pending |
