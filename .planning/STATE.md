@@ -1,36 +1,36 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.1
-milestone_name: Shuffles
-status: executing
-stopped_at: Completed 12-batch-calculator-and-profit-summary/12-02-PLAN.md
-last_updated: "2026-03-05T06:00:16.980Z"
-last_activity: 2026-03-05 — Completed quick task 11: Make step wizard more user-friendly
+milestone: v1.2
+milestone_name: Crafting Profitability
+status: defining
+stopped_at: —
+last_updated: "2026-03-05"
+last_activity: 2026-03-05 — Milestone v1.2 started
 progress:
-  total_phases: 4
-  completed_phases: 4
-  total_plans: 8
-  completed_plans: 8
-  percent: 50
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-03-04)
+See: .planning/PROJECT.md (updated 2026-03-05)
 
 **Core value:** See at a glance when crafting material prices dip or spike so users can act on buy/sell opportunities before the market corrects.
-**Current focus:** Phase 9 — Data Foundation
+**Current focus:** Defining requirements for v1.2 Crafting Profitability
 
 ## Current Position
 
-Phase: 9 of 12 (Data Foundation)
-Plan: 2 of 2 in current phase (all plans complete)
-Status: Executing
-Last activity: 2026-03-05 — Completed quick task 10: Fix New Shuffle button
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-03-05 — Milestone v1.2 started
 
-Progress: [█████░░░░░] 50%
+Progress: [░░░░░░░░░░] 0%
 
 ## Performance Metrics
 

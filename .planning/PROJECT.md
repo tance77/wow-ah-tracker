@@ -19,15 +19,23 @@ See at a glance when crafting material prices dip or spike so I can act on buy/s
 - ✓ Admin UI to add/remove watched items with thresholds — v1.0
 - ✓ Simple authentication (single user login) — v1.0
 - ✓ Blizzard API credentials managed via .env — v1.0
+- ✓ Shuffles navigation section with saved conversion chains — v1.1
+- ✓ Multi-step conversion chains with per-step ratios — v1.1
+- ✓ Fixed or min/max yield ranges per conversion step — v1.1
+- ✓ Auto-watch items added to shuffles — v1.1
+- ✓ Batch calculator with per-step yields and profit — v1.1
+- ✓ Profit summary with total cost, value, and net profit — v1.1
 
 ### Active
 
-- [ ] Shuffles navigation section with saved conversion chains
-- [ ] Multi-step conversion chains (A → B → C) with per-step ratios
-- [ ] Fixed or min/max yield ranges per conversion step
-- [ ] Auto-watch items added to shuffles
-- [ ] Batch calculator — enter input quantity, see yields and profit at each step
-- [ ] Profit summary — total cost in, total value out, net profit
+- [ ] Crafting profitability section with all Midnight expansion recipes
+- [ ] Recipe data fetched from Blizzard API profession/recipe endpoints
+- [ ] Profession overview page with top profitable recipes per profession
+- [ ] Profession detail page with full recipe table sorted by profit
+- [ ] Per-recipe profit calculation: reagent cost vs crafted item sell price
+- [ ] Two quality tiers (Tier 1 & Tier 2) with profit shown per tier
+- [ ] Median profit across both tiers
+- [ ] Auto-watch reagents so AH prices stay fresh
 
 ### Out of Scope
 
@@ -36,18 +44,19 @@ See at a glance when crafting material prices dip or spike so I can act on buy/s
 - Multi-user / public access — personal tool
 - Mobile native app — web only, responsive Tailwind
 - Gear/equipment tracking — commodities only
-- Crafting profit calculator (full recipe-based) — shuffles covers conversion chains only (ADVN-01, deferred)
+- ~~Crafting profit calculator (full recipe-based)~~ — Promoted to v1.2 milestone
 - Additional item categories (gear, pets, mounts) — commodities only (ADVN-02, deferred)
 
-## Current Milestone: v1.1 Shuffles
+## Current Milestone: v1.2 Crafting Profitability
 
-**Goal:** Add a Shuffles section where users can define item conversion chains and calculate batch profit using live AH prices.
+**Goal:** Add a Crafting section that shows profit margins for all Midnight expansion recipes using live AH prices, organized by profession with sortable tables.
 
 **Target features:**
-- Shuffles navigation section with saved conversion chains
-- Multi-step chains with fixed or variable yield ratios
-- Batch profit calculator with per-step breakdown
-- Auto-watch for items used in shuffles
+- All Midnight expansion recipes fetched from Blizzard API
+- Profession overview page with profit highlights
+- Per-profession detail pages with full sortable recipe tables
+- Two-tier quality pricing with per-tier and median profit
+- Auto-watch for recipe reagents
 
 ## Context
 
@@ -81,4 +90,4 @@ Frequency-distribution median correctly weights high-quantity listings.
 | One snapshot per WatchedItem row (not per blizzard_item_id) | Multiple users watching same item get independent history | ✓ Good |
 
 ---
-*Last updated: 2026-03-04 after v1.1 milestone started*
+*Last updated: 2026-03-05 after v1.2 milestone started*
