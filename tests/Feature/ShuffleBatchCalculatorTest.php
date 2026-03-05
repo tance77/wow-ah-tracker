@@ -7,6 +7,7 @@ use App\Models\PriceSnapshot;
 use App\Models\Shuffle;
 use App\Models\ShuffleStep;
 use App\Models\User;
+use Livewire\Volt\Volt;
 
 uses(Illuminate\Foundation\Testing\RefreshDatabase::class)->group('shuffle-batch-calculator');
 

@@ -50,8 +50,13 @@ class Shuffle extends Model
             return null;
         }
 
-        // Apply yield from last step (use min qty for conservative estimate)
-        $outputQty = $lastStep->output_qty_min ?? 1;
+        // Cascade yield ratios through all steps using conservative min yield
+        // Start with 1 unit input and cascade through each step
+        $outputQty = 1;
+        foreach ($steps as $step) {
+            $outputQty = (int) floor($outputQty * $step->output_qty_min / max(1, $step->input_qty));
+        }
+
         $grossOutput = $outputPrice * $outputQty;
         $netOutput = (int) round($grossOutput * 0.95); // 5% AH cut
 
