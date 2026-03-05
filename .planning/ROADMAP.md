@@ -109,5 +109,5 @@ Plans:
 | 8. Buy/Sell Signal Indicators | v1.0 | 2/2 | Complete | 2026-03-02 |
 | 9. Data Foundation | v1.1 | 2/2 | Complete | 2026-03-05 |
 | 10. Shuffle CRUD and Navigation | v1.1 | 2/2 | Complete | 2026-03-05 |
-| 11. Step Editor, Yield Config, and Auto-Watch | 2/2 | Complete   | 2026-03-05 | - |
+| 11. Step Editor, Yield Config, and Auto-Watch | 2/2 | Complete    | 2026-03-05 | - |
 | 12. Batch Calculator and Profit Summary | v1.1 | 0/? | Not started | - |
