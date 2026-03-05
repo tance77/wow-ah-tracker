@@ -24,7 +24,7 @@ See: .planning/PROJECT.md (updated 2026-03-02)
 
 Phase: 8 of 8 — All phases complete
 Status: v1.0 MVP SHIPPED (2026-03-02)
-Last activity: 2026-03-04 - Completed quick task 6: Add tooltips and inline 7-day avg to dashboard signals and trend arrows
+Last activity: 2026-03-04 - Completed quick task 8: Spruce up login page layout — button full-width, links centered below
 
 Progress: [██████████] 100%
 
@@ -54,9 +54,10 @@ None — all v1.0 blockers resolved.
 | 5 | Add profession grouping to dashboard with manual tagging on watchlist | 2026-03-04 | bf4656c | [5-add-profession-grouping-to-dashboard-wit](./quick/5-add-profession-grouping-to-dashboard-wit/) |
 | 6 | Add tooltips and inline 7-day avg to dashboard signals and trend arrows | 2026-03-04 | 1940891 | [6-add-tooltips-and-inline-7-day-avg-to-das](./quick/6-add-tooltips-and-inline-7-day-avg-to-das/) |
 | 7 | Add register link to login page | 2026-03-04 | 8e24758 | [7-add-register-button-to-login-page](./quick/7-add-register-button-to-login-page/) |
+| 8 | Spruce up login page layout — button full-width on own row, links centered below | 2026-03-04 | d14db15 | [8-spruce-up-login-page-layout](./quick/8-spruce-up-login-page-layout/) |
 
 ## Session Continuity
 
 Last session: 2026-03-04
-Stopped at: Completed quick task 7: Add register link to login page.
+Stopped at: Completed quick task 8: Spruce up login page layout.
 Resume file: None
