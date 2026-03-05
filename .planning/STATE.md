@@ -5,7 +5,7 @@ milestone_name: Crafting Profitability
 status: defining
 stopped_at: —
 last_updated: "2026-03-05"
-last_activity: 2026-03-05 — Milestone v1.2 started
+last_activity: 2026-03-05 - Completed quick task 12: Add realm auction support to blizzard:sync-catalog for BoE gear
 progress:
   total_phases: 0
   completed_phases: 0
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-03-05)
 Phase: Not started (defining requirements)
 Plan: —
 Status: Defining requirements
-Last activity: 2026-03-05 — Milestone v1.2 started
+Last activity: 2026-03-05 - Completed quick task 12: Add realm auction support to blizzard:sync-catalog for BoE gear
 
 Progress: [░░░░░░░░░░] 0%
 
