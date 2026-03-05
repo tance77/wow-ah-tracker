@@ -114,4 +114,4 @@ Plans:
 | 9. Data Foundation | v1.1 | 2/2 | Complete | 2026-03-05 |
 | 10. Shuffle CRUD and Navigation | v1.1 | 2/2 | Complete | 2026-03-05 |
 | 11. Step Editor, Yield Config, and Auto-Watch | v1.1 | 2/2 | Complete | 2026-03-05 |
-| 12. Batch Calculator and Profit Summary | 2/2 | Complete   | 2026-03-05 | - |
+| 12. Batch Calculator and Profit Summary | 2/2 | Complete    | 2026-03-05 | - |
