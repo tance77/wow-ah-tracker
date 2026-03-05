@@ -164,7 +164,11 @@ Plans:
   4. A staleness warning is displayed when any price snapshot used in the table is more than 1 hour old
   5. Clicking a recipe row or expand control reveals a per-reagent cost breakdown showing quantity, unit price, and subtotal for each reagent
   6. Recipes that produce non-commodity gear items display "realm AH — not tracked" instead of profit values
-**Plans**: TBD
+**Plans**: 2 plans
+
+Plans:
+- [ ] 16-01-PLAN.md — Feature tests and server-side recipeData computed property
+- [ ] 16-02-PLAN.md — Alpine.js recipe table UI with sorting, filtering, accordion, and visual verification
 
 ## Progress
 
@@ -187,4 +191,4 @@ Plans:
 | 13. Recipe Data Model and Seed Command | v1.2 | 2/2 | Complete | 2026-03-05 |
 | 14. Profit Calculation Action | 1/1 | Complete    | 2026-03-05 | - |
 | 15. Profession Overview Page and Navigation | 2/2 | Complete    | 2026-03-05 | - |
-| 16. Per-Profession Recipe Table | v1.2 | 0/TBD | Not started | - |
+| 16. Per-Profession Recipe Table | v1.2 | 0/2 | Not started | - |
