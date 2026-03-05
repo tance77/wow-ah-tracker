@@ -17,7 +17,8 @@ class SyncCatalogCommand extends Command
                             {--dry-run : Show what would be imported without writing to the database}
                             {--tiers-only : Only run quality tier assignment (no API calls)}
                             {--rarity-only : Re-fetch item data to populate missing rarity values}
-                            {--realm : Also fetch item IDs from the connected-realm auctions endpoint (for BoE gear)}';
+                            {--realm : Also fetch item IDs from the connected-realm auctions endpoint (for BoE gear)}
+                            {--limit=0 : Max new items to process per run (0 = unlimited, use to avoid server timeouts)}';
 
     protected $description = 'Import commodity and realm auction items from the Blizzard Auction House API into the catalog';
 
@@ -196,11 +197,25 @@ class SyncCatalogCommand extends Command
         $existingIds = CatalogItem::pluck('blizzard_item_id')->toArray();
         $newIds = ($fresh ? $uniqueIds : $uniqueIds->diff($existingIds)->values())->sortDesc()->values();
 
-        $this->info(sprintf(
-            'Skipping %s existing items. %s remaining to look up.',
-            number_format(count($existingIds)),
-            number_format($newIds->count()),
-        ));
+        $limit = (int) $this->option('limit');
+        $totalNew = $newIds->count();
+
+        if ($limit > 0 && $totalNew > $limit) {
+            $newIds = $newIds->take($limit);
+            $this->info(sprintf(
+                'Skipping %s existing items. %s remaining — limited to %s this run (%s deferred).',
+                number_format(count($existingIds)),
+                number_format($totalNew),
+                number_format($limit),
+                number_format($totalNew - $limit),
+            ));
+        } else {
+            $this->info(sprintf(
+                'Skipping %s existing items. %s remaining to look up.',
+                number_format(count($existingIds)),
+                number_format($newIds->count()),
+            ));
+        }
 
         if ($newIds->isEmpty()) {
             $this->info('Nothing to import — catalog is up to date.');
@@ -281,10 +296,17 @@ class SyncCatalogCommand extends Command
         ]);
 
         // Clean up cached ID list on successful completion
-        if ($failed === 0) {
+        $hasMoreItems = $limit > 0 && $totalNew > $limit;
+        if ($failed === 0 && ! $hasMoreItems) {
             @unlink($cacheFile);
         } else {
-            $this->warn('Some items could not be fetched — re-run to resume where you left off.');
+            if ($hasMoreItems) {
+                $remaining = $totalNew - $limit;
+                $this->warn(sprintf('%s items remaining — re-run to continue.', number_format($remaining)));
+            }
+            if ($failed > 0) {
+                $this->warn('Some items could not be fetched — re-run to resume where you left off.');
+            }
         }
 
         $this->assignQualityTiers();

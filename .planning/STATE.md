@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-03-05)
 Phase: 13 of 16 (Recipe Data Model and Seed Command)
 Plan: — (not yet planned)
 Status: Ready to plan
-Last activity: 2026-03-05 - Roadmap created for v1.2 (phases 13-16, 19 requirements mapped)
+Last activity: 2026-03-05 - Completed quick task 17: Fix blizzard:sync-catalog command timeout on Laravel Cloud
 
 Progress: [░░░░░░░░░░] 0%
 
@@ -98,6 +98,7 @@ None.
 | 14 | Fix realm auction regex to handle item objects with extra fields (context, bonus_list, modifiers) | 2026-03-05 | ea8d09d | [14-fix-realm-auction-regex-to-handle-item-o](./quick/14-fix-realm-auction-regex-to-handle-item-o/) |
 | 15 | Add hourly realm auction price polling for BoE items — parallel pipeline with brace-depth parsing | 2026-03-05 | 267682f | [15-add-hourly-realm-auction-price-polling-f](./quick/15-add-hourly-realm-auction-price-polling-f/) |
 | 16 | Add secondary byproducts with drop chance to shuffle steps — model, UI, calculator EV | 2026-03-05 | 1df5c82 | [16-add-secondary-byproducts-with-drop-chanc](./quick/16-add-secondary-byproducts-with-drop-chanc/) |
+| 17 | Fix blizzard:sync-catalog command timeout on Laravel Cloud (exceeds 15min limit) | 2026-03-05 | pending | [17-fix-blizzard-sync-catalog-command-timeou](./quick/17-fix-blizzard-sync-catalog-command-timeou/) |
 
 ## Session Continuity
 
