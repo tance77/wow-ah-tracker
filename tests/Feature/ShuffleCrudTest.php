@@ -94,3 +94,60 @@ test('user cannot delete another user shuffle', function () {
 
     expect(Shuffle::find($shuffle->id))->not->toBeNull();
 });
+
+// Detail page — SHUF-03 rename from detail
+
+test('user can rename a shuffle from detail page', function () {
+    $user = User::factory()->create();
+    $shuffle = Shuffle::factory()->create(['user_id' => $user->id, 'name' => 'Old Name']);
+
+    Volt::actingAs($user)->test('pages.shuffle-detail', ['shuffle' => $shuffle])
+        ->call('renameShuffle', 'New Name');
+
+    expect($shuffle->fresh()->name)->toBe('New Name');
+});
+
+test('rename ignores empty name on detail page', function () {
+    $user = User::factory()->create();
+    $shuffle = Shuffle::factory()->create(['user_id' => $user->id, 'name' => 'My Shuffle']);
+
+    Volt::actingAs($user)->test('pages.shuffle-detail', ['shuffle' => $shuffle])
+        ->call('renameShuffle', '   ');
+
+    expect($shuffle->fresh()->name)->toBe('My Shuffle');
+});
+
+// Detail page — SHUF-04 delete from detail
+
+test('user can delete a shuffle from detail page', function () {
+    $user = User::factory()->create();
+    $shuffle = Shuffle::factory()->create(['user_id' => $user->id]);
+
+    Volt::actingAs($user)->test('pages.shuffle-detail', ['shuffle' => $shuffle])
+        ->call('deleteShuffle')
+        ->assertRedirect(route('shuffles'));
+
+    expect(Shuffle::find($shuffle->id))->toBeNull();
+});
+
+// Detail page — authorization
+
+test('shuffle detail page returns 403 for another user shuffle', function () {
+    $user = User::factory()->create();
+    $otherUser = User::factory()->create();
+    $shuffle = Shuffle::factory()->create(['user_id' => $otherUser->id]);
+
+    $this->actingAs($user)
+        ->get(route('shuffles.show', $shuffle))
+        ->assertForbidden();
+});
+
+// Detail page — renders
+
+test('shuffle detail page shows shuffle name', function () {
+    $user = User::factory()->create();
+    $shuffle = Shuffle::factory()->create(['user_id' => $user->id, 'name' => 'My Detail Shuffle']);
+
+    Volt::actingAs($user)->test('pages.shuffle-detail', ['shuffle' => $shuffle])
+        ->assertSee('My Detail Shuffle');
+});
