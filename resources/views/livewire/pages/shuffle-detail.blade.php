@@ -902,12 +902,298 @@ new #[Layout('layouts.app')] class extends Component
                 </div>
             </div>
 
-            {{-- Batch Calculator Section (Plan 02 will populate the Alpine.js calculator UI) --}}
+            {{-- Batch Calculator Section --}}
             @if ($this->steps->isNotEmpty())
-                <div data-calculator-section class="overflow-hidden bg-wow-dark p-6 shadow-sm sm:rounded-lg">
-                    <h3 class="text-base font-semibold text-wow-gold">Profit Calculator</h3>
-                    {{-- Alpine.js calculator UI ships in Phase 12 Plan 02 --}}
+                <div data-calculator-section class="overflow-hidden bg-wow-dark shadow-sm sm:rounded-lg" wire:ignore>
+                    <div
+                        x-data="batchCalculator(@js($this->priceData), @js($this->calculatorSteps))"
+                        class="p-6"
+                    >
+                        {{-- Section Header --}}
+                        <h3 class="mb-4 text-base font-semibold text-wow-gold">Batch Calculator</h3>
+
+                        {{-- Staleness Warning Banner --}}
+                        <div
+                            x-show="staleItems.length > 0"
+                            x-cloak
+                            class="mb-4 rounded-md border border-amber-700/50 bg-amber-900/20 px-4 py-3"
+                        >
+                            <div class="flex items-start gap-2">
+                                <svg class="mt-0.5 h-4 w-4 shrink-0 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                                </svg>
+                                <div class="text-xs text-amber-300">
+                                    <span class="font-medium">Stale prices:</span>
+                                    <template x-for="(item, i) in staleItems" :key="item.id">
+                                        <span>
+                                            <span x-text="item.name"></span>
+                                            <span class="text-amber-500" x-text="'(' + item.age_minutes + 'm ago)'"></span><template x-if="i < staleItems.length - 1">, </template>
+                                        </span>
+                                    </template>
+                                </div>
+                            </div>
+                        </div>
+
+                        {{-- Input Quantity --}}
+                        <div class="mb-5 flex items-center gap-3">
+                            <label class="text-sm font-medium text-gray-300">Input Quantity</label>
+                            <input
+                                type="number"
+                                min="1"
+                                x-model.number="batchQty"
+                                class="w-24 rounded border border-gray-600 bg-wow-darker px-3 py-1.5 text-center text-sm text-gray-100 focus:border-wow-gold focus:outline-none focus:ring-1 focus:ring-wow-gold"
+                            />
+                        </div>
+
+                        {{-- Step Breakdown Table --}}
+                        <div class="mb-5 overflow-x-auto">
+                            <table class="w-full text-xs">
+                                <thead>
+                                    <tr class="border-b border-gray-700 text-left text-gray-500">
+                                        <th class="pb-2 pr-3 font-medium">#</th>
+                                        <th class="pb-2 pr-3 font-medium">Input</th>
+                                        <th class="pb-2 pr-3 font-medium">Output</th>
+                                        <th class="pb-2 font-medium text-right">Yield ratio</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <template x-for="(row, i) in cascade" :key="i">
+                                        <tr class="border-b border-gray-700/40">
+                                            <td class="py-2 pr-3 text-gray-500" x-text="i + 1"></td>
+                                            <td class="py-2 pr-3">
+                                                <div class="flex items-center gap-1.5">
+                                                    <template x-if="row.inputIcon">
+                                                        <img :src="row.inputIcon" alt="" class="h-5 w-5 rounded" loading="lazy" />
+                                                    </template>
+                                                    <span class="text-gray-200" x-text="row.inputName"></span>
+                                                    <span class="text-gray-500" x-text="'x' + row.inQty"></span>
+                                                </div>
+                                            </td>
+                                            <td class="py-2 pr-3">
+                                                <div class="flex items-center gap-1.5">
+                                                    <template x-if="row.outputIcon">
+                                                        <img :src="row.outputIcon" alt="" class="h-5 w-5 rounded" loading="lazy" />
+                                                    </template>
+                                                    <span class="text-gray-200" x-text="row.outputName"></span>
+                                                    <template x-if="row.outMin === row.outMax">
+                                                        <span class="text-wow-gold" x-text="'x' + row.outMin"></span>
+                                                    </template>
+                                                    <template x-if="row.outMin !== row.outMax">
+                                                        <span class="text-wow-gold" x-text="'x' + row.outMin + ' - ' + row.outMax"></span>
+                                                    </template>
+                                                </div>
+                                            </td>
+                                            <td class="py-2 text-right text-gray-400" x-text="row.ratioLabel"></td>
+                                        </tr>
+                                    </template>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        {{-- Profit Summary --}}
+                        <div class="rounded-md border border-gray-700/50 bg-wow-darker p-4">
+                            <h4 class="mb-3 text-xs font-semibold uppercase tracking-wider text-gray-500">Profit Summary</h4>
+
+                            <template x-if="canCalculate">
+                                <div class="space-y-2">
+                                    {{-- Column headers --}}
+                                    <div class="grid grid-cols-3 text-xs text-gray-500">
+                                        <span></span>
+                                        <span class="text-center">Min</span>
+                                        <span class="text-center">Max</span>
+                                    </div>
+                                    {{-- Total Cost --}}
+                                    <div class="grid grid-cols-3 items-center text-sm">
+                                        <span class="text-gray-400">Total Cost</span>
+                                        <span class="text-center text-gray-300" x-text="formatGold(totalCostMin)"></span>
+                                        <span class="text-center text-gray-300" x-text="formatGold(totalCostMax)"></span>
+                                    </div>
+                                    {{-- Gross Value --}}
+                                    <div class="grid grid-cols-3 items-center text-sm">
+                                        <span class="text-gray-400">Gross Value</span>
+                                        <span class="text-center text-gray-300" x-text="formatGold(grossValueMin)"></span>
+                                        <span class="text-center text-gray-300" x-text="formatGold(grossValueMax)"></span>
+                                    </div>
+                                    {{-- AH Cut --}}
+                                    <div class="grid grid-cols-3 items-center border-b border-gray-700/40 pb-2 text-sm">
+                                        <span class="text-gray-500">AH Cut (5%)</span>
+                                        <span class="text-center text-gray-500" x-text="'- ' + formatGold(Math.round(grossValueMin * 0.05))"></span>
+                                        <span class="text-center text-gray-500" x-text="'- ' + formatGold(Math.round(grossValueMax * 0.05))"></span>
+                                    </div>
+                                    {{-- Net Profit --}}
+                                    <div class="grid grid-cols-3 items-center pt-1 text-sm font-semibold">
+                                        <span class="text-gray-300">Net Profit</span>
+                                        <span
+                                            class="text-center"
+                                            :class="netProfitMin >= 0 ? 'text-green-400' : 'text-red-400'"
+                                            x-text="formatGold(netProfitMin)"
+                                        ></span>
+                                        <span
+                                            class="text-center"
+                                            :class="netProfitMax >= 0 ? 'text-green-400' : 'text-red-400'"
+                                            x-text="formatGold(netProfitMax)"
+                                        ></span>
+                                    </div>
+                                    {{-- Break-even --}}
+                                    <div class="grid grid-cols-3 items-center border-t border-gray-700/40 pt-2 text-sm">
+                                        <span class="text-gray-400">Break-even / unit</span>
+                                        <span class="text-center text-wow-gold" x-text="formatGold(breakEven)"></span>
+                                        <span class="text-center text-gray-600">---</span>
+                                    </div>
+                                </div>
+                            </template>
+
+                            <template x-if="!canCalculate">
+                                <div class="text-sm text-gray-500">
+                                    Cannot calculate &mdash; missing prices for:
+                                    <span class="text-gray-400" x-text="missingPriceNames.join(', ')"></span>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
                 </div>
+
+                <script>
+                    function batchCalculator(prices, steps) {
+                        return {
+                            batchQty: 1,
+                            prices: prices,
+                            steps: steps,
+
+                            get cascade() {
+                                let qtyMin = this.batchQty;
+                                let qtyMax = this.batchQty;
+                                return this.steps.map((step, i) => {
+                                    const inQty = i === 0 ? qtyMin : qtyMin; // already cascaded
+                                    const outMin = Math.floor(qtyMin * step.output_qty_min / Math.max(1, step.input_qty));
+                                    const outMax = Math.floor(qtyMax * step.output_qty_max / Math.max(1, step.input_qty));
+                                    const ratioMin = (step.output_qty_min / step.input_qty).toFixed(2);
+                                    const ratioMax = (step.output_qty_max / step.input_qty).toFixed(2);
+                                    const ratioLabel = step.output_qty_min === step.output_qty_max
+                                        ? ratioMin + 'x'
+                                        : ratioMin + 'x - ' + ratioMax + 'x';
+                                    const row = {
+                                        inQty: qtyMin,
+                                        outMin,
+                                        outMax,
+                                        inputName: step.input_name,
+                                        outputName: step.output_name,
+                                        inputIcon: step.input_icon,
+                                        outputIcon: step.output_icon,
+                                        ratioLabel,
+                                    };
+                                    qtyMin = outMin;
+                                    qtyMax = outMax;
+                                    return row;
+                                });
+                            },
+
+                            get staleItems() {
+                                const seen = new Set();
+                                const result = [];
+                                for (const step of this.steps) {
+                                    for (const id of [step.input_id, step.output_id]) {
+                                        if (!seen.has(id)) {
+                                            seen.add(id);
+                                            const p = this.prices[id];
+                                            if (p && p.stale) {
+                                                result.push({ id, name: p.item_name, age_minutes: p.age_minutes });
+                                            }
+                                        }
+                                    }
+                                }
+                                return result;
+                            },
+
+                            get canCalculate() {
+                                if (this.steps.length === 0) return false;
+                                const firstInputId = this.steps[0].input_id;
+                                const lastOutputId = this.steps[this.steps.length - 1].output_id;
+                                return (this.prices[firstInputId]?.price ?? null) !== null
+                                    && (this.prices[lastOutputId]?.price ?? null) !== null;
+                            },
+
+                            get missingPriceNames() {
+                                if (this.steps.length === 0) return [];
+                                const missing = [];
+                                const firstInputId = this.steps[0].input_id;
+                                const lastOutputId = this.steps[this.steps.length - 1].output_id;
+                                if ((this.prices[firstInputId]?.price ?? null) === null) {
+                                    missing.push(this.prices[firstInputId]?.item_name ?? 'Input item');
+                                }
+                                if ((this.prices[lastOutputId]?.price ?? null) === null) {
+                                    missing.push(this.prices[lastOutputId]?.item_name ?? 'Output item');
+                                }
+                                return missing;
+                            },
+
+                            get _cascadedQtyMin() {
+                                let qty = this.batchQty;
+                                for (const step of this.steps) {
+                                    qty = Math.floor(qty * step.output_qty_min / Math.max(1, step.input_qty));
+                                }
+                                return qty;
+                            },
+
+                            get _cascadedQtyMax() {
+                                let qty = this.batchQty;
+                                for (const step of this.steps) {
+                                    qty = Math.floor(qty * step.output_qty_max / Math.max(1, step.input_qty));
+                                }
+                                return qty;
+                            },
+
+                            get totalCostMin() {
+                                if (!this.canCalculate) return 0;
+                                const firstInputId = this.steps[0].input_id;
+                                return this.batchQty * (this.prices[firstInputId]?.price ?? 0);
+                            },
+
+                            get totalCostMax() {
+                                return this.totalCostMin; // cost is fixed (first input qty x price)
+                            },
+
+                            get grossValueMin() {
+                                if (!this.canCalculate) return 0;
+                                const lastOutputId = this.steps[this.steps.length - 1].output_id;
+                                return this._cascadedQtyMin * (this.prices[lastOutputId]?.price ?? 0);
+                            },
+
+                            get grossValueMax() {
+                                if (!this.canCalculate) return 0;
+                                const lastOutputId = this.steps[this.steps.length - 1].output_id;
+                                return this._cascadedQtyMax * (this.prices[lastOutputId]?.price ?? 0);
+                            },
+
+                            get netProfitMin() {
+                                return Math.round(this.grossValueMin * 0.95) - this.totalCostMin;
+                            },
+
+                            get netProfitMax() {
+                                return Math.round(this.grossValueMax * 0.95) - this.totalCostMax;
+                            },
+
+                            get breakEven() {
+                                if (!this.canCalculate || this.batchQty < 1) return 0;
+                                return Math.floor(Math.round(this.grossValueMin * 0.95) / this.batchQty);
+                            },
+
+                            formatGold(copper) {
+                                if (copper === null || copper === undefined) return '--';
+                                const neg = copper < 0;
+                                const abs = Math.abs(copper);
+                                const g = Math.floor(abs / 10000);
+                                const s = Math.floor((abs % 10000) / 100);
+                                const c = abs % 100;
+                                let parts = [];
+                                if (g > 0) parts.push(g + 'g');
+                                if (s > 0) parts.push(s + 's');
+                                if (c > 0 || parts.length === 0) parts.push(c + 'c');
+                                return (neg ? '-' : '') + parts.join(' ');
+                            },
+                        };
+                    }
+                </script>
             @endif
 
         </div>

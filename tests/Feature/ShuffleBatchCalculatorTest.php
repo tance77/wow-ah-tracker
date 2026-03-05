@@ -310,3 +310,56 @@ test('calculator section is rendered when shuffle has steps', function () {
     Volt::actingAs($user)->test('pages.shuffle-detail', ['shuffle' => $shuffle])
         ->assertSee('data-calculator-section');
 });
+
+// ---------------------------------------------------------------------------
+// Plan 02 UI tests: Alpine.js batchCalculator section
+// ---------------------------------------------------------------------------
+
+test('calculator section renders Batch Calculator heading when shuffle has steps', function () {
+    ['user' => $user, 'shuffle' => $shuffle] = buildShuffleScenario(
+        stepDefs: [
+            ['input_id' => 170001, 'output_id' => 170002, 'input_qty' => 1, 'output_qty_min' => 2, 'output_qty_max' => 3],
+        ],
+        prices: []
+    );
+
+    Volt::actingAs($user)->test('pages.shuffle-detail', ['shuffle' => $shuffle])
+        ->assertSee('Batch Calculator');
+});
+
+test('calculator section does not render when shuffle has no steps', function () {
+    $user = User::factory()->create();
+    $shuffle = Shuffle::factory()->create(['user_id' => $user->id]);
+
+    Volt::actingAs($user)->test('pages.shuffle-detail', ['shuffle' => $shuffle])
+        ->assertDontSee('Batch Calculator')
+        ->assertDontSee('batchCalculator');
+});
+
+test('calculator section contains x-data batchCalculator Alpine binding when steps present', function () {
+    ['user' => $user, 'shuffle' => $shuffle] = buildShuffleScenario(
+        stepDefs: [
+            ['input_id' => 180001, 'output_id' => 180002, 'input_qty' => 1, 'output_qty_min' => 2, 'output_qty_max' => 3],
+        ],
+        prices: []
+    );
+
+    Volt::actingAs($user)->test('pages.shuffle-detail', ['shuffle' => $shuffle])
+        ->assertSee('batchCalculator', escape: false);
+});
+
+test('priceData JSON for known blizzard item id is embedded in rendered page', function () {
+    ['user' => $user, 'shuffle' => $shuffle] = buildShuffleScenario(
+        stepDefs: [
+            ['input_id' => 190001, 'output_id' => 190002, 'input_qty' => 1, 'output_qty_min' => 2, 'output_qty_max' => 3],
+        ],
+        prices: [
+            190001 => ['median_price' => 12345],
+        ]
+    );
+
+    // The rendered HTML should contain the blizzard_item_id key embedded via @js($this->priceData)
+    Volt::actingAs($user)->test('pages.shuffle-detail', ['shuffle' => $shuffle])
+        ->assertSee('190001', escape: false)
+        ->assertSee('12345', escape: false);
+});
