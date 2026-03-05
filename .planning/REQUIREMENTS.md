@@ -18,10 +18,10 @@ Requirements for Crafting Profitability milestone. Each maps to roadmap phases.
 
 ### Profitability Calculation
 
-- [ ] **PROFIT-01**: Per-recipe reagent cost calculated from live AH prices (sum of reagent quantities x median price)
-- [ ] **PROFIT-02**: Per-recipe crafted item sell price shown for Tier 1 (Silver) and Tier 2 (Gold)
-- [ ] **PROFIT-03**: Profit calculated as `(sell_price x 0.95) - reagent_cost` with 5% AH cut on sell side
-- [ ] **PROFIT-04**: Median profit across both tiers displayed per recipe
+- [x] **PROFIT-01**: Per-recipe reagent cost calculated from live AH prices (sum of reagent quantities x median price)
+- [x] **PROFIT-02**: Per-recipe crafted item sell price shown for Tier 1 (Silver) and Tier 2 (Gold)
+- [x] **PROFIT-03**: Profit calculated as `(sell_price x 0.95) - reagent_cost` with 5% AH cut on sell side
+- [x] **PROFIT-04**: Median profit across both tiers displayed per recipe
 
 ### Profession Overview
 
@@ -81,10 +81,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | IMPORT-04 | Phase 13 | Complete |
 | IMPORT-05 | Phase 13 | Complete |
 | IMPORT-06 | Phase 13 | Complete |
-| PROFIT-01 | Phase 14 | Pending |
-| PROFIT-02 | Phase 14 | Pending |
-| PROFIT-03 | Phase 14 | Pending |
-| PROFIT-04 | Phase 14 | Pending |
+| PROFIT-01 | Phase 14 | Complete |
+| PROFIT-02 | Phase 14 | Complete |
+| PROFIT-03 | Phase 14 | Complete |
+| PROFIT-04 | Phase 14 | Complete |
 | OVERVIEW-01 | Phase 15 | Pending |
 | OVERVIEW-02 | Phase 15 | Pending |
 | NAV-01 | Phase 15 | Pending |

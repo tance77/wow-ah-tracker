@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Crafting Profitability
 status: planning
-stopped_at: Completed 13-02-PLAN.md
-last_updated: "2026-03-05T19:36:37.066Z"
+stopped_at: Completed 14-01-PLAN.md
+last_updated: "2026-03-05T21:44:18.247Z"
 last_activity: 2026-03-05 - Roadmap created for v1.2 (phases 13-16, 19 requirements mapped)
 progress:
   total_phases: 8
-  completed_phases: 5
-  total_plans: 10
-  completed_plans: 10
+  completed_phases: 6
+  total_plans: 11
+  completed_plans: 11
   percent: 0
 ---
 
@@ -48,6 +48,7 @@ Progress: [░░░░░░░░░░] 0%
 *Updated after each plan completion*
 | Phase 13-recipe-data-model-and-seed-command P01 | 2 | 1 tasks | 10 files |
 | Phase 13-recipe-data-model-and-seed-command P02 | 6 | 1 tasks | 2 files |
+| Phase 14-profit-calculation-action P01 | 2 min | 1 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -65,6 +66,8 @@ v1.0 and v1.1 decisions archived — see milestones/ for full history.
 - [Phase 13-recipe-data-model-and-seed-command]: Dual nullable FK columns (crafted_item_id_silver, crafted_item_id_gold) with nullOnDelete for quality-tier crafted items
 - [Phase 13-recipe-data-model-and-seed-command]: Http::fake() patterns must be ordered most-specific first — skill-tier and media patterns before generic profession/ID wildcard
 - [Phase 13-recipe-data-model-and-seed-command]: Reagents use delete+re-insert for idempotency; unknown reagent items auto-create minimal CatalogItem entries to satisfy FK
+- [Phase 14-profit-calculation-action]: Return null for reagent_cost (not partial sum) when any reagent has no price — prevents silent cost understatement
+- [Phase 14-profit-calculation-action]: median_profit = (T1+T2)/2 when both tiers present, not statistical median over time series
 
 ### Pending Todos
 
@@ -98,6 +101,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-05T21:36:42Z
-Stopped at: Completed quick-16
+Last session: 2026-03-05T21:44:18.245Z
+Stopped at: Completed 14-01-PLAN.md
 Resume file: None

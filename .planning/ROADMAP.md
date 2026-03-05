@@ -39,7 +39,7 @@ Full details: `milestones/v1.0-ROADMAP.md`
 **Milestone Goal:** Add a Crafting section that shows profit margins for all Midnight expansion recipes using live AH prices, organized by profession with sortable tables.
 
 - [x] **Phase 13: Recipe Data Model and Seed Command** — Three migrations, three models, and a working `artisan blizzard:sync-recipes` command that seeds the database from the Blizzard API (completed 2026-03-05)
-- [ ] **Phase 14: Profit Calculation Action** — `RecipeProfitAction` class with unit-tested profit formula covering Tier 1/Tier 2, AH cut, and NULL price handling
+- [x] **Phase 14: Profit Calculation Action** — `RecipeProfitAction` class with unit-tested profit formula covering Tier 1/Tier 2, AH cut, and NULL price handling (completed 2026-03-05)
 - [ ] **Phase 15: Profession Overview Page and Navigation** — `/crafting` page with profession cards showing top profitable recipes; "Crafting" nav link
 - [ ] **Phase 16: Per-Profession Recipe Table** — `/crafting/{profession}` page with full sortable recipe table, missing-price indicators, staleness warnings, and non-commodity row states
 
@@ -181,6 +181,6 @@ Plans:
 | 11. Step Editor, Yield Config, and Auto-Watch | v1.1 | 2/2 | Complete | 2026-03-05 |
 | 12. Batch Calculator and Profit Summary | v1.1 | 2/2 | Complete | 2026-03-05 |
 | 13. Recipe Data Model and Seed Command | v1.2 | 2/2 | Complete | 2026-03-05 |
-| 14. Profit Calculation Action | v1.2 | 0/1 | Not started | - |
+| 14. Profit Calculation Action | 1/1 | Complete   | 2026-03-05 | - |
 | 15. Profession Overview Page and Navigation | v1.2 | 0/TBD | Not started | - |
 | 16. Per-Profession Recipe Table | v1.2 | 0/TBD | Not started | - |
