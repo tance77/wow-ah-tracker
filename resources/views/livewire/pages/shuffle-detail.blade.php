@@ -531,6 +531,42 @@ new #[Layout('layouts.app')] class extends Component
                                             }
                                         }"
                                     >
+                                        <!-- Step Header Row -->
+                                        <div class="mb-3 flex items-center">
+                                            <span class="text-xs font-semibold uppercase tracking-wider text-gray-500">Step {{ $loopIndex + 1 }}</span>
+                                            <div class="ml-auto flex items-center gap-2">
+                                                <button
+                                                    wire:click="moveStepUp({{ $step->id }})"
+                                                    {{ $loopIndex === 0 ? 'disabled' : '' }}
+                                                    class="rounded border border-gray-600 p-1 text-gray-400 transition-colors hover:border-gray-500 hover:text-gray-200 disabled:cursor-not-allowed disabled:opacity-30 focus:outline-none"
+                                                    title="Move up"
+                                                >
+                                                    <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7" />
+                                                    </svg>
+                                                </button>
+                                                <button
+                                                    wire:click="moveStepDown({{ $step->id }})"
+                                                    {{ $loopIndex === $this->steps->count() - 1 ? 'disabled' : '' }}
+                                                    class="rounded border border-gray-600 p-1 text-gray-400 transition-colors hover:border-gray-500 hover:text-gray-200 disabled:cursor-not-allowed disabled:opacity-30 focus:outline-none"
+                                                    title="Move down"
+                                                >
+                                                    <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                                                    </svg>
+                                                </button>
+                                                <button
+                                                    wire:click="deleteStep({{ $step->id }})"
+                                                    class="rounded border border-red-800 p-1 text-red-500 transition-colors hover:border-red-600 hover:text-red-400 focus:outline-none"
+                                                    title="Delete step"
+                                                >
+                                                    <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                    </svg>
+                                                </button>
+                                            </div>
+                                        </div>
+
                                         <!-- Item Row -->
                                         <div class="mb-3 flex flex-wrap items-center gap-3">
                                             <!-- Input Item -->
@@ -583,10 +619,15 @@ new #[Layout('layouts.app')] class extends Component
                                             </div>
                                         </div>
 
+                                        <!-- Conversion Ratio Summary -->
+                                        <div class="mb-3 border-t border-gray-700/30 pt-2">
+                                            <span class="text-xs text-gray-400" x-text="inputQty + ' {{ $step->inputCatalogItem?->name ?? 'Input' }} -> ' + (min === max ? min : min + '-' + max) + ' {{ $step->outputCatalogItem?->name ?? 'Output' }}'"></span>
+                                        </div>
+
                                         <!-- Yield Row -->
                                         <div class="mb-3 flex flex-wrap items-center gap-4 text-sm">
                                             <div class="flex items-center gap-2">
-                                                <label class="text-xs text-gray-400">Input qty:</label>
+                                                <label class="text-xs text-gray-400">Uses</label>
                                                 <input
                                                     type="number"
                                                     min="1"
@@ -598,7 +639,7 @@ new #[Layout('layouts.app')] class extends Component
                                             </div>
 
                                             <div class="flex items-center gap-2">
-                                                <label class="text-xs text-gray-400">Yield:</label>
+                                                <label class="text-xs text-gray-400">Produces</label>
                                                 <input
                                                     type="number"
                                                     min="1"
@@ -638,38 +679,6 @@ new #[Layout('layouts.app')] class extends Component
                                             <span x-show="error" x-text="error" class="text-xs text-red-400"></span>
                                         </div>
 
-                                        <!-- Action Buttons Row -->
-                                        <div class="flex items-center gap-2">
-                                            <button
-                                                wire:click="moveStepUp({{ $step->id }})"
-                                                {{ $loopIndex === 0 ? 'disabled' : '' }}
-                                                class="rounded border border-gray-600 p-1 text-gray-400 transition-colors hover:border-gray-500 hover:text-gray-200 disabled:cursor-not-allowed disabled:opacity-30 focus:outline-none"
-                                                title="Move up"
-                                            >
-                                                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7" />
-                                                </svg>
-                                            </button>
-                                            <button
-                                                wire:click="moveStepDown({{ $step->id }})"
-                                                {{ $loopIndex === $this->steps->count() - 1 ? 'disabled' : '' }}
-                                                class="rounded border border-gray-600 p-1 text-gray-400 transition-colors hover:border-gray-500 hover:text-gray-200 disabled:cursor-not-allowed disabled:opacity-30 focus:outline-none"
-                                                title="Move down"
-                                            >
-                                                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-                                                </svg>
-                                            </button>
-                                            <button
-                                                wire:click="deleteStep({{ $step->id }})"
-                                                class="rounded border border-red-800 p-1 text-red-500 transition-colors hover:border-red-600 hover:text-red-400 focus:outline-none"
-                                                title="Delete step"
-                                            >
-                                                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                                </svg>
-                                            </button>
-                                        </div>
                                     </div>
 
                                     <!-- Chain Flow Arrow between cards -->
