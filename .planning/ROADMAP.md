@@ -34,7 +34,7 @@ Full details: `milestones/v1.0-ROADMAP.md`
 
 </details>
 
-### 🚧 v1.2 Crafting Profitability (In Progress)
+### v1.2 Crafting Profitability (In Progress)
 
 **Milestone Goal:** Add a Crafting section that shows profit margins for all Midnight expansion recipes using live AH prices, organized by profession with sortable tables.
 
@@ -119,11 +119,11 @@ Plans:
   4. Running `artisan blizzard:sync-recipes --dry-run` logs what would be written without modifying any database rows
   5. Running `artisan blizzard:sync-recipes --report-gaps` logs the percentage of recipe API responses missing `crafted_item`, `crafted_quantity`, or other tracked fields
   6. Each recipe row has a `last_synced_at` timestamp reflecting when it was last fetched from the API
-**Plans**: 2 plans
+**Plans**: 2/2 plans complete
 
 Plans:
-- [ ] 13-01-PLAN.md — Migrations, models, and factories (professions, recipes, recipe_reagents)
-- [ ] 13-02-PLAN.md — SyncRecipesCommand with three-level API traversal, auto-watch, and tests
+- [x] 13-01-PLAN.md — Migrations, models, and factories (professions, recipes, recipe_reagents)
+- [x] 13-02-PLAN.md — SyncRecipesCommand with three-level API traversal, auto-watch, and tests
 
 ### Phase 14: Profit Calculation Action
 **Goal**: Profit for any recipe can be calculated correctly from live AH prices, with the 5% AH cut applied to the sell side, per-quality-tier breakdown, and NULL prices handled gracefully
@@ -134,11 +134,10 @@ Plans:
   2. Crafted item sell price is shown separately for Tier 1 (Silver) and Tier 2 (Gold) quality
   3. Profit is calculated as `(sell_price * 0.95) - reagent_cost` — a unit test asserts sell_price=10000, reagent_cost=5000 produces profit=4500 (not 5000)
   4. Median profit across both tiers is calculable and displayed per recipe
-**Plans**: 2 plans
+**Plans**: 1 plan
 
 Plans:
-- [ ] 13-01-PLAN.md — Migrations, models, and factories (professions, recipes, recipe_reagents)
-- [ ] 13-02-PLAN.md — SyncRecipesCommand with three-level API traversal, auto-watch, and tests
+- [ ] 14-01-PLAN.md — RecipeProfitAction TDD (action class + comprehensive Pest tests)
 
 ### Phase 15: Profession Overview Page and Navigation
 **Goal**: Users can navigate to a Crafting section and see all Midnight professions at a glance with the most profitable recipes highlighted per profession
@@ -148,11 +147,7 @@ Plans:
   1. A "Crafting" link appears in the main navigation and routes to `/crafting`
   2. The `/crafting` page displays one card per Midnight crafting profession
   3. Each profession card shows the top 3-5 most profitable recipes with their median profit values
-**Plans**: 2 plans
-
-Plans:
-- [ ] 13-01-PLAN.md — Migrations, models, and factories (professions, recipes, recipe_reagents)
-- [ ] 13-02-PLAN.md — SyncRecipesCommand with three-level API traversal, auto-watch, and tests
+**Plans**: TBD
 
 ### Phase 16: Per-Profession Recipe Table
 **Goal**: Users can view all recipes for a single profession in a sortable table, see full profit breakdowns, and identify recipes with missing or stale price data
@@ -165,11 +160,7 @@ Plans:
   4. A staleness warning is displayed when any price snapshot used in the table is more than 1 hour old
   5. Clicking a recipe row or expand control reveals a per-reagent cost breakdown showing quantity, unit price, and subtotal for each reagent
   6. Recipes that produce non-commodity gear items display "realm AH — not tracked" instead of profit values
-**Plans**: 2 plans
-
-Plans:
-- [ ] 13-01-PLAN.md — Migrations, models, and factories (professions, recipes, recipe_reagents)
-- [ ] 13-02-PLAN.md — SyncRecipesCommand with three-level API traversal, auto-watch, and tests
+**Plans**: TBD
 
 ## Progress
 
@@ -189,7 +180,7 @@ Plans:
 | 10. Shuffle CRUD and Navigation | v1.1 | 2/2 | Complete | 2026-03-05 |
 | 11. Step Editor, Yield Config, and Auto-Watch | v1.1 | 2/2 | Complete | 2026-03-05 |
 | 12. Batch Calculator and Profit Summary | v1.1 | 2/2 | Complete | 2026-03-05 |
-| 13. Recipe Data Model and Seed Command | 2/2 | Complete    | 2026-03-05 | - |
-| 14. Profit Calculation Action | v1.2 | 0/TBD | Not started | - |
+| 13. Recipe Data Model and Seed Command | v1.2 | 2/2 | Complete | 2026-03-05 |
+| 14. Profit Calculation Action | v1.2 | 0/1 | Not started | - |
 | 15. Profession Overview Page and Navigation | v1.2 | 0/TBD | Not started | - |
 | 16. Per-Profession Recipe Table | v1.2 | 0/TBD | Not started | - |
