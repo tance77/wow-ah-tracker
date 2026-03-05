@@ -66,19 +66,22 @@ class Shuffle extends Model
             // Orphan cleanup: remove auto-watched items that were created by
             // this shuffle and are not referenced by any other shuffle.
             // Uses 'deleting' (before delete) so steps still exist in DB for the check.
-            WatchedItem::where('created_by_shuffle_id', $shuffle->id)
-                ->whereNotExists(function ($query) use ($shuffle) {
-                    $query->select('wi2.id')
-                        ->from('watched_items as wi2')
+            $orphanIds = WatchedItem::where('created_by_shuffle_id', $shuffle->id)
+                ->whereNotIn('id', function ($query) use ($shuffle) {
+                    $query->select('watched_items.id')
+                        ->from('watched_items')
                         ->join('shuffle_steps as ss', function ($join) {
-                            $join->on('wi2.blizzard_item_id', '=', 'ss.input_blizzard_item_id')
-                                ->orOn('wi2.blizzard_item_id', '=', 'ss.output_blizzard_item_id');
+                            $join->on('watched_items.blizzard_item_id', '=', 'ss.input_blizzard_item_id')
+                                ->orOn('watched_items.blizzard_item_id', '=', 'ss.output_blizzard_item_id');
                         })
                         ->join('shuffles', 'ss.shuffle_id', '=', 'shuffles.id')
-                        ->where('shuffles.id', '!=', $shuffle->id)
-                        ->whereColumn('wi2.id', 'watched_items.id');
+                        ->where('shuffles.id', '!=', $shuffle->id);
                 })
-                ->delete();
+                ->pluck('id');
+
+            if ($orphanIds->isNotEmpty()) {
+                WatchedItem::whereIn('id', $orphanIds)->delete();
+            }
         });
     }
 }
