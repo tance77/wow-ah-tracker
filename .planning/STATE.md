@@ -109,9 +109,10 @@ None.
 | 19 | Merge commodity and realm price polling into single hourly run | 2026-03-05 | acde456 | [19-merge-commodity-and-realm-price-polling-](./quick/19-merge-commodity-and-realm-price-polling-/) |
 | 20 | Fix shuffle batch calculator: show byproduct values and cap copper to 2 decimals | 2026-03-05 | ffd24b8 | [20-fix-shuffle-batch-calculator-show-byprod](./quick/20-fix-shuffle-batch-calculator-show-byprod/) |
 | 21 | Clone shuffle from shuffles list with all steps, byproducts, and auto-watched items | 2026-03-05 | 0029b08 | [21-being-able-to-clone-a-shuffle-on-the-shu](./quick/21-being-able-to-clone-a-shuffle-on-the-shu/) |
+| 22 | Export and import shuffles as JSON for sharing between accounts | 2026-03-05 | 8ff5927 | [22-export-and-import-shuffles-as-json-for-s](./quick/22-export-and-import-shuffles-as-json-for-s/) |
 
 ## Session Continuity
 
-Last session: 2026-03-05T23:40:58Z
-Stopped at: Completed quick-21 (clone shuffle)
+Last session: 2026-03-05T23:48:31Z
+Stopped at: Completed quick-22 (export/import shuffles as JSON)
 Resume file: .planning/phases/16-per-profession-recipe-table/16-CONTEXT.md
