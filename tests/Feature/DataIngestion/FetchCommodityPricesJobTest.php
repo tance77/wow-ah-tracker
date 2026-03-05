@@ -149,7 +149,7 @@ it('skips gracefully and does not call Blizzard API when no catalog items exist'
     Http::assertNothingSent();
 });
 
-it('writes zero-metric snapshot for a catalog item with no Blizzard listings', function (): void {
+it('skips snapshot for a catalog item with no Blizzard listings', function (): void {
     fakeBlizzardHttp();
 
     // Item ID 999888 is NOT present in the fixture — no listings will match
@@ -157,13 +157,7 @@ it('writes zero-metric snapshot for a catalog item with no Blizzard listings', f
 
     runFullChain();
 
-    expect(PriceSnapshot::count())->toBe(1);
-
-    $snapshot = PriceSnapshot::first();
-    expect($snapshot->min_price)->toBe(0);
-    expect($snapshot->avg_price)->toBe(0);
-    expect($snapshot->median_price)->toBe(0);
-    expect($snapshot->total_volume)->toBe(0);
+    expect(PriceSnapshot::count())->toBe(0);
 });
 
 it('prevents duplicate dispatch via ShouldBeUnique', function (): void {

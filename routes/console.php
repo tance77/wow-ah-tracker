@@ -13,4 +13,4 @@ Artisan::command('inspire', function () {
 })->purpose('Display an inspiring quote');
 
 Schedule::job(new FetchCommodityDataJob)->hourly();
-Schedule::job(new FetchRealmAuctionDataJob)->hourlyAt(30);
+Schedule::job(new FetchRealmAuctionDataJob)->hourly();

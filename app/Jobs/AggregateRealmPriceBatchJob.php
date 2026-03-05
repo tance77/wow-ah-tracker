@@ -44,6 +44,9 @@ class AggregateRealmPriceBatchJob implements ShouldQueue
         $rows = [];
         foreach ($this->itemMap as $catalogItemId => $blizzardItemId) {
             $listings = $grouped[$blizzardItemId] ?? [];
+            if (empty($listings)) {
+                continue;
+            }
             $metrics = ($aggregateAction)($listings);
             $rows[] = [
                 'catalog_item_id' => $catalogItemId,
