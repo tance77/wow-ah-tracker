@@ -98,7 +98,7 @@ None.
 | 14 | Fix realm auction regex to handle item objects with extra fields (context, bonus_list, modifiers) | 2026-03-05 | ea8d09d | [14-fix-realm-auction-regex-to-handle-item-o](./quick/14-fix-realm-auction-regex-to-handle-item-o/) |
 | 15 | Add hourly realm auction price polling for BoE items — parallel pipeline with brace-depth parsing | 2026-03-05 | 267682f | [15-add-hourly-realm-auction-price-polling-f](./quick/15-add-hourly-realm-auction-price-polling-f/) |
 | 16 | Add secondary byproducts with drop chance to shuffle steps — model, UI, calculator EV | 2026-03-05 | 1df5c82 | [16-add-secondary-byproducts-with-drop-chanc](./quick/16-add-secondary-byproducts-with-drop-chanc/) |
-| 17 | Fix blizzard:sync-catalog command timeout on Laravel Cloud (exceeds 15min limit) | 2026-03-05 | pending | [17-fix-blizzard-sync-catalog-command-timeou](./quick/17-fix-blizzard-sync-catalog-command-timeou/) |
+| 17 | Fix blizzard:sync-catalog command timeout on Laravel Cloud (exceeds 15min limit) | 2026-03-05 | b44b10d | [17-fix-blizzard-sync-catalog-command-timeou](./quick/17-fix-blizzard-sync-catalog-command-timeou/) |
 
 ## Session Continuity
 
