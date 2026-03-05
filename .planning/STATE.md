@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Crafting Profitability
 status: planning
-stopped_at: Phase 13 context gathered
-last_updated: "2026-03-05T19:07:59.690Z"
+stopped_at: Completed 13-01-PLAN.md
+last_updated: "2026-03-05T19:25:58.964Z"
 last_activity: 2026-03-05 - Roadmap created for v1.2 (phases 13-16, 19 requirements mapped)
 progress:
   total_phases: 8
   completed_phases: 4
-  total_plans: 8
-  completed_plans: 8
+  total_plans: 10
+  completed_plans: 9
   percent: 0
 ---
 
@@ -46,6 +46,7 @@ Progress: [░░░░░░░░░░] 0%
 | v1.1 phases (9-12) | 8 | ~33 min | ~4 min |
 
 *Updated after each plan completion*
+| Phase 13-recipe-data-model-and-seed-command P01 | 2 | 1 tasks | 10 files |
 
 ## Accumulated Context
 
@@ -60,6 +61,7 @@ v1.0 and v1.1 decisions archived — see milestones/ for full history.
 - Use highest-ID skill tier per profession to identify current expansion tier (robust to name changes)
 - `Http::pool()` with 20-item batches for recipe detail fetch — sequential would take 80-130 seconds
 - Gear output items flagged `is_commodity = false` and displayed as "realm AH — not tracked"
+- [Phase 13-recipe-data-model-and-seed-command]: Dual nullable FK columns (crafted_item_id_silver, crafted_item_id_gold) with nullOnDelete for quality-tier crafted items
 
 ### Pending Todos
 
@@ -92,6 +94,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-05T19:22:00.000Z
-Stopped at: Completed quick-15
-Resume file: .planning/phases/13-recipe-data-model-and-seed-command/13-CONTEXT.md
+Last session: 2026-03-05T19:25:58.933Z
+Stopped at: Completed 13-01-PLAN.md
+Resume file: None
