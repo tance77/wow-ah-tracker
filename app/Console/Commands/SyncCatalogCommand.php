@@ -129,20 +129,49 @@ class SyncCatalogCommand extends Command
             $connectedRealmId = config('services.blizzard.connected_realm_id');
             $this->info("Fetching realm auctions for connected-realm {$connectedRealmId}...");
 
+            $realmTempFile = tempnam(sys_get_temp_dir(), 'wow_realm_auctions_');
+
             $realmResponse = Http::withToken($token)
                 ->retry(2, 5000, throw: false)
                 ->timeout(120)
                 ->connectTimeout(15)
+                ->sink($realmTempFile)
                 ->get("https://{$region}.api.blizzard.com/data/wow/connected-realm/{$connectedRealmId}/auctions", [
                     'namespace' => "dynamic-{$region}",
                 ]);
 
-            if ($realmResponse->successful()) {
-                $realmAuctions = $realmResponse->json('auctions', []);
-                $realmItemIds = collect($realmAuctions)
-                    ->pluck('item.id')
-                    ->unique()
-                    ->values();
+            if (! $realmResponse->successful()) {
+                $this->warn("Realm auctions fetch failed: HTTP {$realmResponse->status()} — continuing with commodities only.");
+                Log::warning('SyncCatalog: realm auctions fetch failed', [
+                    'status' => $realmResponse->status(),
+                    'connected_realm_id' => $connectedRealmId,
+                ]);
+                @unlink($realmTempFile);
+            } else {
+                unset($realmResponse);
+                $realmFileSize = filesize($realmTempFile);
+                $this->info(sprintf('Realm response saved (%s MB), extracting item IDs...', round($realmFileSize / 1048576, 1)));
+
+                $realmItemIds = [];
+                $handle = fopen($realmTempFile, 'r');
+                $buffer = '';
+
+                while (! feof($handle)) {
+                    $buffer .= fread($handle, 65536);
+
+                    if (preg_match_all('/"item":\{"id":(\d+)\}/', $buffer, $matches)) {
+                        foreach ($matches[1] as $id) {
+                            $realmItemIds[(int) $id] = true;
+                        }
+                        $lastBrace = strrpos($buffer, '}');
+                        $buffer = $lastBrace !== false ? substr($buffer, $lastBrace + 1) : '';
+                    }
+                }
+
+                fclose($handle);
+                @unlink($realmTempFile);
+
+                $realmItemIds = collect(array_keys($realmItemIds))->values();
 
                 // Merge with commodity IDs (dedup)
                 $beforeCount = $uniqueIds->count();
@@ -160,15 +189,7 @@ class SyncCatalogCommand extends Command
                     'realm_items' => $realmItemIds->count(),
                     'new_items' => $realmOnly,
                 ]);
-            } else {
-                $this->warn("Realm auctions fetch failed: HTTP {$realmResponse->status()} — continuing with commodities only.");
-                Log::warning('SyncCatalog: realm auctions fetch failed', [
-                    'status' => $realmResponse->status(),
-                    'connected_realm_id' => $connectedRealmId,
-                ]);
             }
-
-            unset($realmAuctions, $realmResponse);
         }
 
         // Step 2: Filter out existing items (unless --fresh)
