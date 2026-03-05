@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Shuffles
 status: executing
-stopped_at: Completed 11-step-editor-yield-config-and-auto-watch-01-PLAN.md
-last_updated: "2026-03-05T05:01:55.094Z"
+stopped_at: Completed 11-step-editor-yield-config-and-auto-watch-02-PLAN.md
+last_updated: "2026-03-05T05:14:32.086Z"
 last_activity: 2026-03-05 — Phase 9 Plan 02 complete (factories and test suite)
 progress:
   total_phases: 4
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 6
-  completed_plans: 5
+  completed_plans: 6
   percent: 50
 ---
 
@@ -49,6 +49,7 @@ Progress: [█████░░░░░] 50%
 | Phase 10-shuffle-crud-navigation P01 | 2 | 3 tasks | 6 files |
 | Phase 10-shuffle-crud-navigation P02 | 10 | 2 tasks | 3 files |
 | Phase 11-step-editor-yield-config-and-auto-watch P01 | 3 | 2 tasks | 4 files |
+| Phase 11-step-editor-yield-config-and-auto-watch P02 | 9min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -70,6 +71,8 @@ All v1.0 decisions archived — see `milestones/v1.0-ROADMAP.md` for full histor
 - [Phase 10-shuffle-crud-navigation]: Modal panel given relative z-10 and @click.stop to fix buttons being unclickable behind fixed backdrop overlay
 - [Phase 11-step-editor-yield-config-and-auto-watch]: ShuffleStep uses deleted (post-delete) event for orphan cleanup so exists() check runs after step is removed from DB
 - [Phase 11-step-editor-yield-config-and-auto-watch]: TDD RED: 16 step editor tests intentionally fail until Plan 02 implements addStep/saveStep/moveStep/deleteStep Livewire methods
+- [Phase 11-step-editor-yield-config-and-auto-watch]: Auth split: EnsureShuffleOwner middleware handles HTTP-level 403 (Livewire mount must succeed for valid snapshot); addStep enforces 403 at action level for Livewire assertForbidden()
+- [Phase 11-step-editor-yield-config-and-auto-watch]: EnsureShuffleOwner middleware manually resolves Shuffle from string ID when SubstituteBindings hasn't run yet due to Volt route middleware priority ordering
 
 ### Pending Todos
 
@@ -95,6 +98,6 @@ None — Phase 9 data foundation complete.
 
 ## Session Continuity
 
-Last session: 2026-03-05T05:01:55.092Z
-Stopped at: Completed 11-step-editor-yield-config-and-auto-watch-01-PLAN.md
+Last session: 2026-03-05T05:14:32.084Z
+Stopped at: Completed 11-step-editor-yield-config-and-auto-watch-02-PLAN.md
 Resume file: None

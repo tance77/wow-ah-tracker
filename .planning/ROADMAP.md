@@ -29,7 +29,7 @@ Full details: `milestones/v1.0-ROADMAP.md`
 
 - [x] **Phase 9: Data Foundation** — Schema, models, and factories for shuffles and shuffle steps (completed 2026-03-05)
 - [x] **Phase 10: Shuffle CRUD and Navigation** — List, create, edit, and delete named shuffles with navigation access (completed 2026-03-05)
-- [ ] **Phase 11: Step Editor, Yield Config, and Auto-Watch** — Add/remove/reorder steps with yield ranges; auto-watch items for price polling
+- [x] **Phase 11: Step Editor, Yield Config, and Auto-Watch** — Add/remove/reorder steps with yield ranges; auto-watch items for price polling (completed 2026-03-05)
 - [ ] **Phase 12: Batch Calculator and Profit Summary** — Enter input quantity, see per-step yields and costs, total profit with AH cut and break-even
 
 ## Phase Details
@@ -75,7 +75,7 @@ Plans:
   3. User can set a min/max yield range per step for probabilistic conversions (e.g., 5 ore -> 1-3 gems)
   4. User can drag or click to reorder steps within a chain and the new order is saved
   5. When a step is added or saved, all input and output items in the chain are automatically added to the watchlist (using `firstOrCreate` — existing watched items and thresholds are not modified)
-**Plans:** 1/2 plans executed
+**Plans:** 2/2 plans complete
 
 Plans:
 - [ ] 11-01-PLAN.md — Schema migrations (input_qty, nullable thresholds), ShuffleStep model updates, and feature tests
@@ -109,5 +109,5 @@ Plans:
 | 8. Buy/Sell Signal Indicators | v1.0 | 2/2 | Complete | 2026-03-02 |
 | 9. Data Foundation | v1.1 | 2/2 | Complete | 2026-03-05 |
 | 10. Shuffle CRUD and Navigation | v1.1 | 2/2 | Complete | 2026-03-05 |
-| 11. Step Editor, Yield Config, and Auto-Watch | 1/2 | In Progress|  | - |
+| 11. Step Editor, Yield Config, and Auto-Watch | 2/2 | Complete   | 2026-03-05 | - |
 | 12. Batch Calculator and Profit Summary | v1.1 | 0/? | Not started | - |
