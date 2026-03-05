@@ -299,3 +299,144 @@ test('shuffle detail page shows shuffle name', function () {
     Volt::actingAs($user)->test('pages.shuffle-detail', ['shuffle' => $shuffle])
         ->assertSee('My Detail Shuffle');
 });
+
+// Export
+
+test('exportShuffle returns JSON with correct structure', function () {
+    $user = User::factory()->create();
+    $shuffle = Shuffle::factory()->create(['user_id' => $user->id, 'name' => 'Export Test']);
+
+    \App\Models\CatalogItem::factory()->create(['blizzard_item_id' => 400001, 'name' => 'Ore Name']);
+    \App\Models\CatalogItem::factory()->create(['blizzard_item_id' => 400002, 'name' => 'Bar Name']);
+
+    $step = \App\Models\ShuffleStep::factory()->create([
+        'shuffle_id' => $shuffle->id,
+        'input_blizzard_item_id' => 400001,
+        'output_blizzard_item_id' => 400002,
+        'input_qty' => 2,
+        'output_qty_min' => 1,
+        'output_qty_max' => 1,
+        'sort_order' => 0,
+    ]);
+    \App\Models\ShuffleStepByproduct::factory()->create([
+        'shuffle_step_id' => $step->id,
+        'blizzard_item_id' => 400003,
+        'item_name' => 'Dust',
+        'chance_percent' => 50.00,
+        'quantity' => 1,
+    ]);
+
+    $component = Volt::actingAs($user)->test('pages.shuffles');
+    $response = $component->call('exportShuffle', $shuffle->id);
+
+    // The response should be a streamed download
+    expect($response)->not->toBeNull();
+});
+
+test('importShuffle with valid JSON creates shuffle with steps and byproducts', function () {
+    $user = User::factory()->create();
+
+    $json = json_encode([
+        'name' => 'Imported Shuffle',
+        'version' => 1,
+        'steps' => [
+            [
+                'input_blizzard_item_id' => 500001,
+                'input_item_name' => 'Ore',
+                'output_blizzard_item_id' => 500002,
+                'output_item_name' => 'Bar',
+                'input_qty' => 5,
+                'output_qty_min' => 2,
+                'output_qty_max' => 4,
+                'sort_order' => 0,
+                'byproducts' => [
+                    [
+                        'blizzard_item_id' => 500003,
+                        'item_name' => 'Dust',
+                        'chance_percent' => '25.00',
+                        'quantity' => 1,
+                    ],
+                ],
+            ],
+        ],
+    ]);
+
+    $file = \Illuminate\Http\UploadedFile::fake()->createWithContent('shuffle.json', $json);
+
+    Volt::actingAs($user)->test('pages.shuffles')
+        ->set('importFile', $file)
+        ->call('importShuffle')
+        ->assertRedirect();
+
+    $imported = $user->shuffles()->where('name', 'Imported Shuffle (Imported)')->first();
+    expect($imported)->not->toBeNull();
+
+    $steps = $imported->steps()->with('byproducts')->get();
+    expect($steps)->toHaveCount(1);
+    expect($steps[0]->input_blizzard_item_id)->toBe(500001);
+    expect($steps[0]->output_blizzard_item_id)->toBe(500002);
+    expect($steps[0]->input_qty)->toBe(5);
+    expect($steps[0]->output_qty_min)->toBe(2);
+    expect($steps[0]->output_qty_max)->toBe(4);
+    expect($steps[0]->sort_order)->toBe(0);
+    expect($steps[0]->byproducts)->toHaveCount(1);
+    expect($steps[0]->byproducts[0]->blizzard_item_id)->toBe(500003);
+    expect($steps[0]->byproducts[0]->item_name)->toBe('Dust');
+    expect($steps[0]->byproducts[0]->chance_percent)->toBe('25.00');
+    expect($steps[0]->byproducts[0]->quantity)->toBe(1);
+});
+
+test('importShuffle auto-watches all referenced item IDs', function () {
+    $user = User::factory()->create();
+
+    $json = json_encode([
+        'name' => 'Watch Test',
+        'version' => 1,
+        'steps' => [
+            [
+                'input_blizzard_item_id' => 600001,
+                'input_item_name' => 'Input Item',
+                'output_blizzard_item_id' => 600002,
+                'output_item_name' => 'Output Item',
+                'input_qty' => 1,
+                'output_qty_min' => 1,
+                'output_qty_max' => 1,
+                'sort_order' => 0,
+                'byproducts' => [
+                    [
+                        'blizzard_item_id' => 600003,
+                        'item_name' => 'BP Item',
+                        'chance_percent' => '100.00',
+                        'quantity' => 1,
+                    ],
+                ],
+            ],
+        ],
+    ]);
+
+    $file = \Illuminate\Http\UploadedFile::fake()->createWithContent('shuffle.json', $json);
+
+    Volt::actingAs($user)->test('pages.shuffles')
+        ->set('importFile', $file)
+        ->call('importShuffle');
+
+    $watchedIds = $user->watchedItems()->pluck('blizzard_item_id')->sort()->values()->all();
+    expect($watchedIds)->toContain(600001);
+    expect($watchedIds)->toContain(600002);
+    expect($watchedIds)->toContain(600003);
+});
+
+test('importShuffle with malformed JSON does not create shuffle', function () {
+    $user = User::factory()->create();
+
+    $json = json_encode(['name' => 'Bad Shuffle']);  // missing "steps" key
+
+    $file = \Illuminate\Http\UploadedFile::fake()->createWithContent('bad.json', $json);
+
+    Volt::actingAs($user)->test('pages.shuffles')
+        ->set('importFile', $file)
+        ->call('importShuffle')
+        ->assertHasErrors();
+
+    expect($user->shuffles()->count())->toBe(0);
+});
