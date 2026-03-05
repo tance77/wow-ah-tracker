@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Concerns\FormatsAuctionData;
 use App\Models\CatalogItem;
+use App\Models\PriceSnapshot;
 use App\Models\Shuffle;
 use App\Models\ShuffleStep;
 use App\Models\WatchedItem;
@@ -41,6 +42,76 @@ new #[Layout('layouts.app')] class extends Component
         return $this->shuffle->steps()
             ->with(['inputCatalogItem', 'outputCatalogItem'])
             ->get();
+    }
+
+    #[Computed]
+    public function priceData(): array
+    {
+        // Collect all unique blizzard_item_ids from steps
+        $itemIds = $this->steps
+            ->flatMap(fn ($step) => [$step->input_blizzard_item_id, $step->output_blizzard_item_id])
+            ->unique()
+            ->values();
+
+        if ($itemIds->isEmpty()) {
+            return [];
+        }
+
+        // Fetch CatalogItems for all item IDs in a single query
+        $catalogItems = CatalogItem::whereIn('blizzard_item_id', $itemIds)->get();
+
+        // Fetch latest PriceSnapshot per catalog_item_id in a single query (application-side grouping)
+        $catalogItemIds = $catalogItems->pluck('id');
+        $snapshots = PriceSnapshot::whereIn('catalog_item_id', $catalogItemIds)
+            ->orderByDesc('polled_at')
+            ->get()
+            ->groupBy('catalog_item_id')
+            ->map(fn ($group) => $group->first()); // latest per catalog_item_id
+
+        // Build result keyed by blizzard_item_id
+        $result = [];
+        foreach ($itemIds as $blizzardItemId) {
+            $catalogItem = $catalogItems->firstWhere('blizzard_item_id', $blizzardItemId);
+            $snapshot = $catalogItem ? ($snapshots->get($catalogItem->id)) : null;
+
+            if ($snapshot) {
+                $ageMinutes = (int) $snapshot->polled_at->diffInMinutes(now());
+                $result[$blizzardItemId] = [
+                    'price' => $snapshot->median_price,
+                    'polled_at' => $snapshot->polled_at->toIso8601String(),
+                    'age_minutes' => $ageMinutes,
+                    'stale' => $ageMinutes > 60,
+                    'item_name' => $catalogItem->display_name,
+                ];
+            } else {
+                $result[$blizzardItemId] = [
+                    'price' => null,
+                    'polled_at' => null,
+                    'age_minutes' => 0,
+                    'stale' => false,
+                    'item_name' => $catalogItem?->display_name ?? "Item #{$blizzardItemId}",
+                ];
+            }
+        }
+
+        return $result;
+    }
+
+    #[Computed]
+    public function calculatorSteps(): array
+    {
+        return $this->steps->map(fn ($step) => [
+            'id' => $step->id,
+            'input_id' => $step->input_blizzard_item_id,
+            'output_id' => $step->output_blizzard_item_id,
+            'input_qty' => $step->input_qty,
+            'output_qty_min' => $step->output_qty_min,
+            'output_qty_max' => $step->output_qty_max,
+            'input_name' => $step->inputCatalogItem?->display_name ?? "Item #{$step->input_blizzard_item_id}",
+            'output_name' => $step->outputCatalogItem?->display_name ?? "Item #{$step->output_blizzard_item_id}",
+            'input_icon' => $step->inputCatalogItem?->icon_url,
+            'output_icon' => $step->outputCatalogItem?->icon_url,
+        ])->toArray();
     }
 
     #[Computed]
@@ -196,6 +267,8 @@ new #[Layout('layouts.app')] class extends Component
         $this->newOutputQtyMax = 1;
 
         unset($this->steps);
+        unset($this->priceData);
+        unset($this->calculatorSteps);
     }
 
     public function saveStep(int $stepId, int $inputQty, int $outputQtyMin, int $outputQtyMax): void
@@ -224,6 +297,8 @@ new #[Layout('layouts.app')] class extends Component
         ]);
 
         unset($this->steps);
+        unset($this->priceData);
+        unset($this->calculatorSteps);
     }
 
     public function deleteStep(int $stepId): void
@@ -237,6 +312,8 @@ new #[Layout('layouts.app')] class extends Component
         });
 
         unset($this->steps);
+        unset($this->priceData);
+        unset($this->calculatorSteps);
     }
 
     public function moveStepUp(int $stepId): void
@@ -256,6 +333,8 @@ new #[Layout('layouts.app')] class extends Component
         $previous->update(['sort_order' => $currentOrder]);
 
         unset($this->steps);
+        unset($this->priceData);
+        unset($this->calculatorSteps);
     }
 
     public function moveStepDown(int $stepId): void
@@ -275,6 +354,8 @@ new #[Layout('layouts.app')] class extends Component
         $next->update(['sort_order' => $currentOrder]);
 
         unset($this->steps);
+        unset($this->priceData);
+        unset($this->calculatorSteps);
     }
 
     private function autoWatch(int $blizzardItemId): void
@@ -820,6 +901,14 @@ new #[Layout('layouts.app')] class extends Component
 
                 </div>
             </div>
+
+            {{-- Batch Calculator Section (Plan 02 will populate the Alpine.js calculator UI) --}}
+            @if ($this->steps->isNotEmpty())
+                <div data-calculator-section class="overflow-hidden bg-wow-dark p-6 shadow-sm sm:rounded-lg">
+                    <h3 class="text-base font-semibold text-wow-gold">Profit Calculator</h3>
+                    {{-- Alpine.js calculator UI ships in Phase 12 Plan 02 --}}
+                </div>
+            @endif
 
         </div>
     </div>
