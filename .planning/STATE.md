@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Shuffles
 status: executing
-stopped_at: Phase 12 context gathered
-last_updated: "2026-03-05T05:23:45.771Z"
+stopped_at: Completed 12-batch-calculator-and-profit-summary/12-01-PLAN.md
+last_updated: "2026-03-05T05:45:09.111Z"
 last_activity: 2026-03-05 — Phase 9 Plan 02 complete (factories and test suite)
 progress:
   total_phases: 4
   completed_phases: 3
-  total_plans: 6
-  completed_plans: 6
+  total_plans: 8
+  completed_plans: 7
   percent: 50
 ---
 
@@ -50,6 +50,7 @@ Progress: [█████░░░░░] 50%
 | Phase 10-shuffle-crud-navigation P02 | 10 | 2 tasks | 3 files |
 | Phase 11-step-editor-yield-config-and-auto-watch P01 | 3 | 2 tasks | 4 files |
 | Phase 11-step-editor-yield-config-and-auto-watch P02 | 9min | 2 tasks | 4 files |
+| Phase 12-batch-calculator-and-profit-summary P01 | 4min | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -73,6 +74,9 @@ All v1.0 decisions archived — see `milestones/v1.0-ROADMAP.md` for full histor
 - [Phase 11-step-editor-yield-config-and-auto-watch]: TDD RED: 16 step editor tests intentionally fail until Plan 02 implements addStep/saveStep/moveStep/deleteStep Livewire methods
 - [Phase 11-step-editor-yield-config-and-auto-watch]: Auth split: EnsureShuffleOwner middleware handles HTTP-level 403 (Livewire mount must succeed for valid snapshot); addStep enforces 403 at action level for Livewire assertForbidden()
 - [Phase 11-step-editor-yield-config-and-auto-watch]: EnsureShuffleOwner middleware manually resolves Shuffle from string ID when SubstituteBindings hasn't run yet due to Volt route middleware priority ordering
+- [Phase 12-batch-calculator-and-profit-summary]: profitPerUnit() cascade: floor(qty * output_qty_min / input_qty) per step, starting from 1 unit input
+- [Phase 12-batch-calculator-and-profit-summary]: Carbon staleness: use polled_at->diffInMinutes(now()) not now()->diffInMinutes(past) to get positive elapsed minutes
+- [Phase 12-batch-calculator-and-profit-summary]: priceData() avoids N+1 via single CatalogItem query + single PriceSnapshot query with application-side groupBy
 
 ### Pending Todos
 
@@ -98,6 +102,6 @@ None — Phase 9 data foundation complete.
 
 ## Session Continuity
 
-Last session: 2026-03-05T05:23:45.769Z
-Stopped at: Phase 12 context gathered
-Resume file: .planning/phases/12-batch-calculator-and-profit-summary/12-CONTEXT.md
+Last session: 2026-03-05T05:45:09.108Z
+Stopped at: Completed 12-batch-calculator-and-profit-summary/12-01-PLAN.md
+Resume file: None

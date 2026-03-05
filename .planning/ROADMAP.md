@@ -91,7 +91,7 @@ Plans:
   3. User can see a profit summary row showing total cost in, total value out after 5% AH cut, and net profit — all displayed in gold/silver/copper format
   4. User can see the break-even input price (maximum they can pay per input unit and still profit)
   5. A staleness warning is shown when the latest price snapshot for any item in the chain is older than 1 hour
-**Plans:** 2 plans
+**Plans:** 1/2 plans executed
 
 Plans:
 - [ ] 12-01-PLAN.md — Refactor profitPerUnit() cascade, add priceData/calculatorSteps computed properties, and tests
@@ -114,4 +114,4 @@ Plans:
 | 9. Data Foundation | v1.1 | 2/2 | Complete | 2026-03-05 |
 | 10. Shuffle CRUD and Navigation | v1.1 | 2/2 | Complete | 2026-03-05 |
 | 11. Step Editor, Yield Config, and Auto-Watch | v1.1 | 2/2 | Complete | 2026-03-05 |
-| 12. Batch Calculator and Profit Summary | v1.1 | 0/2 | Not started | - |
+| 12. Batch Calculator and Profit Summary | 1/2 | In Progress|  | - |

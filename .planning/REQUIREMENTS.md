@@ -24,15 +24,15 @@ Requirements for Shuffles milestone. Each maps to roadmap phases.
 ### Item Integration
 
 - [x] **INTG-01**: Items added to a shuffle are auto-watched for price polling
-- [ ] **INTG-02**: Shuffle calculator uses live median prices from latest price snapshots
-- [ ] **INTG-03**: Price staleness warning shown when snapshot is older than 1 hour
+- [x] **INTG-02**: Shuffle calculator uses live median prices from latest price snapshots
+- [x] **INTG-03**: Price staleness warning shown when snapshot is older than 1 hour
 
 ### Batch Calculator
 
 - [ ] **CALC-01**: User can enter input quantity and see cascading yields per step
 - [ ] **CALC-02**: User can see per-step cost and value breakdown
-- [ ] **CALC-03**: User can see total profit summary (cost in, value out with 5% AH cut, net profit)
-- [ ] **CALC-04**: User can see break-even input price per shuffle
+- [x] **CALC-03**: User can see total profit summary (cost in, value out with 5% AH cut, net profit)
+- [x] **CALC-04**: User can see break-even input price per shuffle
 
 ## v2 Requirements
 
@@ -80,12 +80,12 @@ Which phases cover which requirements. Updated during roadmap creation.
 | YILD-02 | Phase 11 | Complete |
 | YILD-03 | Phase 11 | Complete |
 | INTG-01 | Phase 11 | Complete |
-| INTG-02 | Phase 12 | Pending |
-| INTG-03 | Phase 12 | Pending |
+| INTG-02 | Phase 12 | Complete |
+| INTG-03 | Phase 12 | Complete |
 | CALC-01 | Phase 12 | Pending |
 | CALC-02 | Phase 12 | Pending |
-| CALC-03 | Phase 12 | Pending |
-| CALC-04 | Phase 12 | Pending |
+| CALC-03 | Phase 12 | Complete |
+| CALC-04 | Phase 12 | Complete |
 
 **Coverage:**
 - v1.1 requirements: 15 total
