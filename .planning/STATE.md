@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Shuffles
-status: planning
-stopped_at: Phase 9 context gathered
-last_updated: "2026-03-05T03:34:25.898Z"
-last_activity: 2026-03-04 — Roadmap created for v1.1 Shuffles milestone
+status: executing
+stopped_at: Completed 09-01-PLAN.md
+last_updated: "2026-03-05T03:47:36Z"
+last_activity: 2026-03-05 — Phase 9 Plan 01 complete (data foundation migrations and models)
 progress:
   total_phases: 4
   completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
-  percent: 0
+  total_plans: 4
+  completed_plans: 1
+  percent: 25
 ---
 
 # Project State
@@ -26,24 +26,24 @@ See: .planning/PROJECT.md (updated 2026-03-04)
 ## Current Position
 
 Phase: 9 of 12 (Data Foundation)
-Plan: — of — in current phase
-Status: Ready to plan
-Last activity: 2026-03-04 — Roadmap created for v1.1 Shuffles milestone
+Plan: 1 of 1 in current phase (plan complete)
+Status: Executing
+Last activity: 2026-03-05 — Phase 9 Plan 01 complete (shuffles schema + models)
 
-Progress: [░░░░░░░░░░] 0%
+Progress: [██░░░░░░░░] 25%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 0 (v1.1)
-- Average duration: — min
-- Total execution time: —
+- Total plans completed: 1 (v1.1)
+- Average duration: 1 min
+- Total execution time: 1 min
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| - | - | - | - |
+| 09-data-foundation | 1 | 1 min | 1 min |
 
 *Updated after each plan completion*
 
@@ -54,9 +54,11 @@ Progress: [░░░░░░░░░░] 0%
 Decisions are logged in PROJECT.md Key Decisions table.
 All v1.0 decisions archived — see `milestones/v1.0-ROADMAP.md` for full history.
 
-**v1.1 pending decisions (resolve before Phase 9 migration):**
-- Auto-watch provenance: nullable `created_by_shuffle_id` FK on `watched_items` vs. separate pivot table. FK approach recommended for single-user app.
-- Yield schema: `output_qty_min` / `output_qty_max` integer columns must be in Phase 9 migration even if min/max UI ships later.
+**v1.1 decisions resolved in Phase 9:**
+- Auto-watch provenance: nullable `created_by_shuffle_id` FK on `watched_items` (FK approach confirmed, implemented)
+- Yield schema: `output_qty_min` / `output_qty_max` as `unsignedInteger` columns (implemented in migration)
+- Orphan cleanup: `deleting` model event (before delete) on Shuffle model, not DB-level cascade
+- Blizzard item IDs on shuffle_steps: `unsignedBigInteger` per project convention
 
 ### Pending Todos
 
@@ -64,7 +66,7 @@ None.
 
 ### Blockers/Concerns
 
-- Phase 9 migration decisions must be made before coding starts (yield column types, auto-watch provenance schema). Both are irrecoverable after data entry begins.
+None — Phase 9 data foundation complete.
 
 ### Quick Tasks Completed
 
@@ -82,6 +84,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-05T03:34:25.896Z
-Stopped at: Phase 9 context gathered
-Resume file: .planning/phases/09-data-foundation/09-CONTEXT.md
+Last session: 2026-03-05T03:47:36Z
+Stopped at: Completed 09-01-PLAN.md
+Resume file: .planning/phases/09-data-foundation/09-01-SUMMARY.md
