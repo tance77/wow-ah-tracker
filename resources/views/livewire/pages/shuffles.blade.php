@@ -1,0 +1,232 @@
+<?php
+
+declare(strict_types=1);
+
+use App\Concerns\FormatsAuctionData;
+use Illuminate\Support\Collection;
+use Livewire\Attributes\Computed;
+use Livewire\Attributes\Layout;
+use Livewire\Volt\Component;
+
+new #[Layout('layouts.app')] class extends Component
+{
+    use FormatsAuctionData;
+
+    #[Computed]
+    public function shuffles(): Collection
+    {
+        return auth()->user()->shuffles()
+            ->with([
+                'steps.inputCatalogItem',
+                'steps.outputCatalogItem',
+            ])
+            ->orderBy('created_at', 'desc')
+            ->get();
+    }
+
+    public function createShuffle(): void
+    {
+        $shuffle = auth()->user()->shuffles()->create([
+            'name' => 'New Shuffle',
+        ]);
+
+        $this->redirect(route('shuffles.show', $shuffle), navigate: true);
+    }
+
+    public function renameShuffle(int $id, string $name): void
+    {
+        $name = trim($name);
+
+        if (strlen($name) < 1) {
+            return;
+        }
+
+        $shuffle = auth()->user()->shuffles()->findOrFail($id);
+        $shuffle->update(['name' => $name]);
+
+        unset($this->shuffles);
+    }
+
+    public function deleteShuffle(int $id): void
+    {
+        $shuffle = auth()->user()->shuffles()->findOrFail($id);
+        $shuffle->delete();
+
+        unset($this->shuffles);
+    }
+}; ?>
+
+<x-slot name="header">
+    <div class="flex items-center justify-between">
+        <h2 class="text-xl font-semibold leading-tight text-wow-gold">
+            {{ __('Shuffles') }}
+        </h2>
+        <button
+            wire:click="createShuffle"
+            class="rounded-md bg-wow-gold px-4 py-2 text-sm font-semibold text-wow-darker transition-colors hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-wow-gold focus:ring-offset-2 focus:ring-offset-wow-dark"
+        >
+            New Shuffle
+        </button>
+    </div>
+</x-slot>
+
+<div class="py-12">
+    <div class="mx-auto max-w-7xl sm:px-6 lg:px-8">
+
+        <div class="overflow-hidden bg-wow-dark shadow-sm sm:rounded-lg">
+
+            @if ($this->shuffles->isEmpty())
+                <!-- Empty State -->
+                <div class="flex flex-col items-center justify-center p-16 text-center">
+                    <p class="mb-2 text-lg font-medium text-gray-300">No shuffles yet</p>
+                    <p class="mb-6 max-w-md text-sm text-gray-500">
+                        Shuffles are item conversion chains — track the profitability of crafting or transmuting items through multiple steps. Create one to get started.
+                    </p>
+                    <button
+                        wire:click="createShuffle"
+                        class="rounded-md bg-wow-gold px-4 py-2 text-sm font-semibold text-wow-darker transition-colors hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-wow-gold focus:ring-offset-2 focus:ring-offset-wow-dark"
+                    >
+                        Create Shuffle
+                    </button>
+                </div>
+            @else
+                <!-- Shuffles Table -->
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm">
+                        <thead>
+                            <tr class="border-b border-gray-700/50 text-left text-xs font-medium uppercase tracking-wide text-gray-400">
+                                <th class="px-6 py-3">Shuffle Name</th>
+                                <th class="px-6 py-3">Chain Preview</th>
+                                <th class="px-6 py-3 text-center">Steps</th>
+                                <th class="px-6 py-3 text-center">Profitability</th>
+                                <th class="px-6 py-3 text-right">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-700/50">
+                            @foreach ($this->shuffles as $shuffle)
+                                @php
+                                    $profit = $shuffle->profitPerUnit();
+                                    $stepCount = $shuffle->steps->count();
+                                    $chainPreview = $stepCount > 0
+                                        ? $shuffle->steps->map(fn ($s) => $s->inputCatalogItem?->name ?? 'Unknown')->join(' → ')
+                                            . ' → '
+                                            . ($shuffle->steps->last()->outputCatalogItem?->name ?? 'Unknown')
+                                        : null;
+                                @endphp
+                                <tr
+                                    wire:key="shuffle-{{ $shuffle->id }}"
+                                    class="group cursor-pointer text-gray-200 transition-colors hover:bg-wow-darker/50"
+                                    onclick="window.location='{{ route('shuffles.show', $shuffle) }}'"
+                                >
+                                    <!-- Shuffle Name (inline editable) -->
+                                    <td class="px-6 py-4" onclick="event.stopPropagation()">
+                                        <div
+                                            class="inline-flex items-center gap-2"
+                                            x-data="{ editing: false, name: @js($shuffle->name) }"
+                                            x-init="$watch('editing', v => v && $nextTick(() => $refs.nameInput.select()))"
+                                        >
+                                            <span
+                                                x-show="!editing"
+                                                @click="editing = true"
+                                                class="cursor-pointer rounded px-1 py-0.5 font-medium text-gray-100 hover:text-wow-gold"
+                                                title="Click to rename"
+                                            >{{ $shuffle->name }}</span>
+                                            <input
+                                                type="text"
+                                                x-show="editing"
+                                                x-ref="nameInput"
+                                                x-model="name"
+                                                @keydown.enter="$wire.renameShuffle({{ $shuffle->id }}, name); editing = false"
+                                                @keydown.escape="name = @js($shuffle->name); editing = false"
+                                                @blur="$wire.renameShuffle({{ $shuffle->id }}, name); editing = false"
+                                                class="w-48 rounded border border-gray-600 bg-wow-darker px-2 py-0.5 text-gray-100 focus:border-wow-gold focus:outline-none focus:ring-1 focus:ring-wow-gold"
+                                            />
+                                        </div>
+                                    </td>
+
+                                    <!-- Chain Preview -->
+                                    <td class="px-6 py-4 text-gray-400">
+                                        @if ($chainPreview)
+                                            <span class="text-xs">{{ $chainPreview }}</span>
+                                        @else
+                                            <span class="text-xs italic text-gray-600">No steps yet</span>
+                                        @endif
+                                    </td>
+
+                                    <!-- Step Count -->
+                                    <td class="px-6 py-4 text-center">
+                                        @if ($stepCount > 0)
+                                            <span class="rounded-full bg-gray-700 px-2 py-0.5 text-xs font-medium text-gray-300">
+                                                {{ $stepCount }} {{ Str::plural('step', $stepCount) }}
+                                            </span>
+                                        @else
+                                            <span class="text-xs text-gray-600">—</span>
+                                        @endif
+                                    </td>
+
+                                    <!-- Profitability Badge -->
+                                    <td class="px-6 py-4 text-center">
+                                        @if ($profit === null)
+                                            <span class="inline-flex items-center gap-1.5 text-xs text-gray-500">
+                                                <span class="h-2 w-2 rounded-full bg-gray-600"></span>
+                                                <span>—</span>
+                                            </span>
+                                        @elseif ($profit >= 0)
+                                            <span class="inline-flex items-center gap-1.5 text-xs font-medium text-green-400">
+                                                <span class="h-2 w-2 rounded-full bg-green-400"></span>
+                                                <span>+{{ $this->formatGold($profit) }}</span>
+                                            </span>
+                                        @else
+                                            <span class="inline-flex items-center gap-1.5 text-xs font-medium text-red-400">
+                                                <span class="h-2 w-2 rounded-full bg-red-400"></span>
+                                                <span>{{ $this->formatGold($profit) }}</span>
+                                            </span>
+                                        @endif
+                                    </td>
+
+                                    <!-- Actions -->
+                                    <td class="px-6 py-4 text-right" onclick="event.stopPropagation()">
+                                        <button
+                                            x-data
+                                            @click="$dispatch('open-modal', 'confirm-delete-{{ $shuffle->id }}')"
+                                            class="text-sm text-red-400 transition-colors hover:text-red-300 focus:outline-none"
+                                        >
+                                            Delete
+                                        </button>
+                                    </td>
+                                </tr>
+
+                                <!-- Delete Confirmation Modal -->
+                                <x-modal name="confirm-delete-{{ $shuffle->id }}" focusable>
+                                    <div class="p-6">
+                                        <h2 class="text-lg font-medium text-gray-100">
+                                            Delete "{{ $shuffle->name }}"?
+                                        </h2>
+                                        <p class="mt-2 text-sm text-gray-400">
+                                            This will permanently delete the shuffle and all its steps. Any auto-watched items that were added for this shuffle and are not used by other shuffles will also be removed from your watchlist.
+                                        </p>
+                                        <div class="mt-6 flex justify-end gap-3">
+                                            <button
+                                                x-on:click="$dispatch('close')"
+                                                class="rounded-md border border-gray-600 px-4 py-2 text-sm font-medium text-gray-300 transition-colors hover:border-gray-500 hover:text-gray-200 focus:outline-none"
+                                            >
+                                                Cancel
+                                            </button>
+                                            <button
+                                                wire:click="deleteShuffle({{ $shuffle->id }})"
+                                                x-on:click="$dispatch('close')"
+                                                class="rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-red-500 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 focus:ring-offset-wow-dark"
+                                            >
+                                                Delete Shuffle
+                                            </button>
+                                        </div>
+                                    </div>
+                                </x-modal>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            @endif
+        </div>
+    </div>
+</div>
