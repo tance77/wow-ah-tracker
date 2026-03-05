@@ -13,11 +13,17 @@ class IngestionMetadata extends Model
         'response_hash',
         'last_fetched_at',
         'consecutive_failures',
+        'realm_last_modified_at',
+        'realm_response_hash',
+        'realm_last_fetched_at',
+        'realm_consecutive_failures',
     ];
 
     protected $casts = [
-        'last_fetched_at'      => 'datetime',
-        'consecutive_failures' => 'integer',
+        'last_fetched_at'             => 'datetime',
+        'consecutive_failures'        => 'integer',
+        'realm_last_fetched_at'       => 'datetime',
+        'realm_consecutive_failures'  => 'integer',
     ];
 
     /**
