@@ -38,7 +38,7 @@ class Shuffle extends Model
             // Uses 'deleting' (before delete) so steps still exist in DB for the check.
             WatchedItem::where('created_by_shuffle_id', $shuffle->id)
                 ->whereNotExists(function ($query) use ($shuffle) {
-                    $query->select('id')
+                    $query->select('wi2.id')
                         ->from('watched_items as wi2')
                         ->join('shuffle_steps as ss', function ($join) {
                             $join->on('wi2.blizzard_item_id', '=', 'ss.input_blizzard_item_id')
