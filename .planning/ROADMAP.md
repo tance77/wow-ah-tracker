@@ -150,7 +150,7 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 15-01-PLAN.md — Slug migration, routes, nav link, and feature tests
+- [x] 15-01-PLAN.md — Slug migration, routes, nav link, and feature tests
 - [ ] 15-02-PLAN.md — Crafting overview Volt SFC page and visual verification
 
 ### Phase 16: Per-Profession Recipe Table
@@ -186,5 +186,5 @@ Plans:
 | 12. Batch Calculator and Profit Summary | v1.1 | 2/2 | Complete | 2026-03-05 |
 | 13. Recipe Data Model and Seed Command | v1.2 | 2/2 | Complete | 2026-03-05 |
 | 14. Profit Calculation Action | 1/1 | Complete    | 2026-03-05 | - |
-| 15. Profession Overview Page and Navigation | v1.2 | 0/2 | Not started | - |
+| 15. Profession Overview Page and Navigation | v1.2 | 1/2 | In progress | - |
 | 16. Per-Profession Recipe Table | v1.2 | 0/TBD | Not started | - |

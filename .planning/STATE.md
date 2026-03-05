@@ -2,10 +2,10 @@
 gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Crafting Profitability
-status: planning
-stopped_at: Phase 15 context gathered
-last_updated: "2026-03-05T21:52:25.154Z"
-last_activity: 2026-03-05 - Roadmap created for v1.2 (phases 13-16, 19 requirements mapped)
+status: executing
+stopped_at: Completed 15-01-PLAN.md
+last_updated: "2026-03-05T22:21:29Z"
+last_activity: 2026-03-05 - Completed Phase 15 Plan 01 (slug migration, routes, nav link, tests)
 progress:
   total_phases: 8
   completed_phases: 6
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-05)
 
 **Core value:** See at a glance when crafting material prices dip or spike so I can act on buy/sell opportunities before the market corrects.
-**Current focus:** Phase 13 — Recipe Data Model and Seed Command
+**Current focus:** Phase 15 — Profession Overview Page and Navigation
 
 ## Current Position
 
-Phase: 13 of 16 (Recipe Data Model and Seed Command)
-Plan: — (not yet planned)
-Status: Ready to plan
-Last activity: 2026-03-05 - Completed quick task 18: Refactor sync-catalog to dispatch batched jobs
+Phase: 15 of 16 (Profession Overview Page and Navigation)
+Plan: 1 of 2
+Status: Plan 01 complete, Plan 02 ready
+Last activity: 2026-03-05 - Completed Phase 15 Plan 01 (slug migration, routes, nav link, tests)
 
-Progress: [░░░░░░░░░░] 0%
+Progress: [######░░░░] 60%
 
 ## Performance Metrics
 
@@ -49,6 +49,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 13-recipe-data-model-and-seed-command P01 | 2 | 1 tasks | 10 files |
 | Phase 13-recipe-data-model-and-seed-command P02 | 6 | 1 tasks | 2 files |
 | Phase 14-profit-calculation-action P01 | 2 min | 1 tasks | 2 files |
+| Phase 15-profession-overview-page-and-navigation P01 | 3 min | 2 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -68,6 +69,8 @@ v1.0 and v1.1 decisions archived — see milestones/ for full history.
 - [Phase 13-recipe-data-model-and-seed-command]: Reagents use delete+re-insert for idempotency; unknown reagent items auto-create minimal CatalogItem entries to satisfy FK
 - [Phase 14-profit-calculation-action]: Return null for reagent_cost (not partial sum) when any reagent has no price — prevents silent cost understatement
 - [Phase 14-profit-calculation-action]: median_profit = (T1+T2)/2 when both tiers present, not statistical median over time series
+- [Phase 15-profession-overview-page-and-navigation]: Slug route model binding on Profession via getRouteKeyName() override
+- [Phase 15-profession-overview-page-and-navigation]: Model booted() events for auto-slug generation on create/update
 
 ### Pending Todos
 
@@ -103,6 +106,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-05T21:52:25.152Z
-Stopped at: Phase 15 context gathered
-Resume file: .planning/phases/15-profession-overview-page-and-navigation/15-CONTEXT.md
+Last session: 2026-03-05T22:21:29Z
+Stopped at: Completed 15-01-PLAN.md
+Resume file: .planning/phases/15-profession-overview-page-and-navigation/15-02-PLAN.md

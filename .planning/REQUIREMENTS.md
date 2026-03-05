@@ -25,8 +25,8 @@ Requirements for Crafting Profitability milestone. Each maps to roadmap phases.
 
 ### Profession Overview
 
-- [ ] **OVERVIEW-01**: Crafting page shows cards for each Midnight profession
-- [ ] **OVERVIEW-02**: Each profession card displays top 3-5 most profitable recipes
+- [x] **OVERVIEW-01**: Crafting page shows cards for each Midnight profession
+- [x] **OVERVIEW-02**: Each profession card displays top 3-5 most profitable recipes
 
 ### Recipe Table
 
@@ -39,7 +39,7 @@ Requirements for Crafting Profitability milestone. Each maps to roadmap phases.
 
 ### Navigation
 
-- [ ] **NAV-01**: "Crafting" link added to main navigation
+- [x] **NAV-01**: "Crafting" link added to main navigation
 
 ## Future Requirements
 
@@ -85,9 +85,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | PROFIT-02 | Phase 14 | Complete |
 | PROFIT-03 | Phase 14 | Complete |
 | PROFIT-04 | Phase 14 | Complete |
-| OVERVIEW-01 | Phase 15 | Pending |
-| OVERVIEW-02 | Phase 15 | Pending |
-| NAV-01 | Phase 15 | Pending |
+| OVERVIEW-01 | Phase 15 | Complete |
+| OVERVIEW-02 | Phase 15 | Complete |
+| NAV-01 | Phase 15 | Complete |
 | TABLE-01 | Phase 16 | Pending |
 | TABLE-02 | Phase 16 | Pending |
 | TABLE-03 | Phase 16 | Pending |
