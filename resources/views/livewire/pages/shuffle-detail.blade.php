@@ -709,13 +709,15 @@ new #[Layout('layouts.app')] class extends Component
                     <!-- Add Step Form -->
                     @if ($addingStep)
                         <div class="mt-4 rounded-lg border border-wow-gold/30 bg-wow-darker p-5">
-                            <h4 class="mb-4 text-sm font-medium text-gray-100">Add Conversion Step</h4>
+                            <h4 class="mb-4 text-sm font-medium text-gray-100">Add Step {{ $this->steps->count() + 1 }}</h4>
+
+                            <p class="mb-3 text-xs font-semibold uppercase tracking-wider text-gray-500">1. Choose Items</p>
 
                             <div class="grid grid-cols-1 gap-5 sm:grid-cols-2">
 
                                 <!-- Input Item Search -->
                                 <div>
-                                    <label class="mb-1.5 block text-xs font-medium text-gray-400">Input Item</label>
+                                    <label class="mb-1.5 block text-xs font-medium text-gray-400">What do you put in?</label>
                                     @if ($selectedInputItemId)
                                         <!-- Selected Badge -->
                                         <div class="flex items-center gap-2 rounded-md border border-wow-gold/40 bg-wow-dark px-3 py-2">
@@ -776,7 +778,7 @@ new #[Layout('layouts.app')] class extends Component
 
                                 <!-- Output Item Search -->
                                 <div>
-                                    <label class="mb-1.5 block text-xs font-medium text-gray-400">Output Item</label>
+                                    <label class="mb-1.5 block text-xs font-medium text-gray-400">What do you get out?</label>
                                     @if ($selectedOutputItemId)
                                         <!-- Selected Badge -->
                                         <div class="flex items-center gap-2 rounded-md border border-wow-gold/40 bg-wow-dark px-3 py-2">
@@ -837,12 +839,14 @@ new #[Layout('layouts.app')] class extends Component
                             </div>
 
                             <!-- Yield Configuration -->
+                            <div class="mt-5 border-t border-gray-700/30 pt-5">
+                                <p class="mb-3 text-xs font-semibold uppercase tracking-wider text-gray-500">2. Set Conversion Rate</p>
                             <div
-                                class="mt-4 flex flex-wrap items-center gap-4"
+                                class="flex flex-wrap items-center gap-4"
                                 x-data="{ rangeMode: false }"
                             >
                                 <div class="flex items-center gap-2">
-                                    <label class="text-xs text-gray-400">Input qty:</label>
+                                    <label class="text-xs text-gray-400">How many input items?</label>
                                     <input
                                         type="number"
                                         min="1"
@@ -852,7 +856,7 @@ new #[Layout('layouts.app')] class extends Component
                                 </div>
 
                                 <div class="flex items-center gap-2">
-                                    <label class="text-xs text-gray-400">Yield:</label>
+                                    <label class="text-xs text-gray-400">Produces</label>
                                     <input
                                         type="number"
                                         min="1"
@@ -883,6 +887,8 @@ new #[Layout('layouts.app')] class extends Component
                                         >Set range</button>
                                     </template>
                                 </div>
+                            </div>
+                            <p class="mt-2 text-xs text-gray-600">Example: if 5 ore produces 1-3 gems, set input to 5 and yield to 1-3</p>
                             </div>
 
                             @error('newInputQty') <p class="mt-1 text-xs text-red-400">{{ $message }}</p> @enderror
