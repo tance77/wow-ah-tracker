@@ -53,4 +53,9 @@ class User extends Authenticatable
     {
         return $this->hasMany(WatchedItem::class);
     }
+
+    public function shuffles(): HasMany
+    {
+        return $this->hasMany(Shuffle::class);
+    }
 }

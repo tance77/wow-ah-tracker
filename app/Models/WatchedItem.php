@@ -36,6 +36,7 @@ class WatchedItem extends Model
         'buy_threshold',
         'sell_threshold',
         'profession',
+        'created_by_shuffle_id',
     ];
 
     protected $casts = [
@@ -64,5 +65,10 @@ class WatchedItem extends Model
             'blizzard_item_id', // local key on watched_items
             'id',               // local key on catalog_items
         );
+    }
+
+    public function createdByShuffle(): BelongsTo
+    {
+        return $this->belongsTo(Shuffle::class, 'created_by_shuffle_id');
     }
 }
