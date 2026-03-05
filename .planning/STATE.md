@@ -106,6 +106,7 @@ None.
 | 16 | Add secondary byproducts with drop chance to shuffle steps — model, UI, calculator EV | 2026-03-05 | 1df5c82 | [16-add-secondary-byproducts-with-drop-chanc](./quick/16-add-secondary-byproducts-with-drop-chanc/) |
 | 17 | Fix blizzard:sync-catalog command timeout on Laravel Cloud (exceeds 15min limit) | 2026-03-05 | b44b10d | [17-fix-blizzard-sync-catalog-command-timeou](./quick/17-fix-blizzard-sync-catalog-command-timeou/) |
 | 18 | Refactor sync-catalog to dispatch batched jobs instead of processing inline | 2026-03-05 | 0c6b84f | [18-refactor-sync-catalog-to-dispatch-batche](./quick/18-refactor-sync-catalog-to-dispatch-batche/) |
+| 19 | Merge commodity and realm price polling into single hourly run | 2026-03-05 | acde456 | [19-merge-commodity-and-realm-price-polling-](./quick/19-merge-commodity-and-realm-price-polling-/) |
 
 ## Session Continuity
 
