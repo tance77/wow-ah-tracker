@@ -5,7 +5,7 @@ milestone_name: Crafting Profitability
 status: defining
 stopped_at: —
 last_updated: "2026-03-05"
-last_activity: 2026-03-05 - Completed quick task 12: Add realm auction support to blizzard:sync-catalog for BoE gear
+last_activity: 2026-03-05 - Completed quick task 13: Fix realm sync stopping after fetching auctions
 progress:
   total_phases: 0
   completed_phases: 0
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-03-05)
 Phase: Not started (defining requirements)
 Plan: —
 Status: Defining requirements
-Last activity: 2026-03-05 - Completed quick task 12: Add realm auction support to blizzard:sync-catalog for BoE gear
+Last activity: 2026-03-05 - Completed quick task 13: Fix realm sync stopping after fetching auctions
 
 Progress: [░░░░░░░░░░] 0%
 
@@ -104,9 +104,10 @@ None — Phase 9 data foundation complete.
 | 10 | Fix New Shuffle button outside Livewire boundary — move from header slot into Livewire-tracked DOM | 2026-03-04 | fc2a062 | [10-the-new-shuffle-button-after-there-is-al](./quick/10-the-new-shuffle-button-after-there-is-al/) |
 | 11 | Make step wizard more user-friendly — step numbering, conversion ratio summaries, sectioned add-step form | 2026-03-05 | 8b2e325 | [11-make-the-step-wizard-more-user-friendly](./quick/11-make-the-step-wizard-more-user-friendly/) |
 | 12 | Add --realm flag to sync-catalog for BoE auction items from connected-realm endpoint | 2026-03-05 | 6e2149d | [12-add-realm-auction-support-to-blizzard-sy](./quick/12-add-realm-auction-support-to-blizzard-sy/) |
+| 13 | Fix realm sync stopping after fetching auctions — stream response to disk instead of loading into memory | 2026-03-05 | 18e1cc5 | [13-fix-realm-sync-stopping-after-fetching-a](./quick/13-fix-realm-sync-stopping-after-fetching-a/) |
 
 ## Session Continuity
 
-Last session: 2026-03-05T18:47:15Z
-Stopped at: Completed quick-12 (Add realm auction support to blizzard sync-catalog)
+Last session: 2026-03-05T18:56:12Z
+Stopped at: Completed quick-13 (Fix realm sync stopping after fetching auctions)
 Resume file: None
