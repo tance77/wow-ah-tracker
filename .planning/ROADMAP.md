@@ -43,7 +43,11 @@ Full details: `milestones/v1.0-ROADMAP.md`
   2. `Shuffle` and `ShuffleStep` Eloquent models exist with correct relationships (`User::shuffles()`, `Shuffle::steps()` ordered by `sort_order`)
   3. `ShuffleFactory` and `ShuffleStepFactory` can seed test data; Pest tests can create and relate shuffles without errors
   4. Cascade deletes work: deleting a shuffle removes all its steps from the database
-**Plans**: TBD
+**Plans:** 2 plans
+
+Plans:
+- [ ] 09-01-PLAN.md — Migrations and Eloquent models (shuffles, shuffle_steps, provenance FK)
+- [ ] 09-02-PLAN.md — Factories and comprehensive test suite
 
 ### Phase 10: Shuffle CRUD and Navigation
 **Goal**: Users can access a dedicated Shuffles section, view all their saved shuffles with profitability badges, and create or delete shuffles
@@ -95,7 +99,7 @@ Full details: `milestones/v1.0-ROADMAP.md`
 | 6. Data Integrity Safeguards | v1.0 | 2/2 | Complete | 2026-03-01 |
 | 7. Dashboard and Price Charts | v1.0 | 2/2 | Complete | 2026-03-01 |
 | 8. Buy/Sell Signal Indicators | v1.0 | 2/2 | Complete | 2026-03-02 |
-| 9. Data Foundation | v1.1 | 0/? | Not started | - |
+| 9. Data Foundation | v1.1 | 0/2 | Not started | - |
 | 10. Shuffle CRUD and Navigation | v1.1 | 0/? | Not started | - |
 | 11. Step Editor, Yield Config, and Auto-Watch | v1.1 | 0/? | Not started | - |
 | 12. Batch Calculator and Profit Summary | v1.1 | 0/? | Not started | - |
