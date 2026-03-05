@@ -4,7 +4,7 @@ milestone: v1.2
 milestone_name: Crafting Profitability
 status: planning
 stopped_at: Completed 14-01-PLAN.md
-last_updated: "2026-03-05T21:44:18.247Z"
+last_updated: "2026-03-05T21:46:57.969Z"
 last_activity: 2026-03-05 - Roadmap created for v1.2 (phases 13-16, 19 requirements mapped)
 progress:
   total_phases: 8
