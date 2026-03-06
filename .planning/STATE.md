@@ -121,9 +121,10 @@ None.
 | 26 | Fix fopen error on Cloud -- replace absolute paths with Storage facade keys | 2026-03-06 | 5193093 | [26-fix-fopen-error-on-cloud-use-storage-fac](./quick/26-fix-fopen-error-on-cloud-use-storage-fac/) |
 | 27 | Fix recipe list profit columns not rendering and default sort to highest profit | 2026-03-06 | ba7896a | [27-fix-recipe-list-profit-columns-not-rende](./quick/27-fix-recipe-list-profit-columns-not-rende/) |
 | 28 | Scope watched item cleanup to current user in shuffle operations | 2026-03-06 | 6b4444d | [28-scope-watched-item-cleanup-to-current-us](./quick/28-scope-watched-item-cleanup-to-current-us/) |
+| 29 | Remove auto-watch from SyncRecipesCommand — watchlist is user-managed only | 2026-03-06 | 5eca757 | [29-remove-auto-watch-from-syncrecipescomman](./quick/29-remove-auto-watch-from-syncrecipescomman/) |
 
 ## Session Continuity
 
-Last session: 2026-03-06T00:28:00Z
-Stopped at: Completed quick-28
+Last session: 2026-03-06T00:32:00Z
+Stopped at: Completed quick-29
 Resume file: None
