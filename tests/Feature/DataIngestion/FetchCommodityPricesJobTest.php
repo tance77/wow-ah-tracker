@@ -15,6 +15,7 @@ use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
+use Illuminate\Support\Facades\Storage;
 
 function fakeBlizzardHttp(?string $lastModified = null): void
 {
@@ -71,7 +72,7 @@ function runDispatchAndAggregate(DispatchPriceBatchesJob $batchJob): void
 
     foreach (array_chunk($itemMap, 50, preserve_keys: true) as $chunk) {
         $aggregateJob = new AggregatePriceBatchJob(
-            $batchJob->filePath,
+            $batchJob->storageKey,
             $chunk,
             $batchJob->polledAt,
         );
@@ -89,7 +90,7 @@ function runDispatchAndAggregate(DispatchPriceBatchesJob $batchJob): void
         'consecutive_failures' => 0,
     ]);
 
-    @unlink($batchJob->filePath);
+    Storage::delete($batchJob->storageKey);
 }
 
 it('writes one snapshot per catalog item through the full chain', function (): void {
@@ -338,7 +339,7 @@ it('FetchCommodityDataJob dispatches DispatchPriceBatchesJob with correct data',
     Bus::assertDispatched(DispatchPriceBatchesJob::class, function (DispatchPriceBatchesJob $job) {
         return $job->lastModified === 'Sat, 01 Mar 2026 06:00:00 GMT'
             && $job->responseHash !== ''
-            && file_exists($job->filePath);
+            && Storage::exists($job->storageKey);
     });
 });
 
@@ -352,22 +353,18 @@ it('DispatchPriceBatchesJob creates correct number of batch jobs', function (): 
 
     $fixturePath = base_path('tests/Fixtures/blizzard_commodities.json');
 
-    // Create a temp copy as the "downloaded" file
-    $tempPath = storage_path('app/private/temp/test_commodities.json');
-    if (! is_dir(dirname($tempPath))) {
-        mkdir(dirname($tempPath), 0755, true);
-    }
-    copy($fixturePath, $tempPath);
+    // Store fixture via Storage facade using a storage key
+    $storageKey = 'temp/test_commodities.json';
+    Storage::put($storageKey, file_get_contents($fixturePath));
 
-    $batched = [];
     Bus::fake();
 
-    $job = new DispatchPriceBatchesJob($tempPath, null, md5_file($fixturePath), now());
+    $job = new DispatchPriceBatchesJob($storageKey, null, md5_file($fixturePath), now());
     $job->handle();
 
     Bus::assertBatched(function (\Illuminate\Bus\PendingBatch $batch) {
         return $batch->jobs->count() === 2; // ceil(75/50) = 2 batches
     });
 
-    @unlink($tempPath);
+    Storage::delete($storageKey);
 });

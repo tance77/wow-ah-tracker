@@ -7,6 +7,7 @@ use App\Actions\PriceFetchAction;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Storage;
 
 /**
  * Shared helper: set up Http::fake() with both token and commodities endpoints.
@@ -44,7 +45,7 @@ it('sends Authorization Bearer header on commodity fetch', function (): void {
             && $request->hasHeader('Authorization', 'Bearer test-token');
     });
 
-    @unlink($result['tempFilePath']);
+    Storage::delete($result['storageKey']);
 });
 
 it('sends namespace=dynamic-us query parameter', function (): void {
@@ -58,23 +59,23 @@ it('sends namespace=dynamic-us query parameter', function (): void {
             && str_contains($request->url(), 'namespace=dynamic-us');
     });
 
-    @unlink($result['tempFilePath']);
+    Storage::delete($result['storageKey']);
 });
 
-it('returns tempFilePath, lastModified, and responseHash', function (): void {
+it('returns storageKey, lastModified, and responseHash', function (): void {
     fakeBothEndpoints();
 
     $action = app(PriceFetchAction::class);
     $result = $action();
 
     expect($result)->toBeArray()
-        ->toHaveKeys(['tempFilePath', 'lastModified', 'responseHash']);
+        ->toHaveKeys(['storageKey', 'lastModified', 'responseHash']);
 
-    expect($result['tempFilePath'])->toBeString();
-    expect(file_exists($result['tempFilePath']))->toBeTrue();
+    expect($result['storageKey'])->toBeString();
+    expect(Storage::exists($result['storageKey']))->toBeTrue();
     expect($result['responseHash'])->toBeString()->toHaveLength(32);
 
-    @unlink($result['tempFilePath']);
+    Storage::delete($result['storageKey']);
 });
 
 it('persists downloaded data to a file that ExtractListingsAction can read', function (): void {
@@ -84,7 +85,7 @@ it('persists downloaded data to a file that ExtractListingsAction can read', fun
     $result = $fetchAction();
 
     $extractAction = app(ExtractListingsAction::class);
-    $grouped = $extractAction($result['tempFilePath'], [224025, 210781]);
+    $grouped = $extractAction($result['storageKey'], [224025, 210781]);
 
     // Fixture has entries for 224025 and 210781
     expect($grouped)->toHaveKeys([224025, 210781]);
@@ -95,7 +96,7 @@ it('persists downloaded data to a file that ExtractListingsAction can read', fun
     expect(count($grouped[224025]))->toBe(2);
     expect(count($grouped[210781]))->toBe(2);
 
-    @unlink($result['tempFilePath']);
+    Storage::delete($result['storageKey']);
 });
 
 it('ExtractListingsAction returns empty array when no items match', function (): void {
@@ -105,11 +106,11 @@ it('ExtractListingsAction returns empty array when no items match', function ():
     $result = $fetchAction();
 
     $extractAction = app(ExtractListingsAction::class);
-    $grouped = $extractAction($result['tempFilePath'], [111111]);
+    $grouped = $extractAction($result['storageKey'], [111111]);
 
     expect($grouped)->toBe([]);
 
-    @unlink($result['tempFilePath']);
+    Storage::delete($result['storageKey']);
 });
 
 it('throws RuntimeException on 500 from commodities endpoint', function (): void {
@@ -127,7 +128,7 @@ it('ExtractListingsAction returns listings grouped by item ID with unit_price an
     $result = $fetchAction();
 
     $extractAction = app(ExtractListingsAction::class);
-    $grouped = $extractAction($result['tempFilePath'], [210930]);
+    $grouped = $extractAction($result['storageKey'], [210930]);
 
     // Fixture has exactly 1 entry for 210930
     expect($grouped)->toHaveKey(210930);
@@ -138,5 +139,5 @@ it('ExtractListingsAction returns listings grouped by item ID with unit_price an
     expect($listing['unit_price'])->toBeInt();
     expect($listing['quantity'])->toBeInt();
 
-    @unlink($result['tempFilePath']);
+    Storage::delete($result['storageKey']);
 });

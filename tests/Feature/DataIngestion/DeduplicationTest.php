@@ -14,6 +14,7 @@ use App\Models\PriceSnapshot;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Storage;
 
 function fakeBlizzardHttpWithLastModified(string $lastModified = 'Sun, 01 Mar 2026 18:00:00 GMT'): void
 {
@@ -76,7 +77,7 @@ function runDeduplicationChain(): void
 
     foreach (array_chunk($itemMap, 50, preserve_keys: true) as $chunk) {
         $aggregateJob = new AggregatePriceBatchJob(
-            $batchJob->filePath,
+            $batchJob->storageKey,
             $chunk,
             $batchJob->polledAt,
         );
@@ -93,26 +94,26 @@ function runDeduplicationChain(): void
         'consecutive_failures' => 0,
     ]);
 
-    @unlink($batchJob->filePath);
+    Storage::delete($batchJob->storageKey);
 }
 
 // ── PriceFetchAction return shape tests ──────────────────────────────────────
 
-it('PriceFetchAction returns tempFilePath, lastModified, and responseHash keys', function (): void {
+it('PriceFetchAction returns storageKey, lastModified, and responseHash keys', function (): void {
     fakeBlizzardHttpWithLastModified('Sun, 01 Mar 2026 18:00:00 GMT');
 
     $action = app(PriceFetchAction::class);
     $result = $action();
 
     expect($result)->toBeArray()
-        ->toHaveKeys(['tempFilePath', 'lastModified', 'responseHash']);
+        ->toHaveKeys(['storageKey', 'lastModified', 'responseHash']);
 
-    expect($result['tempFilePath'])->toBeString();
-    expect(file_exists($result['tempFilePath']))->toBeTrue();
+    expect($result['storageKey'])->toBeString();
+    expect(Storage::exists($result['storageKey']))->toBeTrue();
     expect($result['lastModified'])->toBe('Sun, 01 Mar 2026 18:00:00 GMT');
     expect($result['responseHash'])->toBeString()->not->toBeEmpty();
 
-    @unlink($result['tempFilePath']);
+    Storage::delete($result['storageKey']);
 });
 
 it('PriceFetchAction returns null lastModified when header is absent', function (): void {
@@ -122,10 +123,10 @@ it('PriceFetchAction returns null lastModified when header is absent', function 
     $result = $action();
 
     expect($result['lastModified'])->toBeNull();
-    expect($result['tempFilePath'])->toBeString();
+    expect($result['storageKey'])->toBeString();
     expect($result['responseHash'])->toBeString()->not->toBeEmpty();
 
-    @unlink($result['tempFilePath']);
+    Storage::delete($result['storageKey']);
 });
 
 it('PriceFetchAction responseHash hashes consistently for dedup use', function (): void {
@@ -137,7 +138,7 @@ it('PriceFetchAction responseHash hashes consistently for dedup use', function (
     // responseHash is already an md5 hash string
     expect($result['responseHash'])->toBeString()->toHaveLength(32);
 
-    @unlink($result['tempFilePath']);
+    Storage::delete($result['storageKey']);
 });
 
 // ── FetchCommodityDataJob dedup gate tests ──────────────────────────────────

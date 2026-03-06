@@ -3,14 +3,15 @@
 declare(strict_types=1);
 
 use App\Actions\ExtractRealmListingsAction;
+use Illuminate\Support\Facades\Storage;
 
 function writeRealmFixture(array $auctions): string
 {
-    $tempFile = tempnam(sys_get_temp_dir(), 'realm_test_');
     $json = json_encode(['auctions' => $auctions]);
-    file_put_contents($tempFile, $json);
+    $storageKey = 'temp/realm_test_'.uniqid().'.json';
+    Storage::put($storageKey, $json);
 
-    return $tempFile;
+    return $storageKey;
 }
 
 it('extracts buyout prices for matching item IDs', function (): void {
@@ -28,7 +29,7 @@ it('extracts buyout prices for matching item IDs', function (): void {
     expect($result[12345][0])->toBe(['unit_price' => 50000000, 'quantity' => 1]);
     expect($result[67890][0])->toBe(['unit_price' => 30000000, 'quantity' => 1]);
 
-    @unlink($filePath);
+    Storage::delete($filePath);
 });
 
 it('skips bid-only auctions where buyout is zero', function (): void {
@@ -44,7 +45,7 @@ it('skips bid-only auctions where buyout is zero', function (): void {
     expect($result[12345])->toHaveCount(1);
     expect($result[12345][0]['unit_price'])->toBe(50000000);
 
-    @unlink($filePath);
+    Storage::delete($filePath);
 });
 
 it('skips items not in the catalog set', function (): void {
@@ -59,7 +60,7 @@ it('skips items not in the catalog set', function (): void {
     expect($result)->toHaveKey(12345);
     expect($result)->not->toHaveKey(99999);
 
-    @unlink($filePath);
+    Storage::delete($filePath);
 });
 
 it('handles items with bonus_list and modifiers in item object', function (): void {
@@ -100,7 +101,7 @@ it('handles items with bonus_list and modifiers in item object', function (): vo
     expect($result[12345][0])->toBe(['unit_price' => 75000000, 'quantity' => 1]);
     expect($result[67890][0])->toBe(['unit_price' => 25000000, 'quantity' => 1]);
 
-    @unlink($filePath);
+    Storage::delete($filePath);
 });
 
 it('groups multiple auctions for the same item', function (): void {
@@ -118,5 +119,5 @@ it('groups multiple auctions for the same item', function (): void {
     expect($result[12345][1]['unit_price'])->toBe(45000000);
     expect($result[12345][2]['unit_price'])->toBe(60000000);
 
-    @unlink($filePath);
+    Storage::delete($filePath);
 });
