@@ -5,7 +5,7 @@ milestone_name: milestone
 status: completed
 stopped_at: Completed quick-26
 last_updated: "2026-03-06T00:22:54.251Z"
-last_activity: 2026-03-05 - Completed Phase 16 Plan 02 (recipe table UI)
+last_activity: 2026-03-06 - Completed quick task 27: Fix recipe list profit columns not rendering
 progress:
   total_phases: 8
   completed_phases: 8
@@ -119,9 +119,10 @@ None.
 | 24 | Replace file export/import with clipboard copy/paste for shuffles | 2026-03-05 | d2c2d24 | [24-replace-file-export-import-with-clipboar](./quick/24-replace-file-export-import-with-clipboar/) |
 | 25 | Fix share button — wrong Livewire 3 event detail access pattern | 2026-03-06 | 964017d | [25-fix-share-button-wrong-livewire-3-event-](./quick/25-fix-share-button-wrong-livewire-3-event-/) |
 | 26 | Fix fopen error on Cloud -- replace absolute paths with Storage facade keys | 2026-03-06 | 5193093 | [26-fix-fopen-error-on-cloud-use-storage-fac](./quick/26-fix-fopen-error-on-cloud-use-storage-fac/) |
+| 27 | Fix recipe list profit columns not rendering and default sort to highest profit | 2026-03-06 | ba7896a | [27-fix-recipe-list-profit-columns-not-rende](./quick/27-fix-recipe-list-profit-columns-not-rende/) |
 
 ## Session Continuity
 
-Last session: 2026-03-06T00:22:54.205Z
-Stopped at: Completed quick-26
+Last session: 2026-03-06T00:25:00Z
+Stopped at: Completed quick-27
 Resume file: None
