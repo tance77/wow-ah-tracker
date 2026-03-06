@@ -5,7 +5,7 @@ milestone_name: milestone
 status: completed
 stopped_at: Completed quick-26
 last_updated: "2026-03-06T00:22:54.251Z"
-last_activity: 2026-03-06 - Completed quick task 27: Fix recipe list profit columns not rendering
+last_activity: 2026-03-06 - Completed quick task 32: Fix DispatchRealmPriceBatchesJob timeout
 progress:
   total_phases: 8
   completed_phases: 8
