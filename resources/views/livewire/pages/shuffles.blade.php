@@ -142,18 +142,31 @@ new #[Layout('layouts.app')] class extends Component
         $this->dispatch('shuffle-exported', json: $json, shuffleId: $id);
     }
 
+    public function openImportModal(): void
+    {
+        $this->importJson = '';
+        $this->resetErrorBag('importJson');
+    }
+
+    public function closeImportModal(): void
+    {
+        $this->importJson = '';
+        $this->resetErrorBag('importJson');
+    }
+
     public function importShuffle(): void
     {
-        if (! $this->importFile) {
-            $this->addError('importFile', 'Please select a JSON file to import.');
+        $json = trim($this->importJson);
+
+        if (empty($json)) {
+            $this->addError('importJson', 'Please paste shuffle JSON to import.');
             return;
         }
 
-        $contents = file_get_contents($this->importFile->getRealPath());
-        $data = json_decode($contents, true);
+        $data = json_decode($json, true);
 
         if (! is_array($data) || ! isset($data['name']) || ! is_string($data['name']) || ! isset($data['steps']) || ! is_array($data['steps'])) {
-            $this->addError('importFile', 'Invalid shuffle JSON format. File must contain "name" and "steps".');
+            $this->addError('importJson', 'Invalid shuffle JSON format. Must contain "name" and "steps".');
             return;
         }
 
@@ -204,7 +217,7 @@ new #[Layout('layouts.app')] class extends Component
             );
         }
 
-        $this->importFile = null;
+        $this->closeImportModal();
 
         $this->redirect(route('shuffles.show', $shuffle), navigate: true);
     }
@@ -243,25 +256,27 @@ new #[Layout('layouts.app')] class extends Component
                         >
                             Create Shuffle
                         </button>
-                        <label
-                            class="cursor-pointer rounded-md border border-gray-600 px-4 py-2 text-sm font-medium text-gray-300 transition-colors hover:border-wow-gold hover:text-wow-gold focus:outline-none"
+                        <button
+                            wire:click="openImportModal"
                             x-data
+                            @click="$dispatch('open-modal', 'import-shuffle')"
+                            class="rounded-md border border-gray-600 px-4 py-2 text-sm font-medium text-gray-300 transition-colors hover:border-wow-gold hover:text-wow-gold focus:outline-none"
                         >
                             Import Shuffle
-                            <input type="file" accept=".json" wire:model="importFile" class="hidden" x-ref="importInput" @change="$nextTick(() => $wire.importShuffle())" />
-                        </label>
+                        </button>
                     </div>
                 </div>
             @else
                 <!-- New Shuffle + Import Buttons -->
                 <div class="flex items-center justify-end gap-3 px-6 pt-4">
-                    <label
-                        class="cursor-pointer rounded-md border border-gray-600 px-4 py-2 text-sm font-medium text-gray-300 transition-colors hover:border-wow-gold hover:text-wow-gold focus:outline-none"
+                    <button
+                        wire:click="openImportModal"
                         x-data
+                        @click="$dispatch('open-modal', 'import-shuffle')"
+                        class="rounded-md border border-gray-600 px-4 py-2 text-sm font-medium text-gray-300 transition-colors hover:border-wow-gold hover:text-wow-gold focus:outline-none"
                     >
                         Import Shuffle
-                        <input type="file" accept=".json" wire:model="importFile" class="hidden" @change="$nextTick(() => $wire.importShuffle())" />
-                    </label>
+                    </button>
                     <button wire:click="createShuffle" class="rounded-md bg-wow-gold px-4 py-2 text-sm font-semibold text-wow-darker transition-colors hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-wow-gold focus:ring-offset-2 focus:ring-offset-wow-dark">
                         New Shuffle
                     </button>
@@ -418,4 +433,38 @@ new #[Layout('layouts.app')] class extends Component
             @endif
         </div>
     </div>
+
+    <!-- Import Shuffle Modal -->
+    <x-modal name="import-shuffle" focusable>
+        <div class="p-6">
+            <h2 class="text-lg font-medium text-gray-100">Import Shuffle</h2>
+            <p class="mt-2 text-sm text-gray-400">
+                Paste the shuffle JSON below to import it.
+            </p>
+            <textarea
+                wire:model="importJson"
+                rows="10"
+                class="mt-4 w-full rounded-md border border-gray-600 bg-wow-darker px-3 py-2 font-mono text-sm text-gray-200 placeholder-gray-500 focus:border-wow-gold focus:outline-none focus:ring-1 focus:ring-wow-gold"
+                placeholder="Paste shuffle JSON here..."
+            ></textarea>
+            @error('importJson')
+                <p class="mt-1 text-sm text-red-400">{{ $message }}</p>
+            @enderror
+            <div class="mt-4 flex justify-end gap-3">
+                <button
+                    x-on:click="$dispatch('close')"
+                    wire:click="closeImportModal"
+                    class="rounded-md border border-gray-600 px-4 py-2 text-sm font-medium text-gray-300 transition-colors hover:border-gray-500 hover:text-gray-200 focus:outline-none"
+                >
+                    Cancel
+                </button>
+                <button
+                    wire:click="importShuffle"
+                    class="rounded-md bg-wow-gold px-4 py-2 text-sm font-semibold text-wow-darker transition-colors hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-wow-gold focus:ring-offset-2 focus:ring-offset-wow-dark"
+                >
+                    Import
+                </button>
+            </div>
+        </div>
+    </x-modal>
 </div>
