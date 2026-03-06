@@ -113,9 +113,10 @@ None.
 | 21 | Clone shuffle from shuffles list with all steps, byproducts, and auto-watched items | 2026-03-05 | 0029b08 | [21-being-able-to-clone-a-shuffle-on-the-shu](./quick/21-being-able-to-clone-a-shuffle-on-the-shu/) |
 | 22 | Export and import shuffles as JSON for sharing between accounts | 2026-03-05 | 8ff5927 | [22-export-and-import-shuffles-as-json-for-s](./quick/22-export-and-import-shuffles-as-json-for-s/) |
 | 23 | Rename shuffle button labels: Import JSON -> Import Shuffle, Export -> Share | 2026-03-05 | c4cbba7 | [23-rename-import-json-to-import-shuffle-and](./quick/23-rename-import-json-to-import-shuffle-and/) |
+| 24 | Replace file export/import with clipboard copy/paste for shuffles | 2026-03-05 | d2c2d24 | [24-replace-file-export-import-with-clipboar](./quick/24-replace-file-export-import-with-clipboar/) |
 
 ## Session Continuity
 
-Last session: 2026-03-05T23:54:33Z
-Stopped at: Completed 16-01-PLAN.md (recipe table data pipeline)
+Last session: 2026-03-06T00:02:18Z
+Stopped at: Completed quick-24 (clipboard copy/paste for shuffles)
 Resume file: .planning/phases/16-per-profession-recipe-table/16-02-PLAN.md
