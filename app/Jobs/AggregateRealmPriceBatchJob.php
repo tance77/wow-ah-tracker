@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Jobs;
 
-use App\Actions\ExtractRealmListingsAction;
 use App\Actions\PriceAggregateAction;
 use App\Models\PriceSnapshot;
 use Carbon\CarbonInterface;
@@ -17,33 +16,29 @@ class AggregateRealmPriceBatchJob implements ShouldQueue
     use Batchable, Queueable;
 
     /**
-     * @param  string  $storageKey  Storage key for the downloaded realm auction JSON file
      * @param  array<int, int>  $itemMap  [catalog_item_id => blizzard_item_id]
+     * @param  array<int, array<array{unit_price: int, quantity: int}>>  $preExtractedListings  Listings grouped by blizzard_item_id
      * @param  CarbonInterface  $polledAt
      */
     public function __construct(
-        public readonly string $storageKey,
         public readonly array $itemMap,
+        public readonly array $preExtractedListings,
         public readonly CarbonInterface $polledAt,
     ) {}
 
     /**
-     * Extract listings for this batch's items and write price snapshots.
+     * Aggregate pre-extracted listings and write price snapshots.
      */
     public function handle(
-        ExtractRealmListingsAction $extractAction,
         PriceAggregateAction $aggregateAction,
     ): void {
         if ($this->batch()?->cancelled()) {
             return;
         }
 
-        $blizzardItemIds = array_values($this->itemMap);
-        $grouped = ($extractAction)($this->storageKey, $blizzardItemIds);
-
         $rows = [];
         foreach ($this->itemMap as $catalogItemId => $blizzardItemId) {
-            $listings = $grouped[$blizzardItemId] ?? [];
+            $listings = $this->preExtractedListings[$blizzardItemId] ?? [];
             if (empty($listings)) {
                 continue;
             }

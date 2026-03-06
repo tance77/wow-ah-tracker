@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Jobs;
 
+use App\Actions\ExtractRealmListingsAction;
 use App\Models\CatalogItem;
 use App\Models\IngestionMetadata;
 use Carbon\CarbonInterface;
@@ -25,9 +26,9 @@ class DispatchRealmPriceBatchesJob implements ShouldQueue
     ) {}
 
     /**
-     * Chunk catalog items into batches and dispatch as a Bus::batch.
+     * Extract all listings in a single file pass, then chunk into batch jobs with pre-extracted data.
      */
-    public function handle(): void
+    public function handle(ExtractRealmListingsAction $extractAction): void
     {
         $catalogItems = CatalogItem::all();
 
@@ -41,21 +42,31 @@ class DispatchRealmPriceBatchesJob implements ShouldQueue
         // Build [catalog_item_id => blizzard_item_id] map
         $itemMap = $catalogItems->pluck('blizzard_item_id', 'id')->all();
 
+        // Single-pass extraction: read the auction file ONCE for all item IDs
+        $allBlizzardItemIds = array_values(array_unique($itemMap));
+        $allListings = ($extractAction)($this->storageKey, $allBlizzardItemIds);
+
+        // Delete the storage file immediately after extraction
+        Storage::delete($this->storageKey);
+
         $batches = [];
         foreach (array_chunk($itemMap, 50, preserve_keys: true) as $chunk) {
+            // Filter pre-extracted listings to only this chunk's blizzard item IDs
+            $chunkBlizzardIds = array_unique(array_values($chunk));
+            $chunkListings = array_intersect_key($allListings, array_flip($chunkBlizzardIds));
+
             $batches[] = new AggregateRealmPriceBatchJob(
-                $this->storageKey,
                 $chunk,
+                $chunkListings,
                 $this->polledAt,
             );
         }
 
-        $storageKey = $this->storageKey;
         $lastModified = $this->lastModified;
         $responseHash = $this->responseHash;
 
         Bus::batch($batches)
-            ->then(function () use ($storageKey, $lastModified, $responseHash) {
+            ->then(function () use ($lastModified, $responseHash) {
                 IngestionMetadata::singleton()->update([
                     'realm_last_modified_at'     => $lastModified,
                     'realm_response_hash'        => $responseHash,
@@ -63,16 +74,12 @@ class DispatchRealmPriceBatchesJob implements ShouldQueue
                     'realm_consecutive_failures' => 0,
                 ]);
 
-                Storage::delete($storageKey);
-
                 Log::info('DispatchRealmPriceBatchesJob: all batches completed, metadata updated.');
             })
-            ->catch(function (\Illuminate\Bus\Batch $batch, \Throwable $e) use ($storageKey) {
+            ->catch(function (\Illuminate\Bus\Batch $batch, \Throwable $e) {
                 Log::error('DispatchRealmPriceBatchesJob: batch failed', [
                     'error' => $e->getMessage(),
                 ]);
-
-                Storage::delete($storageKey);
             })
             ->dispatch();
 
