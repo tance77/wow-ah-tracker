@@ -1,10 +1,10 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.2
-milestone_name: Crafting Profitability
+milestone: v1.0
+milestone_name: milestone
 status: completed
-stopped_at: Completed 16-02-PLAN.md
-last_updated: "2026-03-06T00:14:03.666Z"
+stopped_at: Completed quick-26
+last_updated: "2026-03-06T00:22:54.251Z"
 last_activity: 2026-03-05 - Completed Phase 16 Plan 02 (recipe table UI)
 progress:
   total_phases: 8
@@ -78,6 +78,7 @@ v1.0 and v1.1 decisions archived — see milestones/ for full history.
 - [Phase 15-profession-overview-page-and-navigation]: onerror img handler for graceful broken icon URL fallback
 - [Phase 16-per-profession-recipe-table]: Server-side #[Computed] recipeData builds full dataset passed to Alpine via @js(); staleness threshold at 60 minutes
 - [Phase 16-per-profession-recipe-table]: Alpine-only client-side sorting/filtering with partition-sort ensuring missing-price and non-commodity rows always at bottom
+- [Phase quick-26]: Use Storage::disk() (default) instead of Storage::disk('local') for cloud-configurable shared storage
 
 ### Pending Todos
 
@@ -117,9 +118,10 @@ None.
 | 23 | Rename shuffle button labels: Import JSON -> Import Shuffle, Export -> Share | 2026-03-05 | c4cbba7 | [23-rename-import-json-to-import-shuffle-and](./quick/23-rename-import-json-to-import-shuffle-and/) |
 | 24 | Replace file export/import with clipboard copy/paste for shuffles | 2026-03-05 | d2c2d24 | [24-replace-file-export-import-with-clipboar](./quick/24-replace-file-export-import-with-clipboar/) |
 | 25 | Fix share button — wrong Livewire 3 event detail access pattern | 2026-03-06 | 964017d | [25-fix-share-button-wrong-livewire-3-event-](./quick/25-fix-share-button-wrong-livewire-3-event-/) |
+| 26 | Fix fopen error on Cloud -- replace absolute paths with Storage facade keys | 2026-03-06 | 5193093 | [26-fix-fopen-error-on-cloud-use-storage-fac](./quick/26-fix-fopen-error-on-cloud-use-storage-fac/) |
 
 ## Session Continuity
 
-Last session: 2026-03-06T00:08:12.380Z
-Stopped at: Completed 16-02-PLAN.md
+Last session: 2026-03-06T00:22:54.205Z
+Stopped at: Completed quick-26
 Resume file: None
