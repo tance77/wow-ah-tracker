@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Crafting Profitability
 status: completed
-stopped_at: Completed 16-01-PLAN.md
-last_updated: "2026-03-05T23:54:33.000Z"
-last_activity: 2026-03-05 - Completed Phase 16 Plan 01 (recipe table data pipeline)
+stopped_at: Completed 16-02-PLAN.md
+last_updated: "2026-03-06T00:08:12.383Z"
+last_activity: 2026-03-06 - Completed quick task 25: Fix share button — wrong Livewire 3 event detail access pattern
 progress:
   total_phases: 8
-  completed_phases: 7
-  total_plans: 13
-  completed_plans: 14
+  completed_phases: 8
+  total_plans: 15
+  completed_plans: 15
   percent: 80
 ---
 
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-03-05)
 ## Current Position
 
 Phase: 16 of 16 (Per-Profession Recipe Table)
-Plan: 1 of 2
-Status: Plan 01 complete
-Last activity: 2026-03-05 - Completed Phase 16 Plan 01 (recipe table data pipeline)
+Plan: 2 of 2
+Status: Phase 16 complete -- v1.2 Crafting Profitability milestone complete
+Last activity: 2026-03-05 - Completed Phase 16 Plan 02 (recipe table UI)
 
-Progress: [########░░] 80%
+Progress: [██████████] 100%
 
 ## Performance Metrics
 
@@ -52,6 +52,7 @@ Progress: [########░░] 80%
 | Phase 15-profession-overview-page-and-navigation P01 | 3 min | 2 tasks | 8 files |
 | Phase 15-profession-overview-page-and-navigation P02 | 6 min | 2 tasks | 1 files |
 | Phase 16-per-profession-recipe-table P01 | 3 min | 2 tasks | 2 files |
+| Phase 16-per-profession-recipe-table P02 | 2 min | 2 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -76,6 +77,7 @@ v1.0 and v1.1 decisions archived — see milestones/ for full history.
 - [Phase 15-profession-overview-page-and-navigation]: Dynamic underscore-prefixed properties on Profession model for computed display data
 - [Phase 15-profession-overview-page-and-navigation]: onerror img handler for graceful broken icon URL fallback
 - [Phase 16-per-profession-recipe-table]: Server-side #[Computed] recipeData builds full dataset passed to Alpine via @js(); staleness threshold at 60 minutes
+- [Phase 16-per-profession-recipe-table]: Alpine-only client-side sorting/filtering with partition-sort ensuring missing-price and non-commodity rows always at bottom
 
 ### Pending Todos
 
@@ -114,9 +116,10 @@ None.
 | 22 | Export and import shuffles as JSON for sharing between accounts | 2026-03-05 | 8ff5927 | [22-export-and-import-shuffles-as-json-for-s](./quick/22-export-and-import-shuffles-as-json-for-s/) |
 | 23 | Rename shuffle button labels: Import JSON -> Import Shuffle, Export -> Share | 2026-03-05 | c4cbba7 | [23-rename-import-json-to-import-shuffle-and](./quick/23-rename-import-json-to-import-shuffle-and/) |
 | 24 | Replace file export/import with clipboard copy/paste for shuffles | 2026-03-05 | d2c2d24 | [24-replace-file-export-import-with-clipboar](./quick/24-replace-file-export-import-with-clipboar/) |
+| 25 | Fix share button — wrong Livewire 3 event detail access pattern | 2026-03-06 | 964017d | [25-fix-share-button-wrong-livewire-3-event-](./quick/25-fix-share-button-wrong-livewire-3-event-/) |
 
 ## Session Continuity
 
-Last session: 2026-03-06T00:02:18Z
-Stopped at: Completed quick-24 (clipboard copy/paste for shuffles)
-Resume file: .planning/phases/16-per-profession-recipe-table/16-02-PLAN.md
+Last session: 2026-03-06T00:08:12.380Z
+Stopped at: Completed 16-02-PLAN.md
+Resume file: None
