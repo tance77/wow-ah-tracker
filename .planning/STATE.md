@@ -18,16 +18,16 @@ progress:
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-03-05)
+See: .planning/PROJECT.md (updated 2026-03-06)
 
 **Core value:** See at a glance when crafting material prices dip or spike so I can act on buy/sell opportunities before the market corrects.
-**Current focus:** Phase 16 — Per-Profession Recipe Table
+**Current focus:** Planning next milestone
 
 ## Current Position
 
-Phase: 16 of 16 (Per-Profession Recipe Table)
-Plan: 2 of 2
-Status: Phase 16 complete -- v1.2 Crafting Profitability milestone complete
+Milestone: v1.2 Crafting Profitability — SHIPPED 2026-03-06
+Status: Between milestones — run /gsd:new-milestone to start next
+Last activity: 2026-03-06 - Completed v1.2 milestone archival
 Last activity: 2026-03-05 - Completed Phase 16 Plan 02 (recipe table UI)
 
 Progress: [██████████] 100%

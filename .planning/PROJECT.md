@@ -2,7 +2,7 @@
 
 ## What This Is
 
-A Laravel web application that tracks World of Warcraft Auction House commodity prices using the Blizzard API. It polls prices every 15 minutes for a curated list of crafting materials, stores price history with aggregated metrics, and presents an interactive dashboard with trend charts and threshold-based buy/sell signal indicators. Built for personal use on the US Retail region.
+A Laravel web application that tracks World of Warcraft Auction House commodity prices using the Blizzard API. It polls prices every 15 minutes for crafting materials, stores price history with aggregated metrics, and presents an interactive dashboard with trend charts and buy/sell signal indicators. Includes a Shuffles section for modeling conversion chains with batch profit calculators, and a Crafting section showing profit margins for all 798 Midnight expansion recipes across 9 professions. Built for personal use on the US Retail region.
 
 ## Core Value
 
@@ -25,17 +25,18 @@ See at a glance when crafting material prices dip or spike so I can act on buy/s
 - ✓ Auto-watch items added to shuffles — v1.1
 - ✓ Batch calculator with per-step yields and profit — v1.1
 - ✓ Profit summary with total cost, value, and net profit — v1.1
+- ✓ Crafting profitability section with all Midnight expansion recipes — v1.2
+- ✓ Recipe data fetched from Blizzard API profession/recipe endpoints — v1.2
+- ✓ Profession overview page with top profitable recipes per profession — v1.2
+- ✓ Profession detail page with full recipe table sorted by profit — v1.2
+- ✓ Per-recipe profit calculation: reagent cost vs crafted item sell price — v1.2
+- ✓ Two quality tiers (Tier 1 & Tier 2) with profit shown per tier — v1.2
+- ✓ Median profit across both tiers — v1.2
+- ✓ Auto-watch reagents so AH prices stay fresh — v1.2
 
 ### Active
 
-- [ ] Crafting profitability section with all Midnight expansion recipes
-- [ ] Recipe data fetched from Blizzard API profession/recipe endpoints
-- [ ] Profession overview page with top profitable recipes per profession
-- [ ] Profession detail page with full recipe table sorted by profit
-- [ ] Per-recipe profit calculation: reagent cost vs crafted item sell price
-- [ ] Two quality tiers (Tier 1 & Tier 2) with profit shown per tier
-- [ ] Median profit across both tiers
-- [ ] Auto-watch reagents so AH prices stay fresh
+(None — start next milestone to define new requirements)
 
 ### Out of Scope
 
@@ -44,28 +45,18 @@ See at a glance when crafting material prices dip or spike so I can act on buy/s
 - Multi-user / public access — personal tool
 - Mobile native app — web only, responsive Tailwind
 - Gear/equipment tracking — commodities only
-- ~~Crafting profit calculator (full recipe-based)~~ — Promoted to v1.2 milestone
-- Additional item categories (gear, pets, mounts) — commodities only (ADVN-02, deferred)
-
-## Current Milestone: v1.2 Crafting Profitability
-
-**Goal:** Add a Crafting section that shows profit margins for all Midnight expansion recipes using live AH prices, organized by profession with sortable tables.
-
-**Target features:**
-- All Midnight expansion recipes fetched from Blizzard API
-- Profession overview page with profit highlights
-- Per-profession detail pages with full sortable recipe tables
-- Two-tier quality pricing with per-tier and median profit
-- Auto-watch for recipe reagents
+- Additional item categories (gear, pets, mounts) — commodities only
+- Specialization-aware profit adjustments — requires character profile API
+- Concentration cost factored into Tier 2 profit — CraftSim territory
 
 ## Context
 
-Shipped v1.0 with 15,058 LOC PHP across 202 files.
-Tech stack: Laravel 12, Livewire 4, Volt, Tailwind CSS v4, ApexCharts, Pest 3, SQLite.
-All 21 v1 requirements satisfied. Audit passed 21/21.
+Shipped v1.2 with 29,895 LOC PHP.
+Tech stack: Laravel 12, Livewire 4, Volt, Alpine.js, Tailwind CSS v4, ApexCharts, Pest 3, SQLite.
+Three milestones shipped: v1.0 MVP (dashboard + signals), v1.1 Shuffles (conversion chains + batch calculator), v1.2 Crafting Profitability (recipe tables + profession overview).
 WoW dark theme with gold/amber accents applied across all views.
-Dual deduplication gates (Last-Modified header + MD5 hash fallback) prevent duplicate snapshots.
-Frequency-distribution median correctly weights high-quantity listings.
+798 Midnight expansion recipes across 9 professions synced from Blizzard API.
+Known tech debt: `crafted_quantity` not factored into profit calculation for multi-yield recipes.
 
 ## Constraints
 
@@ -88,6 +79,11 @@ Frequency-distribution median correctly weights high-quantity listings.
 | Frequency-distribution median | High-quantity listings at one price dominate market — simple sort misleading | ✓ Good |
 | Dual dedup gates (header + hash) | Last-Modified may be absent; hash fallback covers all cases | ✓ Good |
 | One snapshot per WatchedItem row (not per blizzard_item_id) | Multiple users watching same item get independent history | ✓ Good |
+| Dual nullable FKs for quality tiers | Blizzard API doesn't reliably return both crafted items | ✓ Good |
+| Highest-ID skill tier heuristic | Robust to tier name changes across patches | ✓ Good |
+| Http::pool() for recipe detail fetch | Sequential would take 80-130s; pool batches of 20 | ✓ Good |
+| Live profit calculation (never persisted) | Always reflects latest AH prices; no stale cache | ✓ Good |
+| Alpine.js client-side sort/filter | No server round-trips for table interaction; instant UX | ✓ Good |
 
 ---
-*Last updated: 2026-03-05 after v1.2 milestone started*
+*Last updated: 2026-03-06 after v1.2 milestone complete*

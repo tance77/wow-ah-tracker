@@ -51,6 +51,87 @@
 
 ---
 
+## Milestone: v1.1 — Shuffles
+
+**Shipped:** 2026-03-05
+**Phases:** 4 | **Plans:** 8
+
+### What Was Built
+- Shuffle data model with cascade deletes and auto-watched item orphan cleanup
+- Full CRUD shuffles section with inline rename, profitability badges, and clone/export/import
+- Step editor with item search combobox, fixed/range yield config, reorder, and chain flow arrows
+- Batch calculator with Alpine.js cascading yields, profit summary, staleness detection, and byproduct EV
+
+### What Worked
+- Phase dependency chain (data model -> CRUD -> editor -> calculator) enabled clean integration
+- Alpine.js islands for batch calculator kept server round-trips to zero for calculator interaction
+- `profitPerUnit()` on the Shuffle model centralized profit logic for both list badges and detail page
+- Orphan cleanup via Eloquent boot events (both Shuffle::deleting and ShuffleStep::deleted) prevented leaked watched items
+
+### What Was Inefficient
+- v1.1 MILESTONES.md entry was not created during milestone completion — had to backfill during v1.2 archival
+- ShuffleStep orphan cleanup query needed careful NOT EXISTS scoping — initial implementation missed cross-shuffle references
+
+### Patterns Established
+- Alpine.js `x-data` islands for client-side computation (batch calculator, recipe table sorting)
+- `wire:ignore` on Alpine-managed sections to prevent Livewire DOM morphing conflicts
+- Item search combobox pattern reused for both input and output item selection
+- `firstOrCreate` for auto-watch with null thresholds and shuffle provenance tracking
+
+### Key Lessons
+1. Alpine.js islands are ideal for computation-heavy UI that doesn't need server state — keeps interaction instant
+2. Orphan cleanup must check ALL references, not just the deleting parent — `whereNotExists` subquery pattern is essential
+3. Byproducts with drop chance need expected-value (EV) math in calculators — percentage * value, not binary
+
+### Cost Observations
+- Model mix: balanced profile (sonnet executors, sonnet verifiers)
+- Sessions: ~3 sessions over 2 days
+- Notable: 25 quick tasks shipped alongside milestone work
+
+---
+
+## Milestone: v1.2 — Crafting Profitability
+
+**Shipped:** 2026-03-06
+**Phases:** 4 | **Plans:** 7
+
+### What Was Built
+- Three-table recipe data model (professions, recipes, recipe_reagents) with cascade deletes
+- `blizzard:sync-recipes` command with three-level API traversal, Http::pool() batching, idempotent upserts
+- `RecipeProfitAction` invokable class with TDD — 11 tests covering all profit edge cases
+- Profession overview page with cards showing top 5 profitable recipes per profession
+- Per-profession recipe table with Alpine.js sorting, filtering, accordion reagent breakdowns, staleness banner
+
+### What Worked
+- TDD on RecipeProfitAction caught edge cases early (null propagation, single-tier median, negative profit)
+- Three-level API traversal with Http::pool() reduced sync time from ~130s sequential to ~20s batched
+- Server-side `#[Computed] recipeData` builds the full dataset once, Alpine.js handles all interaction client-side
+- Separation of data pipeline (Plan 01) from UI (Plan 02) in Phase 16 enabled independent testing
+
+### What Was Inefficient
+- `crafted_quantity` stored by SyncRecipesCommand but never used by RecipeProfitAction — discovered only during milestone audit integration check
+- SUMMARY.md frontmatter for Phase 13 and 14 plans had empty `requirements_completed` despite requirements being satisfied — same documentation discipline gap as v1.0
+- Database had 0 recipes at visual verification time — forgot to run `blizzard:sync-recipes` before testing UI
+
+### Patterns Established
+- `app/Actions/RecipeProfitAction` follows same invokable Action pattern as `PriceAggregateAction`
+- Dual nullable FK columns for quality tiers (`crafted_item_id_silver`, `crafted_item_id_gold`)
+- Slug-based route model binding via `getRouteKeyName()` override on Profession model
+- Alpine.js partition-sort: normal rows sorted first, then missing-price/non-commodity rows always at bottom
+
+### Key Lessons
+1. Always run data import commands before visual verification — empty database produces false negatives
+2. Integration checks should happen earlier than milestone audit — `crafted_quantity` gap would have been caught sooner
+3. SUMMARY frontmatter `requirements_completed` needs enforcement — same gap appeared in v1.0 and v1.2
+4. Highest-ID skill tier heuristic works reliably for identifying current expansion content
+
+### Cost Observations
+- Model mix: balanced profile (sonnet executors, sonnet verifiers)
+- Sessions: ~2 sessions over 2 days
+- Notable: 4 phases shipped in under 6 hours of wall time
+
+---
+
 ## Cross-Milestone Trends
 
 ### Process Evolution
@@ -58,14 +139,21 @@
 | Milestone | Sessions | Phases | Key Change |
 |-----------|----------|--------|------------|
 | v1.0 | ~5 | 8 | Initial milestone — established GSD workflow |
+| v1.1 | ~3 | 4 | Alpine.js islands for client-side computation |
+| v1.2 | ~2 | 4 | TDD on action classes, integration checks at audit |
 
 ### Cumulative Quality
 
 | Milestone | Tests | Audit Score | Requirements |
 |-----------|-------|-------------|-------------|
 | v1.0 | 16 dashboard + auth + watchlist + ingestion | 21/21 | 21/21 satisfied |
+| v1.1 | +19 shuffle step editor + 18 batch calculator | 15/15 | 15/15 satisfied |
+| v1.2 | +21 recipe model + 11 profit action + 8 crafting overview + 7 recipe table | 19/19 | 19/19 satisfied |
 
 ### Top Lessons (Verified Across Milestones)
 
 1. Lock irrecoverable decisions early — schema types, indexes, auth patterns
 2. Per-test HTTP fake helpers prevent stub accumulation across test suites
+3. SUMMARY frontmatter `requirements_completed` needs enforcement — gap appeared in v1.0 and v1.2
+4. Alpine.js islands are ideal for computation-heavy UI that doesn't need server state
+5. Always run data import commands before visual verification
