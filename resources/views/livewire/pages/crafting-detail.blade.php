@@ -267,26 +267,18 @@ new #[Layout('layouts.app')] class extends Component
                                     <td class="px-4 py-3 text-right text-sm text-gray-300"
                                         x-text="formatGold(recipe.reagent_cost)"></td>
                                     {{-- Profit columns: conditional on is_commodity --}}
-                                    <template x-if="recipe.is_commodity">
-                                        <td class="px-4 py-3 text-right text-sm"
-                                            :class="recipe.has_missing_prices ? 'text-gray-500' : (recipe.profit_silver > 0 ? 'text-green-400' : (recipe.profit_silver < 0 ? 'text-red-400' : 'text-gray-500'))"
-                                            x-text="recipe.has_missing_prices ? '\u2014' : formatGold(recipe.profit_silver)"></td>
-                                    </template>
-                                    <template x-if="recipe.is_commodity">
-                                        <td class="px-4 py-3 text-right text-sm"
-                                            :class="recipe.has_missing_prices ? 'text-gray-500' : (recipe.profit_gold > 0 ? 'text-green-400' : (recipe.profit_gold < 0 ? 'text-red-400' : 'text-gray-500'))"
-                                            x-text="recipe.has_missing_prices ? '\u2014' : formatGold(recipe.profit_gold)"></td>
-                                    </template>
-                                    <template x-if="recipe.is_commodity">
-                                        <td class="px-4 py-3 text-right text-sm"
-                                            :class="recipe.has_missing_prices ? 'text-gray-500' : (recipe.median_profit > 0 ? 'text-green-400' : (recipe.median_profit < 0 ? 'text-red-400' : 'text-gray-500'))"
-                                            x-text="recipe.has_missing_prices ? '\u2014' : formatGold(recipe.median_profit)"></td>
-                                    </template>
-                                    <template x-if="!recipe.is_commodity">
-                                        <td colspan="3" class="px-4 py-3 text-center text-xs italic text-gray-500">
-                                            Realm AH &mdash; not tracked
-                                        </td>
-                                    </template>
+                                    <td x-show="recipe.is_commodity" class="px-4 py-3 text-right text-sm"
+                                        :class="recipe.has_missing_prices ? 'text-gray-500' : (recipe.profit_silver > 0 ? 'text-green-400' : (recipe.profit_silver < 0 ? 'text-red-400' : 'text-gray-500'))"
+                                        x-text="recipe.has_missing_prices ? '\u2014' : formatGold(recipe.profit_silver)"></td>
+                                    <td x-show="recipe.is_commodity" class="px-4 py-3 text-right text-sm"
+                                        :class="recipe.has_missing_prices ? 'text-gray-500' : (recipe.profit_gold > 0 ? 'text-green-400' : (recipe.profit_gold < 0 ? 'text-red-400' : 'text-gray-500'))"
+                                        x-text="recipe.has_missing_prices ? '\u2014' : formatGold(recipe.profit_gold)"></td>
+                                    <td x-show="recipe.is_commodity" class="px-4 py-3 text-right text-sm"
+                                        :class="recipe.has_missing_prices ? 'text-gray-500' : (recipe.median_profit > 0 ? 'text-green-400' : (recipe.median_profit < 0 ? 'text-red-400' : 'text-gray-500'))"
+                                        x-text="recipe.has_missing_prices ? '\u2014' : formatGold(recipe.median_profit)"></td>
+                                    <td x-show="!recipe.is_commodity" colspan="3" class="px-4 py-3 text-center text-xs italic text-gray-500">
+                                        Realm AH &mdash; not tracked
+                                    </td>
                                 </tr>
                                 {{-- Expansion row --}}
                                 <template x-if="expandedRow === recipe.id">
