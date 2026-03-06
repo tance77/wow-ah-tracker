@@ -302,7 +302,7 @@ test('shuffle detail page shows shuffle name', function () {
 
 // Export
 
-test('exportShuffle returns JSON with correct structure', function () {
+test('exportShuffle dispatches shuffle-exported event with correct JSON', function () {
     $user = User::factory()->create();
     $shuffle = Shuffle::factory()->create(['user_id' => $user->id, 'name' => 'Export Test']);
 
@@ -326,11 +326,21 @@ test('exportShuffle returns JSON with correct structure', function () {
         'quantity' => 1,
     ]);
 
-    $component = Volt::actingAs($user)->test('pages.shuffles');
-    $response = $component->call('exportShuffle', $shuffle->id);
+    Volt::actingAs($user)->test('pages.shuffles')
+        ->call('exportShuffle', $shuffle->id)
+        ->assertDispatched('shuffle-exported', function ($name, ...$params) {
+            $json = $params[0]['json'] ?? '';
+            $data = json_decode($json, true);
 
-    // The response should be a streamed download
-    expect($response)->not->toBeNull();
+            return $data !== null
+                && $data['name'] === 'Export Test'
+                && isset($data['steps'])
+                && count($data['steps']) === 1
+                && $data['steps'][0]['input_item_name'] === 'Ore Name'
+                && $data['steps'][0]['output_item_name'] === 'Bar Name'
+                && count($data['steps'][0]['byproducts']) === 1
+                && $data['steps'][0]['byproducts'][0]['item_name'] === 'Dust';
+        });
 });
 
 test('importShuffle with valid JSON creates shuffle with steps and byproducts', function () {
@@ -361,10 +371,8 @@ test('importShuffle with valid JSON creates shuffle with steps and byproducts', 
         ],
     ]);
 
-    $file = \Illuminate\Http\UploadedFile::fake()->createWithContent('shuffle.json', $json);
-
     Volt::actingAs($user)->test('pages.shuffles')
-        ->set('importFile', $file)
+        ->set('importJson', $json)
         ->call('importShuffle')
         ->assertRedirect();
 
@@ -414,10 +422,8 @@ test('importShuffle auto-watches all referenced item IDs', function () {
         ],
     ]);
 
-    $file = \Illuminate\Http\UploadedFile::fake()->createWithContent('shuffle.json', $json);
-
     Volt::actingAs($user)->test('pages.shuffles')
-        ->set('importFile', $file)
+        ->set('importJson', $json)
         ->call('importShuffle');
 
     $watchedIds = $user->watchedItems()->pluck('blizzard_item_id')->sort()->values()->all();
@@ -431,12 +437,21 @@ test('importShuffle with malformed JSON does not create shuffle', function () {
 
     $json = json_encode(['name' => 'Bad Shuffle']);  // missing "steps" key
 
-    $file = \Illuminate\Http\UploadedFile::fake()->createWithContent('bad.json', $json);
+    Volt::actingAs($user)->test('pages.shuffles')
+        ->set('importJson', $json)
+        ->call('importShuffle')
+        ->assertHasErrors('importJson');
+
+    expect($user->shuffles()->count())->toBe(0);
+});
+
+test('importShuffle with empty JSON shows error', function () {
+    $user = User::factory()->create();
 
     Volt::actingAs($user)->test('pages.shuffles')
-        ->set('importFile', $file)
+        ->set('importJson', '')
         ->call('importShuffle')
-        ->assertHasErrors();
+        ->assertHasErrors('importJson');
 
     expect($user->shuffles()->count())->toBe(0);
 });
