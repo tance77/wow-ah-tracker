@@ -557,7 +557,14 @@ new #[Layout('layouts.app')] class extends Component
         class="flex items-center justify-between"
         x-data="{ copied: false }"
         x-on:shuffle-exported.window="
-            navigator.clipboard.writeText($event.detail.json);
+            const ta = document.createElement('textarea');
+            ta.value = $event.detail.json;
+            ta.style.position = 'fixed';
+            ta.style.opacity = '0';
+            document.body.appendChild(ta);
+            ta.select();
+            document.execCommand('copy');
+            document.body.removeChild(ta);
             copied = true;
             setTimeout(() => copied = false, 2000)
         "
