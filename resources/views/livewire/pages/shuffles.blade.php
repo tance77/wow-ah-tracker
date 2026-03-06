@@ -233,8 +233,8 @@ new #[Layout('layouts.app')] class extends Component
     class="py-12"
     x-data="{ copiedId: null }"
     x-on:shuffle-exported.window="
-        navigator.clipboard.writeText($event.detail[0].json);
-        copiedId = $event.detail[0].shuffleId;
+        navigator.clipboard.writeText($event.detail.json);
+        copiedId = $event.detail.shuffleId;
         setTimeout(() => copiedId = null, 2000)
     "
 >

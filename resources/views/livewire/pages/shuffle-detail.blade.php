@@ -557,7 +557,7 @@ new #[Layout('layouts.app')] class extends Component
         class="flex items-center justify-between"
         x-data="{ copied: false }"
         x-on:shuffle-exported.window="
-            navigator.clipboard.writeText($event.detail[0].json);
+            navigator.clipboard.writeText($event.detail.json);
             copied = true;
             setTimeout(() => copied = false, 2000)
         "
