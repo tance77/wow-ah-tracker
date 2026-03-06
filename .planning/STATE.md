@@ -124,9 +124,10 @@ None.
 | 29 | Remove auto-watch from SyncRecipesCommand — watchlist is user-managed only | 2026-03-06 | 5eca757 | [29-remove-auto-watch-from-syncrecipescomman](./quick/29-remove-auto-watch-from-syncrecipescomman/) |
 | 30 | Fix recipe list blank Tier 1, Tier 2, and Median Profit columns — always render 3 td cells | 2026-03-05 | 0a131f5 | [30-fix-recipe-list-blank-tier-1-tier-2-and-](./quick/30-fix-recipe-list-blank-tier-1-tier-2-and-/) |
 | 31 | Fix item prices not loading for non-commodity items — latestPriceSnapshot HasOne | 2026-03-06 | c8735ee | [31-fix-item-prices-not-loading-for-non-comm](./quick/31-fix-item-prices-not-loading-for-non-comm/) |
+| 32 | Fix DispatchRealmPriceBatchesJob timeout — single-pass extraction, data-only batch jobs | 2026-03-05 | ad4a6c7 | [32-fix-dispatchrealmpricebatchesjob-timeout](./quick/32-fix-dispatchrealmpricebatchesjob-timeout/) |
 
 ## Session Continuity
 
-Last session: 2026-03-06T00:53:00Z
-Stopped at: Completed quick-31
+Last session: 2026-03-05T21:54:00Z
+Stopped at: Completed quick-32
 Resume file: None
