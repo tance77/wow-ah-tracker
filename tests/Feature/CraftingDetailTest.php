@@ -230,6 +230,51 @@ it('marks non-commodity recipes', function () {
 // Auth guard
 // ---------------------------------------------------------------------------
 
+it('loads prices for all recipes including non-commodity items', function () {
+    $user = User::factory()->create();
+    $profession = Profession::factory()->create(['name' => 'Blacksmithing']);
+
+    // Commodity recipe with prices
+    createDetailRecipeWithProfit($profession, 'Bronze Bar', 5000, 1000);
+
+    // Non-commodity recipe (gear) with prices
+    $gearItem = CatalogItem::factory()->create(['name' => 'Iron Helm']);
+    PriceSnapshot::factory()->create([
+        'catalog_item_id' => $gearItem->id,
+        'median_price' => 50000,
+        'polled_at' => now(),
+    ]);
+
+    $reagentItem = CatalogItem::factory()->create(['name' => 'Iron Ingot']);
+    PriceSnapshot::factory()->create([
+        'catalog_item_id' => $reagentItem->id,
+        'median_price' => 2000,
+        'polled_at' => now(),
+    ]);
+
+    $gearRecipe = Recipe::factory()->create([
+        'profession_id' => $profession->id,
+        'name' => 'Craft Iron Helm',
+        'crafted_item_id_silver' => $gearItem->id,
+        'is_commodity' => false,
+    ]);
+
+    RecipeReagent::factory()->create([
+        'recipe_id' => $gearRecipe->id,
+        'catalog_item_id' => $reagentItem->id,
+        'quantity' => 5,
+    ]);
+
+    $response = $this->actingAs($user)->get('/crafting/'.$profession->slug);
+    $response->assertOk();
+
+    // Both recipes should have reagent cost data (not null)
+    // The non-commodity recipe has reagent cost 5 * 2000 = 10000
+    $response->assertSee('\u0022reagent_cost\u0022:10000', false);
+    // The commodity recipe has reagent cost 1000
+    $response->assertSee('\u0022reagent_cost\u0022:1000', false);
+});
+
 it('redirects unauthenticated users to login', function () {
     $profession = Profession::factory()->create(['name' => 'Inscription']);
 

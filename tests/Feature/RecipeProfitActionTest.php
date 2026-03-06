@@ -50,9 +50,9 @@ test('PROFIT-01: calculates reagent cost as sum of quantity times median price',
     ]);
 
     $recipe->load([
-        'reagents.catalogItem.priceSnapshots' => fn ($q) => $q->latest('polled_at')->limit(1),
-        'craftedItemSilver.priceSnapshots'    => fn ($q) => $q->latest('polled_at')->limit(1),
-        'craftedItemGold.priceSnapshots'      => fn ($q) => $q->latest('polled_at')->limit(1),
+        'reagents.catalogItem.latestPriceSnapshot',
+        'craftedItemSilver.latestPriceSnapshot',
+        'craftedItemGold.latestPriceSnapshot',
     ]);
 
     $result = (new RecipeProfitAction())($recipe);
@@ -90,9 +90,9 @@ test('PROFIT-01 NULL: reagent cost is null when any reagent has no price snapsho
     ]);
 
     $recipe->load([
-        'reagents.catalogItem.priceSnapshots' => fn ($q) => $q->latest('polled_at')->limit(1),
-        'craftedItemSilver.priceSnapshots'    => fn ($q) => $q->latest('polled_at')->limit(1),
-        'craftedItemGold.priceSnapshots'      => fn ($q) => $q->latest('polled_at')->limit(1),
+        'reagents.catalogItem.latestPriceSnapshot',
+        'craftedItemSilver.latestPriceSnapshot',
+        'craftedItemGold.latestPriceSnapshot',
     ]);
 
     $result = (new RecipeProfitAction())($recipe);
@@ -126,9 +126,9 @@ test('PROFIT-02: returns sell price for silver and gold tiers from latest price 
     ]);
 
     $recipe->load([
-        'reagents.catalogItem.priceSnapshots' => fn ($q) => $q->latest('polled_at')->limit(1),
-        'craftedItemSilver.priceSnapshots'    => fn ($q) => $q->latest('polled_at')->limit(1),
-        'craftedItemGold.priceSnapshots'      => fn ($q) => $q->latest('polled_at')->limit(1),
+        'reagents.catalogItem.latestPriceSnapshot',
+        'craftedItemSilver.latestPriceSnapshot',
+        'craftedItemGold.latestPriceSnapshot',
     ]);
 
     $result = (new RecipeProfitAction())($recipe);
@@ -144,9 +144,9 @@ test('PROFIT-02 NULL: both sell prices are null when recipe has no crafted item 
     ]);
 
     $recipe->load([
-        'reagents.catalogItem.priceSnapshots' => fn ($q) => $q->latest('polled_at')->limit(1),
-        'craftedItemSilver.priceSnapshots'    => fn ($q) => $q->latest('polled_at')->limit(1),
-        'craftedItemGold.priceSnapshots'      => fn ($q) => $q->latest('polled_at')->limit(1),
+        'reagents.catalogItem.latestPriceSnapshot',
+        'craftedItemSilver.latestPriceSnapshot',
+        'craftedItemGold.latestPriceSnapshot',
     ]);
 
     $result = (new RecipeProfitAction())($recipe);
@@ -186,9 +186,9 @@ test('PROFIT-03: sell=10000 reagent=5000 produces profit=4500', function () {
     ]);
 
     $recipe->load([
-        'reagents.catalogItem.priceSnapshots' => fn ($q) => $q->latest('polled_at')->limit(1),
-        'craftedItemSilver.priceSnapshots'    => fn ($q) => $q->latest('polled_at')->limit(1),
-        'craftedItemGold.priceSnapshots'      => fn ($q) => $q->latest('polled_at')->limit(1),
+        'reagents.catalogItem.latestPriceSnapshot',
+        'craftedItemSilver.latestPriceSnapshot',
+        'craftedItemGold.latestPriceSnapshot',
     ]);
 
     $result = (new RecipeProfitAction())($recipe);
@@ -224,9 +224,9 @@ test('PROFIT-03: negative profit is returned as-is when reagent cost exceeds sel
     ]);
 
     $recipe->load([
-        'reagents.catalogItem.priceSnapshots' => fn ($q) => $q->latest('polled_at')->limit(1),
-        'craftedItemSilver.priceSnapshots'    => fn ($q) => $q->latest('polled_at')->limit(1),
-        'craftedItemGold.priceSnapshots'      => fn ($q) => $q->latest('polled_at')->limit(1),
+        'reagents.catalogItem.latestPriceSnapshot',
+        'craftedItemSilver.latestPriceSnapshot',
+        'craftedItemGold.latestPriceSnapshot',
     ]);
 
     $result = (new RecipeProfitAction())($recipe);
@@ -273,9 +273,9 @@ test('PROFIT-04: median profit is average of silver and gold profits when both p
     ]);
 
     $recipe->load([
-        'reagents.catalogItem.priceSnapshots' => fn ($q) => $q->latest('polled_at')->limit(1),
-        'craftedItemSilver.priceSnapshots'    => fn ($q) => $q->latest('polled_at')->limit(1),
-        'craftedItemGold.priceSnapshots'      => fn ($q) => $q->latest('polled_at')->limit(1),
+        'reagents.catalogItem.latestPriceSnapshot',
+        'craftedItemSilver.latestPriceSnapshot',
+        'craftedItemGold.latestPriceSnapshot',
     ]);
 
     $result = (new RecipeProfitAction())($recipe);
@@ -315,9 +315,9 @@ test('PROFIT-04: median profit equals silver profit when only silver tier presen
     ]);
 
     $recipe->load([
-        'reagents.catalogItem.priceSnapshots' => fn ($q) => $q->latest('polled_at')->limit(1),
-        'craftedItemSilver.priceSnapshots'    => fn ($q) => $q->latest('polled_at')->limit(1),
-        'craftedItemGold.priceSnapshots'      => fn ($q) => $q->latest('polled_at')->limit(1),
+        'reagents.catalogItem.latestPriceSnapshot',
+        'craftedItemSilver.latestPriceSnapshot',
+        'craftedItemGold.latestPriceSnapshot',
     ]);
 
     $result = (new RecipeProfitAction())($recipe);
@@ -336,9 +336,9 @@ test('PROFIT-04: median profit is null when neither tier present', function () {
     ]);
 
     $recipe->load([
-        'reagents.catalogItem.priceSnapshots' => fn ($q) => $q->latest('polled_at')->limit(1),
-        'craftedItemSilver.priceSnapshots'    => fn ($q) => $q->latest('polled_at')->limit(1),
-        'craftedItemGold.priceSnapshots'      => fn ($q) => $q->latest('polled_at')->limit(1),
+        'reagents.catalogItem.latestPriceSnapshot',
+        'craftedItemSilver.latestPriceSnapshot',
+        'craftedItemGold.latestPriceSnapshot',
     ]);
 
     $result = (new RecipeProfitAction())($recipe);
@@ -362,9 +362,9 @@ test('has_missing_prices is true when crafted item exists but has no price snaps
     ]);
 
     $recipe->load([
-        'reagents.catalogItem.priceSnapshots' => fn ($q) => $q->latest('polled_at')->limit(1),
-        'craftedItemSilver.priceSnapshots'    => fn ($q) => $q->latest('polled_at')->limit(1),
-        'craftedItemGold.priceSnapshots'      => fn ($q) => $q->latest('polled_at')->limit(1),
+        'reagents.catalogItem.latestPriceSnapshot',
+        'craftedItemSilver.latestPriceSnapshot',
+        'craftedItemGold.latestPriceSnapshot',
     ]);
 
     $result = (new RecipeProfitAction())($recipe);
@@ -384,9 +384,9 @@ test('return array contains all 7 expected keys', function () {
     ]);
 
     $recipe->load([
-        'reagents.catalogItem.priceSnapshots' => fn ($q) => $q->latest('polled_at')->limit(1),
-        'craftedItemSilver.priceSnapshots'    => fn ($q) => $q->latest('polled_at')->limit(1),
-        'craftedItemGold.priceSnapshots'      => fn ($q) => $q->latest('polled_at')->limit(1),
+        'reagents.catalogItem.latestPriceSnapshot',
+        'craftedItemSilver.latestPriceSnapshot',
+        'craftedItemGold.latestPriceSnapshot',
     ]);
 
     $result = (new RecipeProfitAction())($recipe);
