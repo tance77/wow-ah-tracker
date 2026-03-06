@@ -120,9 +120,10 @@ None.
 | 25 | Fix share button — wrong Livewire 3 event detail access pattern | 2026-03-06 | 964017d | [25-fix-share-button-wrong-livewire-3-event-](./quick/25-fix-share-button-wrong-livewire-3-event-/) |
 | 26 | Fix fopen error on Cloud -- replace absolute paths with Storage facade keys | 2026-03-06 | 5193093 | [26-fix-fopen-error-on-cloud-use-storage-fac](./quick/26-fix-fopen-error-on-cloud-use-storage-fac/) |
 | 27 | Fix recipe list profit columns not rendering and default sort to highest profit | 2026-03-06 | ba7896a | [27-fix-recipe-list-profit-columns-not-rende](./quick/27-fix-recipe-list-profit-columns-not-rende/) |
+| 28 | Scope watched item cleanup to current user in shuffle operations | 2026-03-06 | 6b4444d | [28-scope-watched-item-cleanup-to-current-us](./quick/28-scope-watched-item-cleanup-to-current-us/) |
 
 ## Session Continuity
 
-Last session: 2026-03-06T00:25:00Z
-Stopped at: Completed quick-27
+Last session: 2026-03-06T00:28:00Z
+Stopped at: Completed quick-28
 Resume file: None
