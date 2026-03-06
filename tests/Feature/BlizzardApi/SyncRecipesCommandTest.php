@@ -207,43 +207,19 @@ it('IMPORT-01: seeds professions, recipes, and recipe_reagents from faked API', 
 });
 
 // -------------------------------------------------------------------
-// Test 2 (IMPORT-02): Auto-watched items for user #1, no duplicates on re-run
+// Test 2 (IMPORT-02): sync does not auto-watch items (watchlist is user-managed only)
 // -------------------------------------------------------------------
-it('IMPORT-02: auto-watches all reagent and crafted item IDs for user_id=1 with no duplicates on re-run', function (): void {
-    seedRecipeCatalogItems();
-    fakeBlizzardRecipeEndpoints();
-
-    // Run twice
-    $this->artisan('blizzard:sync-recipes')->assertSuccessful();
-    $this->artisan('blizzard:sync-recipes')->assertSuccessful();
-
-    // Unique item IDs encountered:
-    //   Reagents: 50001 (Silverleaf), 50002 (Peacebloom)
-    //   Crafted: 60001 (Elixir of Power, recipe 101), 60002 (Enchanted Vial, recipe 103)
-    // Total unique: 4
-    expect(WatchedItem::where('user_id', 1)->count())->toBe(4);
-
-    // Verify specific items are present
-    expect(WatchedItem::where('user_id', 1)->where('blizzard_item_id', 50001)->exists())->toBeTrue();
-    expect(WatchedItem::where('user_id', 1)->where('blizzard_item_id', 60001)->exists())->toBeTrue();
-});
-
-// -------------------------------------------------------------------
-// Test 3 (IMPORT-02): Auto-watched items are tagged with profession name
-// -------------------------------------------------------------------
-it('IMPORT-02: auto-watched items are tagged with the profession name', function (): void {
+it('IMPORT-02: sync does not auto-watch any items', function (): void {
     seedRecipeCatalogItems();
     fakeBlizzardRecipeEndpoints();
 
     $this->artisan('blizzard:sync-recipes')->assertSuccessful();
 
-    $watchedItem = WatchedItem::where('user_id', 1)->where('blizzard_item_id', 50001)->first();
-    expect($watchedItem)->not->toBeNull();
-    expect($watchedItem->profession)->toBe('Alchemy');
+    expect(WatchedItem::count())->toBe(0);
 });
 
 // -------------------------------------------------------------------
-// Test 4 (IMPORT-03): --dry-run produces zero DB rows
+// Test 3 (IMPORT-03): --dry-run produces zero DB rows
 // -------------------------------------------------------------------
 it('IMPORT-03: --dry-run traverses API but writes zero rows', function (): void {
     seedRecipeCatalogItems();
@@ -254,7 +230,6 @@ it('IMPORT-03: --dry-run traverses API but writes zero rows', function (): void 
     expect(Profession::count())->toBe(0);
     expect(Recipe::count())->toBe(0);
     expect(RecipeReagent::count())->toBe(0);
-    expect(WatchedItem::where('user_id', 1)->count())->toBe(0);
 });
 
 // -------------------------------------------------------------------
@@ -281,7 +256,6 @@ it('IMPORT-05: running twice produces identical DB state (idempotent)', function
     $professionCount1 = Profession::count();
     $recipeCount1 = Recipe::count();
     $reagentCount1 = RecipeReagent::count();
-    $watchedCount1 = WatchedItem::where('user_id', 1)->count();
 
     // Re-run with same API responses
     fakeBlizzardRecipeEndpoints();
@@ -290,7 +264,6 @@ it('IMPORT-05: running twice produces identical DB state (idempotent)', function
     expect(Profession::count())->toBe($professionCount1);
     expect(Recipe::count())->toBe($recipeCount1);
     expect(RecipeReagent::count())->toBe($reagentCount1);
-    expect(WatchedItem::where('user_id', 1)->count())->toBe($watchedCount1);
 });
 
 // -------------------------------------------------------------------

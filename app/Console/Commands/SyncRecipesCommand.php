@@ -8,7 +8,6 @@ use App\Models\CatalogItem;
 use App\Models\Profession;
 use App\Models\Recipe;
 use App\Models\RecipeReagent;
-use App\Models\WatchedItem;
 use App\Services\BlizzardTokenService;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Http;
@@ -39,8 +38,6 @@ class SyncRecipesCommand extends Command
         }
 
         $gapStats = [];
-        $newWatched = 0;
-        $existedWatched = 0;
         $totalRecipesSynced = 0;
 
         // -------------------------------------------------------------------
@@ -235,8 +232,6 @@ class SyncRecipesCommand extends Command
                         professionName: $professionName,
                         dryRun: $dryRun,
                         gapStats: $gapStats,
-                        newWatched: $newWatched,
-                        existedWatched: $existedWatched,
                         totalRecipesSynced: $totalRecipesSynced,
                         bar: $bar,
                     );
@@ -290,20 +285,15 @@ class SyncRecipesCommand extends Command
         $totalGaps = array_sum(array_column($gapStats, 'missing_item'));
         $this->newLine();
         $this->info(sprintf(
-            'Synced %d recipes (%d professions). Auto-watched %d items (%d new, %d already existed). Gaps: %d recipes missing crafted_item.',
+            'Synced %d recipes (%d professions). Gaps: %d recipes missing crafted_item.',
             $totalRecipesSynced,
             $totalProfessions,
-            $newWatched + $existedWatched,
-            $newWatched,
-            $existedWatched,
             $totalGaps,
         ));
 
         Log::info('SyncRecipes: finished', [
             'recipes_synced' => $totalRecipesSynced,
             'professions' => $totalProfessions,
-            'new_watched' => $newWatched,
-            'existed_watched' => $existedWatched,
             'dry_run' => $dryRun,
         ]);
 
@@ -319,8 +309,6 @@ class SyncRecipesCommand extends Command
         string $professionName,
         bool $dryRun,
         array &$gapStats,
-        int &$newWatched,
-        int &$existedWatched,
         int &$totalRecipesSynced,
         mixed $bar,
     ): void {
@@ -419,34 +407,6 @@ class SyncRecipesCommand extends Command
                     'quantity' => $reagentQty,
                 ]);
 
-                // Auto-watch reagent item
-                $watched = WatchedItem::firstOrCreate(
-                    ['user_id' => 1, 'blizzard_item_id' => $reagentItemId],
-                    ['name' => $reagentName, 'profession' => $professionName]
-                );
-
-                if ($watched->wasRecentlyCreated) {
-                    $newWatched++;
-                } else {
-                    $existedWatched++;
-                }
-            }
-
-            // Auto-watch crafted item (silver tier)
-            if ($craftedItemIdSilver !== null) {
-                $craftedCatalog = CatalogItem::find($craftedItemIdSilver);
-                if ($craftedCatalog !== null) {
-                    $watched = WatchedItem::firstOrCreate(
-                        ['user_id' => 1, 'blizzard_item_id' => $craftedCatalog->blizzard_item_id],
-                        ['name' => $craftedCatalog->name, 'profession' => $professionName]
-                    );
-
-                    if ($watched->wasRecentlyCreated) {
-                        $newWatched++;
-                    } else {
-                        $existedWatched++;
-                    }
-                }
             }
         }
 
