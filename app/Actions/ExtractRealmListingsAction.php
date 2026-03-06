@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Actions;
 
+use Illuminate\Support\Facades\Storage;
+
 class ExtractRealmListingsAction
 {
     /**
@@ -12,13 +14,13 @@ class ExtractRealmListingsAction
      * Uses brace-depth counting to handle nested item objects (bonus_list, modifiers)
      * that the commodity regex cannot match. Skips bid-only auctions (buyout = 0).
      *
-     * @param  string  $filePath  Path to the downloaded realm auction JSON file
-     * @param  int[]   $itemIds   Blizzard item IDs to extract
+     * @param  string  $storageKey  Storage key for the downloaded realm auction JSON file
+     * @param  int[]   $itemIds     Blizzard item IDs to extract
      * @return array<int, array<array{unit_price: int, quantity: int}>>  Listings grouped by item ID
      */
-    public function __invoke(string $filePath, array $itemIds): array
+    public function __invoke(string $storageKey, array $itemIds): array
     {
-        $handle = fopen($filePath, 'r');
+        $handle = Storage::readStream($storageKey);
         $catalogSet = array_flip($itemIds);
         $grouped = [];
         $buffer = '';

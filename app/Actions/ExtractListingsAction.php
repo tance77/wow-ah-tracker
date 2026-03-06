@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Actions;
 
+use Illuminate\Support\Facades\Storage;
+
 class ExtractListingsAction
 {
     /**
@@ -13,13 +15,13 @@ class ExtractListingsAction
      * the requested items. Memory stays bounded because each batch targets a
      * small subset of items.
      *
-     * @param  string  $filePath  Path to the downloaded commodities JSON file
-     * @param  int[]   $itemIds   Blizzard item IDs to extract
+     * @param  string  $storageKey  Storage key for the downloaded commodities JSON file
+     * @param  int[]   $itemIds     Blizzard item IDs to extract
      * @return array<int, array<array{unit_price: int, quantity: int}>>  Listings grouped by item ID
      */
-    public function __invoke(string $filePath, array $itemIds): array
+    public function __invoke(string $storageKey, array $itemIds): array
     {
-        $handle = fopen($filePath, 'r');
+        $handle = Storage::readStream($storageKey);
         $catalogSet = array_flip($itemIds);
         $grouped = [];
         $buffer = '';

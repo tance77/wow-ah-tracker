@@ -11,6 +11,7 @@ use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 
 class FetchCommodityDataJob implements ShouldQueue, ShouldBeUnique
 {
@@ -55,7 +56,7 @@ class FetchCommodityDataJob implements ShouldQueue, ShouldBeUnique
         // Primary gate: Last-Modified header comparison
         if ($result['lastModified'] !== null && $result['lastModified'] === $meta->last_modified_at) {
             Log::info('FetchCommodityDataJob: data unchanged (Last-Modified match), skipping.');
-            @unlink($result['tempFilePath']);
+            Storage::delete($result['storageKey']);
 
             return;
         }
@@ -63,13 +64,13 @@ class FetchCommodityDataJob implements ShouldQueue, ShouldBeUnique
         // Fallback gate: response body hash (when Last-Modified absent)
         if ($result['lastModified'] === null && $result['responseHash'] === $meta->response_hash) {
             Log::info('FetchCommodityDataJob: data unchanged (hash match), skipping.');
-            @unlink($result['tempFilePath']);
+            Storage::delete($result['storageKey']);
 
             return;
         }
 
         DispatchPriceBatchesJob::dispatch(
-            $result['tempFilePath'],
+            $result['storageKey'],
             $result['lastModified'],
             $result['responseHash'],
             now(),

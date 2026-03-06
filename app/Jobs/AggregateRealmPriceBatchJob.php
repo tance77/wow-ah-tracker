@@ -17,12 +17,12 @@ class AggregateRealmPriceBatchJob implements ShouldQueue
     use Batchable, Queueable;
 
     /**
-     * @param  string  $filePath  Path to the downloaded realm auction JSON file
+     * @param  string  $storageKey  Storage key for the downloaded realm auction JSON file
      * @param  array<int, int>  $itemMap  [catalog_item_id => blizzard_item_id]
      * @param  CarbonInterface  $polledAt
      */
     public function __construct(
-        public readonly string $filePath,
+        public readonly string $storageKey,
         public readonly array $itemMap,
         public readonly CarbonInterface $polledAt,
     ) {}
@@ -39,7 +39,7 @@ class AggregateRealmPriceBatchJob implements ShouldQueue
         }
 
         $blizzardItemIds = array_values($this->itemMap);
-        $grouped = ($extractAction)($this->filePath, $blizzardItemIds);
+        $grouped = ($extractAction)($this->storageKey, $blizzardItemIds);
 
         $rows = [];
         foreach ($this->itemMap as $catalogItemId => $blizzardItemId) {

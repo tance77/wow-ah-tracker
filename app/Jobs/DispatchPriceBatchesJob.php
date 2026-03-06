@@ -11,13 +11,14 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 
 class DispatchPriceBatchesJob implements ShouldQueue
 {
     use Queueable;
 
     public function __construct(
-        public readonly string $filePath,
+        public readonly string $storageKey,
         public readonly ?string $lastModified,
         public readonly string $responseHash,
         public readonly CarbonInterface $polledAt,
@@ -32,7 +33,7 @@ class DispatchPriceBatchesJob implements ShouldQueue
 
         if ($catalogItems->isEmpty()) {
             Log::info('DispatchPriceBatchesJob: no catalog items, cleaning up.');
-            @unlink($this->filePath);
+            Storage::delete($this->storageKey);
 
             return;
         }
@@ -43,18 +44,18 @@ class DispatchPriceBatchesJob implements ShouldQueue
         $batches = [];
         foreach (array_chunk($itemMap, 50, preserve_keys: true) as $chunk) {
             $batches[] = new AggregatePriceBatchJob(
-                $this->filePath,
+                $this->storageKey,
                 $chunk,
                 $this->polledAt,
             );
         }
 
-        $filePath = $this->filePath;
+        $storageKey = $this->storageKey;
         $lastModified = $this->lastModified;
         $responseHash = $this->responseHash;
 
         Bus::batch($batches)
-            ->then(function () use ($filePath, $lastModified, $responseHash) {
+            ->then(function () use ($storageKey, $lastModified, $responseHash) {
                 IngestionMetadata::singleton()->update([
                     'last_modified_at'     => $lastModified,
                     'response_hash'        => $responseHash,
@@ -62,16 +63,16 @@ class DispatchPriceBatchesJob implements ShouldQueue
                     'consecutive_failures' => 0,
                 ]);
 
-                @unlink($filePath);
+                Storage::delete($storageKey);
 
                 Log::info('DispatchPriceBatchesJob: all batches completed, metadata updated.');
             })
-            ->catch(function (\Illuminate\Bus\Batch $batch, \Throwable $e) use ($filePath) {
+            ->catch(function (\Illuminate\Bus\Batch $batch, \Throwable $e) use ($storageKey) {
                 Log::error('DispatchPriceBatchesJob: batch failed', [
                     'error' => $e->getMessage(),
                 ]);
 
-                @unlink($filePath);
+                Storage::delete($storageKey);
             })
             ->dispatch();
 

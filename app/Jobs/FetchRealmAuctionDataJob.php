@@ -11,6 +11,7 @@ use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 
 class FetchRealmAuctionDataJob implements ShouldQueue, ShouldBeUnique
 {
@@ -55,7 +56,7 @@ class FetchRealmAuctionDataJob implements ShouldQueue, ShouldBeUnique
         // Primary gate: Last-Modified header comparison
         if ($result['lastModified'] !== null && $result['lastModified'] === $meta->realm_last_modified_at) {
             Log::info('FetchRealmAuctionDataJob: data unchanged (Last-Modified match), skipping.');
-            @unlink($result['tempFilePath']);
+            Storage::delete($result['storageKey']);
 
             return;
         }
@@ -63,13 +64,13 @@ class FetchRealmAuctionDataJob implements ShouldQueue, ShouldBeUnique
         // Fallback gate: response body hash (when Last-Modified absent)
         if ($result['lastModified'] === null && $result['responseHash'] === $meta->realm_response_hash) {
             Log::info('FetchRealmAuctionDataJob: data unchanged (hash match), skipping.');
-            @unlink($result['tempFilePath']);
+            Storage::delete($result['storageKey']);
 
             return;
         }
 
         DispatchRealmPriceBatchesJob::dispatch(
-            $result['tempFilePath'],
+            $result['storageKey'],
             $result['lastModified'],
             $result['responseHash'],
             now(),

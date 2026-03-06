@@ -22,7 +22,7 @@ class PriceFetchAction
      * Streams the large (~50MB+) response to a temp file. Returns the file
      * path, Last-Modified header, and response hash for gate checks.
      *
-     * @return array{tempFilePath: string, lastModified: ?string, responseHash: string}
+     * @return array{storageKey: string, lastModified: ?string, responseHash: string}
      */
     public function __invoke(): array
     {
@@ -64,19 +64,17 @@ class PriceFetchAction
         $responseHash = md5_file($tempFile);
 
         // Move to persistent storage so downstream jobs can access it
-        $storagePath = 'temp/commodities_'.md5(uniqid((string) mt_rand(), true)).'.json';
-        Storage::disk('local')->makeDirectory('temp');
-        Storage::disk('local')->put($storagePath, file_get_contents($tempFile));
+        $storageKey = 'temp/commodities_'.md5(uniqid((string) mt_rand(), true)).'.json';
+        Storage::makeDirectory('temp');
+        Storage::put($storageKey, file_get_contents($tempFile));
         @unlink($tempFile);
 
-        $persistedPath = Storage::disk('local')->path($storagePath);
-
         Log::info('PriceFetchAction: commodity data downloaded', [
-            'path' => $persistedPath,
+            'storageKey' => $storageKey,
         ]);
 
         return [
-            'tempFilePath' => $persistedPath,
+            'storageKey'   => $storageKey,
             'lastModified' => $lastModified,
             'responseHash' => $responseHash,
         ];
