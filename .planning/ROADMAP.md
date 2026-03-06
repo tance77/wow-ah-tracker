@@ -41,7 +41,7 @@ Full details: `milestones/v1.0-ROADMAP.md`
 - [x] **Phase 13: Recipe Data Model and Seed Command** — Three migrations, three models, and a working `artisan blizzard:sync-recipes` command that seeds the database from the Blizzard API (completed 2026-03-05)
 - [x] **Phase 14: Profit Calculation Action** — `RecipeProfitAction` class with unit-tested profit formula covering Tier 1/Tier 2, AH cut, and NULL price handling (completed 2026-03-05)
 - [x] **Phase 15: Profession Overview Page and Navigation** — `/crafting` page with profession cards showing top profitable recipes; "Crafting" nav link (completed 2026-03-05)
-- [ ] **Phase 16: Per-Profession Recipe Table** — `/crafting/{profession}` page with full sortable recipe table, missing-price indicators, staleness warnings, and non-commodity row states
+- [x] **Phase 16: Per-Profession Recipe Table** — `/crafting/{profession}` page with full sortable recipe table, missing-price indicators, staleness warnings, and non-commodity row states (completed 2026-03-06)
 
 ## Phase Details
 
@@ -191,4 +191,4 @@ Plans:
 | 13. Recipe Data Model and Seed Command | v1.2 | 2/2 | Complete | 2026-03-05 |
 | 14. Profit Calculation Action | 1/1 | Complete    | 2026-03-05 | - |
 | 15. Profession Overview Page and Navigation | 2/2 | Complete    | 2026-03-05 | - |
-| 16. Per-Profession Recipe Table | 1/2 | In Progress|  | - |
+| 16. Per-Profession Recipe Table | 2/2 | Complete   | 2026-03-06 | - |
