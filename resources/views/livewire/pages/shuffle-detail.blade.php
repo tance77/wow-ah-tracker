@@ -312,6 +312,7 @@ new #[Layout('layouts.app')] class extends Component
 
             if (! $stillReferencedByByproduct) {
                 WatchedItem::where('blizzard_item_id', $blizzardItemId)
+                    ->where('user_id', auth()->id())
                     ->whereNotNull('created_by_shuffle_id')
                     ->delete();
             }

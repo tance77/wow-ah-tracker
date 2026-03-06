@@ -85,8 +85,9 @@ class Shuffle extends Model
             // this shuffle and are not referenced by any other shuffle.
             // Uses 'deleting' (before delete) so steps still exist in DB for the check.
             $orphanIds = WatchedItem::where('created_by_shuffle_id', $shuffle->id)
+                ->where('user_id', $shuffle->user_id)
                 ->whereNotIn('id', function ($query) use ($shuffle) {
-                    // Still referenced by another shuffle's step input/output
+                    // Still referenced by another of THIS USER's shuffle's step input/output
                     $query->select('watched_items.id')
                         ->from('watched_items')
                         ->join('shuffle_steps as ss', function ($join) {
@@ -94,16 +95,18 @@ class Shuffle extends Model
                                 ->orOn('watched_items.blizzard_item_id', '=', 'ss.output_blizzard_item_id');
                         })
                         ->join('shuffles', 'ss.shuffle_id', '=', 'shuffles.id')
-                        ->where('shuffles.id', '!=', $shuffle->id);
+                        ->where('shuffles.id', '!=', $shuffle->id)
+                        ->where('shuffles.user_id', $shuffle->user_id);
                 })
                 ->whereNotIn('id', function ($query) use ($shuffle) {
-                    // Still referenced by another shuffle's step byproduct
+                    // Still referenced by another of THIS USER's shuffle's step byproduct
                     $query->select('watched_items.id')
                         ->from('watched_items')
                         ->join('shuffle_step_byproducts as ssb', 'watched_items.blizzard_item_id', '=', 'ssb.blizzard_item_id')
                         ->join('shuffle_steps as ss2', 'ssb.shuffle_step_id', '=', 'ss2.id')
                         ->join('shuffles as s2', 'ss2.shuffle_id', '=', 's2.id')
-                        ->where('s2.id', '!=', $shuffle->id);
+                        ->where('s2.id', '!=', $shuffle->id)
+                        ->where('s2.user_id', $shuffle->user_id);
                 })
                 ->pluck('id');
 

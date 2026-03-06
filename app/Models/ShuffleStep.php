@@ -61,6 +61,7 @@ class ShuffleStep extends Model
 
                     if (! $stillReferencedByByproduct) {
                         WatchedItem::where('blizzard_item_id', $blizzardItemId)
+                            ->where('user_id', $step->shuffle->user_id)
                             ->whereNotNull('created_by_shuffle_id')
                             ->delete();
                     }
