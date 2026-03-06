@@ -12,9 +12,9 @@ class RecipeProfitAction
      * Compute profit for a single recipe from live AH prices.
      *
      * IMPORTANT: Recipe must be loaded with eager relationships:
-     *   reagents.catalogItem.priceSnapshots (latest 1)
-     *   craftedItemSilver.priceSnapshots (latest 1)
-     *   craftedItemGold.priceSnapshots (latest 1)
+     *   reagents.catalogItem.latestPriceSnapshot
+     *   craftedItemSilver.latestPriceSnapshot
+     *   craftedItemGold.latestPriceSnapshot
      *
      * All prices in copper (BIGINT). Never persisted — computed at call time.
      *
@@ -35,7 +35,7 @@ class RecipeProfitAction
         $hasMissingPrices = false;
 
         foreach ($recipe->reagents as $reagent) {
-            $snapshot = $reagent->catalogItem?->priceSnapshots->first();
+            $snapshot = $reagent->catalogItem?->latestPriceSnapshot;
 
             if ($snapshot === null) {
                 $hasMissingPrices = true;
@@ -49,8 +49,8 @@ class RecipeProfitAction
         $reagentCostFinal = $hasMissingPrices ? null : $reagentCost;
 
         // --- Sell prices (PROFIT-02) ---
-        $sellPriceSilver = $recipe->craftedItemSilver?->priceSnapshots->first()?->median_price;
-        $sellPriceGold   = $recipe->craftedItemGold?->priceSnapshots->first()?->median_price;
+        $sellPriceSilver = $recipe->craftedItemSilver?->latestPriceSnapshot?->median_price;
+        $sellPriceGold   = $recipe->craftedItemGold?->latestPriceSnapshot?->median_price;
 
         if ($sellPriceSilver === null && $recipe->craftedItemSilver !== null) {
             $hasMissingPrices = true;

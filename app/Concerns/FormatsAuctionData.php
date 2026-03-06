@@ -53,7 +53,7 @@ trait FormatsAuctionData
         }
 
         $snapshots = $item->catalogItem?->priceSnapshots ?? $item->priceSnapshots;
-        $currentPrice = $snapshots->first()?->median_price ?? 0;
+        $currentPrice = $item->catalogItem?->latestPriceSnapshot?->median_price ?? $snapshots->first()?->median_price ?? 0;
 
         $buyLevel = (int) round($rollingAvg * (1 - $item->buy_threshold / 100));
         $sellLevel = (int) round($rollingAvg * (1 + $item->sell_threshold / 100));

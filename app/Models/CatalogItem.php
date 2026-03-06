@@ -7,6 +7,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class CatalogItem extends Model
 {
@@ -36,6 +37,11 @@ class CatalogItem extends Model
     public function priceSnapshots(): HasMany
     {
         return $this->hasMany(PriceSnapshot::class);
+    }
+
+    public function latestPriceSnapshot(): HasOne
+    {
+        return $this->hasOne(PriceSnapshot::class)->latestOfMany('polled_at');
     }
 
     public function rarityColorClass(): string

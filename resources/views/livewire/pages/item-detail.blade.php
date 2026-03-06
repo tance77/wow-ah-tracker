@@ -21,7 +21,7 @@ new #[Layout('layouts.app')] class extends Component
         abort_unless($this->watchedItem->user_id === auth()->id(), 403);
 
         $this->watchedItem->load([
-            'catalogItem' => fn ($q) => $q->with(['priceSnapshots' => fn ($q2) => $q2->latest('polled_at')->limit(2)]),
+            'catalogItem' => fn ($q) => $q->with(['latestPriceSnapshot', 'priceSnapshots' => fn ($q2) => $q2->latest('polled_at')->limit(2)]),
             'catalogItem:blizzard_item_id,id,name,icon_url,quality_tier,rarity,category',
         ]);
 

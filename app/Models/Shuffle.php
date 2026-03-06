@@ -31,22 +31,22 @@ class Shuffle extends Model
     public function profitPerUnit(): ?int
     {
         $steps = $this->steps()->with([
-            'inputCatalogItem.priceSnapshots' => fn ($q) => $q->latest('polled_at')->limit(1),
-            'outputCatalogItem.priceSnapshots' => fn ($q) => $q->latest('polled_at')->limit(1),
-            'byproducts.catalogItem.priceSnapshots' => fn ($q) => $q->latest('polled_at')->limit(1),
+            'inputCatalogItem.latestPriceSnapshot',
+            'outputCatalogItem.latestPriceSnapshot',
+            'byproducts.catalogItem.latestPriceSnapshot',
         ])->get();
 
         if ($steps->isEmpty()) {
             return null;
         }
 
-        $firstInputPrice = $steps->first()->inputCatalogItem?->priceSnapshots->first()?->median_price;
+        $firstInputPrice = $steps->first()->inputCatalogItem?->latestPriceSnapshot?->median_price;
         if ($firstInputPrice === null) {
             return null;
         }
 
         $lastStep = $steps->last();
-        $outputPrice = $lastStep->outputCatalogItem?->priceSnapshots->first()?->median_price;
+        $outputPrice = $lastStep->outputCatalogItem?->latestPriceSnapshot?->median_price;
         if ($outputPrice === null) {
             return null;
         }
@@ -61,7 +61,7 @@ class Shuffle extends Model
             // Calculate byproduct EV for this step based on input batches
             $batches = (int) floor($cascadedQty / max(1, $step->input_qty));
             foreach ($step->byproducts as $bp) {
-                $bpPrice = $bp->catalogItem?->priceSnapshots->first()?->median_price;
+                $bpPrice = $bp->catalogItem?->latestPriceSnapshot?->median_price;
                 if ($bpPrice !== null) {
                     $byproductEV += $bpPrice * ((float) $bp->chance_percent / 100) * $bp->quantity * $batches;
                 }

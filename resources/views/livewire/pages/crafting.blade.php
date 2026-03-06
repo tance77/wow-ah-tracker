@@ -19,9 +19,9 @@ new #[Layout('layouts.app')] class extends Component
     {
         // Eager load all relationships needed by RecipeProfitAction
         $professions = Profession::with([
-            'recipes.reagents.catalogItem.priceSnapshots' => fn ($q) => $q->latest('polled_at')->limit(1),
-            'recipes.craftedItemSilver.priceSnapshots' => fn ($q) => $q->latest('polled_at')->limit(1),
-            'recipes.craftedItemGold.priceSnapshots' => fn ($q) => $q->latest('polled_at')->limit(1),
+            'recipes.reagents.catalogItem.latestPriceSnapshot',
+            'recipes.craftedItemSilver.latestPriceSnapshot',
+            'recipes.craftedItemGold.latestPriceSnapshot',
         ])->get();
 
         $action = new RecipeProfitAction();

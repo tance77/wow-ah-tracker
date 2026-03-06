@@ -21,9 +21,9 @@ new #[Layout('layouts.app')] class extends Component
     public function recipeData(): array
     {
         $this->profession->load([
-            'recipes.reagents.catalogItem.priceSnapshots' => fn ($q) => $q->latest('polled_at')->limit(1),
-            'recipes.craftedItemSilver.priceSnapshots' => fn ($q) => $q->latest('polled_at')->limit(1),
-            'recipes.craftedItemGold.priceSnapshots' => fn ($q) => $q->latest('polled_at')->limit(1),
+            'recipes.reagents.catalogItem.latestPriceSnapshot',
+            'recipes.craftedItemSilver.latestPriceSnapshot',
+            'recipes.craftedItemGold.latestPriceSnapshot',
         ]);
 
         $action = new RecipeProfitAction();
@@ -34,14 +34,14 @@ new #[Layout('layouts.app')] class extends Component
 
             // Track oldest polled_at for staleness banner
             foreach ($recipe->reagents as $reagent) {
-                $polledAt = $reagent->catalogItem?->priceSnapshots->first()?->polled_at;
+                $polledAt = $reagent->catalogItem?->latestPriceSnapshot?->polled_at;
                 if ($polledAt && ($oldestPolledAt === null || $polledAt->lt($oldestPolledAt))) {
                     $oldestPolledAt = $polledAt;
                 }
             }
 
             foreach (['craftedItemSilver', 'craftedItemGold'] as $rel) {
-                $polledAt = $recipe->$rel?->priceSnapshots->first()?->polled_at;
+                $polledAt = $recipe->$rel?->latestPriceSnapshot?->polled_at;
                 if ($polledAt && ($oldestPolledAt === null || $polledAt->lt($oldestPolledAt))) {
                     $oldestPolledAt = $polledAt;
                 }
@@ -51,9 +51,9 @@ new #[Layout('layouts.app')] class extends Component
             $reagents = $recipe->reagents->map(fn ($r) => [
                 'name' => $r->catalogItem?->display_name ?? 'Unknown',
                 'quantity' => $r->quantity,
-                'unit_price' => $r->catalogItem?->priceSnapshots->first()?->median_price,
-                'subtotal' => $r->catalogItem?->priceSnapshots->first()
-                    ? $r->quantity * $r->catalogItem->priceSnapshots->first()->median_price
+                'unit_price' => $r->catalogItem?->latestPriceSnapshot?->median_price,
+                'subtotal' => $r->catalogItem?->latestPriceSnapshot
+                    ? $r->quantity * $r->catalogItem->latestPriceSnapshot->median_price
                     : null,
             ])->all();
 
